@@ -1,0 +1,34 @@
+
+<section class="page-header">
+  <div>
+    <h1>My Issues</h1>
+    <p class="muted">Only tickets visible to customers are shown here.</p>
+  </div>
+  <div class="header-actions wrap-actions"><a class="button-link" href="<%= basePath %>/client/issues/new">Raise Issue</a></div>
+</section>
+<form method="get" action="<%= basePath %>/client/issues" class="card filters-form stack">
+  <div class="grid-auto-fit">
+    <label><span>Search</span><input type="text" name="q" value="<%= filters.q %>" placeholder="Issue number or title" /></label>
+    <label><span>Status</span><select name="status"><option value="">All</option><option value="OPEN_ONLY" <%= filters.status === 'OPEN_ONLY' ? 'selected' : '' %>>Open only</option><option value="WAITING_FOR_CLIENT" <%= filters.status === 'WAITING_FOR_CLIENT' ? 'selected' : '' %>>Waiting for me</option><option value="RESOLVED" <%= filters.status === 'RESOLVED' ? 'selected' : '' %>>Resolved</option><option value="CLOSED" <%= filters.status === 'CLOSED' ? 'selected' : '' %>>Closed</option></select></label>
+    <label><span>Entity</span><select name="entityId"><option value="">All entities</option><% entities.forEach((entity) => { %><option value="<%= entity._id %>" <%= filters.entityId === String(entity._id) ? 'selected' : '' %>><%= entity.path %></option><% }) %></select></label>
+  </div>
+  <div class="form-actions right wrap-actions"><a class="button-link secondary" href="<%= basePath %>/client/issues">Reset</a><button type="submit">Apply</button></div>
+</form>
+<section class="card">
+  <% if (!issues.length) { %><p class="muted">No issues found.</p><% } else { %>
+  <div class="table-wrap"><table><thead><tr><th>Issue</th><th>Title</th><th>Entity</th><th>Status</th><th>Priority</th><th>Updated</th><th></th></tr></thead><tbody>
+    <% issues.forEach((issue) => { %>
+      <tr>
+        <td><strong><%= issue.issueNumber %></strong></td>
+        <td><%= issue.title %></td>
+        <td><%= issue.entityId ? issue.entityId.path || issue.entityId.name : '-' %></td>
+        <td><span class="pill <%= issue.status === 'WAITING_FOR_CLIENT' ? 'warning-soft' : 'brand-soft' %>"><%= issue.customerStatusLabel %></span></td>
+        <td><%= issue.priority %></td>
+        <td><%= issue.updatedAt ? new Date(issue.updatedAt).toLocaleString() : '-' %></td>
+        <td><a href="<%= basePath %>/client/issues/<%= issue._id %>">Open</a></td>
+      </tr>
+    <% }) %>
+  </tbody></table></div>
+  <%- include('../partials/pagination', { pager, baseUrl: `${basePath}/client/issues`, filters, buildQueryString }) %>
+  <% } %>
+</section>

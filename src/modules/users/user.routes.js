@@ -1,0 +1,13 @@
+const router = require('express').Router({ mergeParams: true });
+const { listUsers, showCreateUser, createUser, exportUsersExcel, showUserDetail, updateUser, showChangePassword, changeMyPassword } = require('./user.controller');
+const { requireRole } = require('../../middleware/auth');
+router.get('/account/change-password', showChangePassword);
+router.post('/account/change-password', changeMyPassword);
+router.get('/', listUsers);
+router.get('/export', exportUsersExcel);
+router.get('/new', showCreateUser);
+router.post('/', createUser);
+router.get('/:id', requireRole(['superadmin']), showUserDetail);
+router.post('/:id/edit', requireRole(['superadmin']), updateUser);
+router.put('/:id', requireRole(['superadmin']), updateUser);
+module.exports = router;

@@ -1,0 +1,164 @@
+<%
+  const totalEntities = groupedEntities.reduce((count, group) => count + 1 + group.children.length, 0);
+  const activeEntities = groupedEntities.reduce((count, group) => count + (group.client.isActive ? 1 : 0) + group.children.filter((item) => item.isActive).length, 0);
+  const inactiveEntities = totalEntities - activeEntities;
+  const subclientCount = groupedEntities.reduce((count, group) => count + group.children.length, 0);
+%>
+
+<section class="page-header">
+  <div>
+    <h1>Entities</h1>
+    <p class="muted">Manage client and subclient structure with a cleaner, product-style directory view.</p>
+  </div>
+  <div class="header-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/entities/export<%= buildQueryString(filters) %>">Download Excel</a>
+    <a class="button-link" href="<%= basePath %>/entities/new"><%= currentUser.role === 'client' ? '+ Entity' : '+ Entity' %></a>
+  </div>
+</section>
+
+<section class="entity-overview-grid">
+  <article class="stat-card entity-stat-card">
+    <span class="summary-label">Total</span>
+    <p class="big-number"><%= totalEntities %></p>
+    <p class="muted body-copy">All visible entities in your current scope.</p>
+  </article>
+  <article class="stat-card entity-stat-card">
+    <span class="summary-label">Active</span>
+    <p class="big-number"><%= activeEntities %></p>
+    <p class="muted body-copy">Entities currently allowed to operate.</p>
+  </article>
+  <article class="stat-card entity-stat-card">
+    <span class="summary-label">Inactive</span>
+    <p class="big-number"><%= inactiveEntities %></p>
+    <p class="muted body-copy">Entities paused or intentionally disabled.</p>
+  </article>
+  <article class="stat-card entity-stat-card">
+    <span class="summary-label">Subclients</span>
+    <p class="big-number"><%= subclientCount %></p>
+    <p class="muted body-copy">Nested client accounts under parent clients.</p>
+  </article>
+</section>
+
+<form method="get" action="<%= basePath %>/entities" class="card filters-form entity-filter-panel stack">
+  <div class="page-header" style="margin-bottom:0">
+    <div>
+      <div class="section-kicker">Filter directory</div>
+      <h2 style="margin-bottom:6px">Search entities</h2>
+      <p class="muted">Search by client name, path, region, or product.</p>
+    </div>
+  </div>
+  <div class="grid-two">
+    <label>
+      <span>Search</span>
+      <input type="text" name="q" value="<%= filters.q %>" placeholder="Client, path, region, product" />
+    </label>
+    <label>
+      <span>Type</span>
+      <select name="type">
+        <option value="">All types</option>
+        <option value="client" <%= filters.type === 'client' ? 'selected' : '' %>>Client</option>
+        <option value="subclient" <%= filters.type === 'subclient' ? 'selected' : '' %>>Subclient</option>
+      </select>
+    </label>
+  </div>
+  <div class="form-actions right wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/entities">Reset</a>
+    <button type="submit">Apply Filters</button>
+  </div>
+</form>
+
+<section class="entity-directory stack">
+  <% if (!groupedEntities.length) { %>
+    <section class="card">
+      <p class="muted">No entities available in your current scope.</p>
+    </section>
+  <% } else { %>
+    <% groupedEntities.forEach(({ client, children }) => { %>
+      <article class="card entity-directory-card">
+        <div class="entity-directory-head">
+          <div>
+            <div class="entity-title-row">
+              <h2><a href="<%= basePath %>/entities/<%= client._id %>"><%= client.name %></a></h2>
+              <span class="pill <%= client.isActive ? 'success-soft' : 'subtle' %>"><%= client.isActive ? 'Active' : 'Inactive' %></span>
+              <span class="pill brand-soft"><%= client.type %></span>
+            </div>
+            <p class="muted body-copy"><%= client.path %></p>
+          </div>
+          <div class="entity-directory-actions">
+            <a href="<%= basePath %>/entities/<%= client._id %>">View</a>
+            <a href="<%= basePath %>/entities/<%= client._id %>/users">Users</a>
+            <% if (currentUser.role === 'superadmin') { %>
+              <a href="<%= basePath %>/entities/<%= client._id %>/edit">Edit</a>
+              <form method="post" action="<%= basePath %>/entities/<%= client._id %>/status" style="display:inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="hidden" name="isActive" value="<%= client.isActive ? 'false' : 'true' %>" />
+                <button type="submit" class="link-button"><%= client.isActive ? 'Deactivate' : 'Activate' %></button>
+              </form>
+            <% } %>
+            <a class="mini-add" href="<%= basePath %>/entities/new?parentId=<%= client._id %>&type=subclient" title="Add subclient">+</a>
+          </div>
+        </div>
+
+        <div class="entity-meta-grid">
+          <div class="entity-meta-chip">
+            <span class="summary-label">Region</span>
+            <strong><%= client.metadata?.region || '—' %></strong>
+          </div>
+          <div class="entity-meta-chip">
+            <span class="summary-label">Product</span>
+            <strong><%= client.metadata?.product || '—' %></strong>
+          </div>
+          <div class="entity-meta-chip">
+            <span class="summary-label">Children</span>
+            <strong><%= children.length %></strong>
+          </div>
+          <div class="entity-meta-chip">
+            <span class="summary-label">Jira mode</span>
+            <strong><%= client.jiraConfig?.isEnabled ? (client.jiraConfig.projectKey || 'Enabled') : 'Disabled' %></strong>
+          </div>
+        </div>
+
+        <% if (children.length) { %>
+          <div class="entity-subclient-list">
+            <% children.forEach((entity) => { %>
+              <div class="entity-subclient-card">
+                <div>
+                  <div class="entity-subclient-title">
+                    <strong><a href="<%= basePath %>/entities/<%= entity._id %>"><%= entity.name %></a></strong>
+                    <span class="pill <%= entity.isActive ? 'success-soft' : 'subtle' %>"><%= entity.isActive ? 'Active' : 'Inactive' %></span>
+                  </div>
+                  <div class="muted small"><%= entity.path %></div>
+                </div>
+                <div class="entity-subclient-meta">
+                  <span class="pill subtle"><%= entity.type %></span>
+                  <% if (entity.metadata?.region) { %><span class="pill brand-soft"><%= entity.metadata.region %></span><% } %>
+                  <% if (entity.metadata?.product) { %><span class="pill warning-soft"><%= entity.metadata.product %></span><% } %>
+                </div>
+                <div class="entity-directory-actions compact">
+                  <a href="<%= basePath %>/entities/<%= entity._id %>">View</a>
+                  <a href="<%= basePath %>/entities/<%= entity._id %>/users">Users</a>
+                  <% if (currentUser.role === 'superadmin') { %>
+                    <a href="<%= basePath %>/entities/<%= entity._id %>/edit">Edit</a>
+                    <form method="post" action="<%= basePath %>/entities/<%= entity._id %>/status" style="display:inline">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <input type="hidden" name="isActive" value="<%= entity.isActive ? 'false' : 'true' %>" />
+                      <button type="submit" class="link-button"><%= entity.isActive ? 'Deactivate' : 'Activate' %></button>
+                    </form>
+                    <form method="post" action="<%= basePath %>/entities/<%= entity._id %>" style="display:inline" onsubmit="return confirm('Delete this entity? This will work only if no child entities remain.');">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <input type="hidden" name="_method" value="DELETE" />
+                      <button type="submit" class="link-button danger-link">Delete</button>
+                    </form>
+                  <% } %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="entity-empty-row muted">No subclients yet. Add one from the + button on this card.</div>
+        <% } %>
+      </article>
+    <% }) %>
+    <%- include('../partials/pagination', { pager, baseUrl: `${basePath}/entities`, filters, buildQueryString }) %>
+  <% } %>
+</section>

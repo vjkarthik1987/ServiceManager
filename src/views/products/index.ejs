@@ -1,0 +1,6 @@
+<section class='page-header'><div><h1>Products</h1><p class='muted'>Superadmin product master for entity tagging and routing context.</p></div><a class='button-link' href='<%= basePath %>/admin/products/new'>+ Product</a></section>
+<section class='card'>
+<% if (!items.length) { %><p class='muted'>No products configured yet.</p><% } else { %>
+<div class='table-wrap'><table><thead><tr><th>Code</th><th>Name</th><th>Description</th><th>Status</th></tr></thead><tbody>
+<% items.forEach((item)=>{ %><tr><td><strong><%= item.code %></strong></td><td><%= item.name %></td><td><%= item.description || '-' %></td><td><span class='pill <%= item.isActive ? 'brand-soft' : 'subtle' %>'><%= item.isActive ? 'ACTIVE' : 'INACTIVE' %></span></td></tr><% }) %>
+</tbody></table></div><% } %></section>

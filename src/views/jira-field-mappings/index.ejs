@@ -1,0 +1,42 @@
+<section class="page-header">
+  <div>
+    <h1>Jira Field Mapping</h1>
+    <p class="muted">Configure defaults and smart value mapping for Jira fields per project, work type, and optionally per entity.</p>
+  </div>
+  <div class="header-actions">
+    <a class="button-link" href="<%= basePath %>/admin/jira-field-mappings/new">New Mapping</a>
+  </div>
+</section>
+
+<div class="card stack form-card">
+  <% if (!items.length) { %>
+    <div class="muted">No mappings yet. Add a mapping to auto-fill Jira fields from issue, entity, reporter, or static values.</div>
+  <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Project / Work Type</th>
+            <th>Field</th>
+            <th>Source</th>
+            <th>Mode</th>
+            <th>Transform</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% items.forEach((item) => { %>
+            <tr>
+              <td><%= item.entityId ? item.entityId : 'GLOBAL' %></td>
+              <td><strong><%= item.projectKey %></strong><div class="muted small"><%= item.issueTypeName || item.issueTypeId %></div></td>
+              <td><strong><%= item.fieldName || item.fieldId %></strong><div class="muted small"><%= item.fieldId %></div></td>
+              <td><strong><%= item.sourceType %></strong><div class="muted small"><%= item.sourcePath || item.staticValue || '-' %></div></td>
+              <td><%= item.applyMode %></td>
+              <td><%= item.transform %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

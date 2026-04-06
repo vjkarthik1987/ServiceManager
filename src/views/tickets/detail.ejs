@@ -1,0 +1,483 @@
+<%
+  function formatDate(value) {
+    return value ? new Date(value).toLocaleString() : '-';
+  }
+  function formatSize(size) {
+    const bytes = Number(size || 0);
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${bytes} B`;
+  }
+  function humanStatus(status) {
+    const mapping = {
+      NEW: 'Submitted',
+      OPEN: 'Open',
+      IN_PROGRESS: 'In Progress',
+      WAITING_FOR_CLIENT: 'Waiting for Client',
+      RESOLVED: 'Resolved',
+      READY_TO_CLOSE: 'Closed for Review',
+      CLOSED: 'Closed'
+    };
+    return mapping[status] || status;
+  }
+  function statusHint(issue) {
+    if (issue.status === 'READY_TO_CLOSE') return 'Jira is done. ESOP is waiting for agent verification and closure.';
+    if (issue.status === 'WAITING_FOR_CLIENT') return 'Customer action is needed before work can continue.';
+    if (issue.status === 'IN_PROGRESS') return 'Work is actively in progress.';
+    if (issue.status === 'RESOLVED') return 'A resolution has been applied and is awaiting final confirmation.';
+    if (issue.status === 'CLOSED') return 'This issue is fully closed.';
+    return 'This issue is open and being tracked in ESOP.';
+  }
+%>
+<% const uploadLimitSummary = uploadLimits.sizeSummary.slice(0, 6).map((item) => `${item.extension} ${item.maxSizeMb}MB`).join(' · '); %>
+<section class="hero">
+  <div>
+    <div class="section-kicker">Issue Detail</div>
+    <h1><%= issue.issueNumber %> — <%= issue.title %></h1>
+    <p class="muted">Secure attachments, cleaner triage alignment, and a more readable issue workspace.</p>
+  </div>
+  <div class="hero-actions">
+    <a class="button-link secondary" href="<%= basePath %>/tickets">Back to Issues</a>
+  </div>
+</section>
+
+<section class="card sticky-issue-action-bar issue-status-hero">
+  <div class="inline-actions spread-actions wrap-actions">
+    <div class="stack" style="gap:10px;">
+      <div class="inline-actions wrap-actions">
+        <span class="badge status-<%= issue.status.toLowerCase() %> issue-status-badge-large"><%= humanStatus(issue.status) %></span>
+        <span class="pill subtle"><%= issue.priority %></span>
+        <span class="pill execution-mode-pill"><%= issue.executionMode %></span>
+        <span class="pill execution-state-pill"><%= issue.executionState %></span>
+        <span class="pill <%= issue.jira.pushStatus === 'PUSHED' ? 'brand-soft' : (issue.jira.pushStatus === 'FAILED' ? 'warning-soft' : 'subtle') %>"><%= issue.jira.issueKey || issue.jira.pushStatus %></span>
+        <% if (issue.jira && issue.jira.currentStatusName) { %>
+          <span class="pill brand-soft">Jira: <%= issue.jira.currentStatusName %></span>
+        <% } %>
+        <span class="pill <%= issue.sla && (issue.sla.responseStatus === 'BREACHED' || issue.sla.resolutionStatus === 'BREACHED') ? 'danger-soft' : (issue.sla && (issue.sla.responseStatus === 'AT_RISK' || issue.sla.resolutionStatus === 'AT_RISK') ? 'warning-soft' : 'brand-soft') %>"><%= issue.sla && issue.sla.hasPolicy ? (issue.sla.responseStatus === 'BREACHED' || issue.sla.resolutionStatus === 'BREACHED' ? 'BREACHED SLA' : (issue.sla.responseStatus === 'AT_RISK' || issue.sla.resolutionStatus === 'AT_RISK' ? 'AT RISK SLA' : 'SLA ON TRACK')) : 'NO SLA' %></span>
+      </div>
+      <p class="muted" style="margin:0;"><%= statusHint(issue) %></p>
+    </div>
+    <div class="inline-actions wrap-actions">
+      <a class="button-link secondary" href="#discussion">Comments</a>
+      <a class="button-link secondary" href="#activity">Activity</a>
+      <a class="button-link" href="<%= basePath %>/agent/workspace?selectedIssueId=<%= issue.id || issue._id %>">Open in Workspace</a>
+    </div>
+  </div>
+</section>
+
+<section class="detail-grid v10-detail-grid">
+  <article class="card stack section-card issue-summary-card">
+    <div class="issue-summary-top">
+      <div>
+        <div class="section-kicker">Issue Summary</div>
+        <h2 class="issue-summary-title"><%= issue.issueNumber %></h2>
+        <p class="muted issue-summary-subtitle"><%= issue.title %></p>
+      </div>
+      <div class="inline-actions issue-summary-badges">
+        <span class="badge status-<%= issue.status.toLowerCase() %>"><%= humanStatus(issue.status) %></span>
+        <span class="pill subtle"><%= issue.priority %></span>
+        <span class="pill brand-soft"><%= issue.source %></span>
+        <span class="pill execution-mode-pill"><%= issue.executionMode %></span>
+        <span class="pill execution-state-pill"><%= issue.executionState %></span>
+      </div>
+    </div>
+
+    <div class="summary-details-grid">
+      <div class="summary-detail-item"><span class="summary-label">Entity</span><strong><%= issue.entityPath || issue.entityName || '-' %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Category</span><strong><%= issue.category %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Reported by</span><strong><%= issue.createdByName || '-' %> (<%= issue.reporterType %>)</strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Assigned to</span><strong><%= issue.assignedToName || (issue.assignedToUserId && issue.assignedToUserId.name) || 'Unassigned' %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Triage state</span><strong><%= issue.triageStatus || 'NOT_TRIAGED' %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Triaged by</span><strong><%= issue.triagedByName || (issue.triagedByUserId && issue.triagedByUserId.name) || '-' %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Triaged at</span><strong><%= formatDate(issue.triagedAt) %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Execution Mode</span><strong><%= issue.executionMode %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Execution State</span><strong><%= issue.executionState %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Current Jira Status</span><strong><%= issue.jira && issue.jira.currentStatusName ? issue.jira.currentStatusName : (issue.jira && issue.jira.issueKey ? 'Awaiting first Jira sync' : 'Not in Jira') %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Jira Status Category</span><strong><%= issue.jira && issue.jira.currentStatusCategory ? issue.jira.currentStatusCategory : '-' %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Jira Status Synced At</span><strong><%= formatDate(issue.jira && issue.jira.statusLastSyncedAt) %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Created</span><strong><%= formatDate(issue.createdAt) %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Updated</span><strong><%= formatDate(issue.updatedAt) %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">SLA Policy</span><strong><%= issue.sla && issue.sla.hasPolicy ? issue.sla.policyName : 'No SLA policy' %></strong></div>
+    </div>
+
+    <div class="summary-description-block">
+      <h3>Description</h3>
+      <div class="summary-description-panel">
+        <p class="body-copy"><%= issue.description %></p>
+      </div>
+    </div>
+
+    <% if (issue.tags && issue.tags.length) { %>
+      <div class="tag-row">
+        <% issue.tags.forEach((tag) => { %>
+          <span class="pill brand-soft"><%= tag %></span>
+        <% }) %>
+      </div>
+    <% } %>
+  </article>
+
+  <aside class="stack">
+
+    <section class="card stack section-card">
+      <div class="section-title-row">
+        <h2>SLA</h2>
+        <% if (issue.sla && issue.sla.hasPolicy) { %>
+          <span class="pill brand-soft"><%= issue.sla.policyName %></span>
+        <% } else { %>
+          <span class="pill subtle">NO_SLA</span>
+        <% } %>
+      </div>
+      <% if (!(issue.sla && issue.sla.hasPolicy)) { %>
+        <p class="muted">No SLA policy matched this issue yet.</p>
+      <% } else { %>
+        <div class="summary-details-grid">
+          <div class="summary-detail-item"><span class="summary-label">First response</span><strong><%= issue.sla.responseTargetMinutes %> min</strong></div>
+          <div class="summary-detail-item"><span class="summary-label">Response status</span><strong><span class="pill <%= issue.sla.responseStatus === 'BREACHED' ? 'danger-soft' : (issue.sla.responseStatus === 'AT_RISK' ? 'warning-soft' : 'brand-soft') %>"><%= issue.sla.responseStatus %></span></strong></div>
+          <div class="summary-detail-item"><span class="summary-label">Response due</span><strong><%= formatDate(issue.sla.responseDueAt) %></strong></div>
+          <div class="summary-detail-item"><span class="summary-label">First responded</span><strong><%= formatDate(issue.sla.firstRespondedAt) %></strong></div>
+          <div class="summary-detail-item"><span class="summary-label">Resolution target</span><strong><%= issue.sla.resolutionTargetMinutes %> min</strong></div>
+          <div class="summary-detail-item"><span class="summary-label">Resolution status</span><strong><span class="pill <%= issue.sla.resolutionStatus === 'BREACHED' ? 'danger-soft' : (issue.sla.resolutionStatus === 'AT_RISK' ? 'warning-soft' : 'brand-soft') %>"><%= issue.sla.resolutionStatus %></span></strong></div>
+          <div class="summary-detail-item"><span class="summary-label">Resolution due</span><strong><%= formatDate(issue.sla.resolutionDueAt) %></strong></div>
+          <div class="summary-detail-item"><span class="summary-label">Resolved at</span><strong><%= formatDate(issue.sla.resolvedAt) %></strong></div>
+        </div>
+      <% } %>
+    </section>
+    <% if (canChangeStatus) { %>
+      <section class="card stack section-card">
+        <div class="section-title-row">
+          <h2>Status</h2>
+          <% if (allowedStatusTransitions.includes('OPEN') && ['RESOLVED', 'CLOSED'].includes(issue.status)) { %>
+            <span class="pill warning-soft">Reopen available</span>
+          <% } %>
+        </div>
+        <% if (!allowedStatusTransitions.length) { %>
+          <p class="muted">No valid status transitions are available from <strong><%= issue.status %></strong> for your role right now.</p>
+        <% } else { %>
+          <form method="post" action="<%= basePath %>/tickets/<%= issue.id || issue._id %>/status" class="stack">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <label>
+              <span>Next status</span>
+              <select name="status" required>
+                <% allowedStatusTransitions.forEach((status) => { %>
+                  <option value="<%= status %>"><%= status %></option>
+                <% }) %>
+              </select>
+            </label>
+            <div class="form-actions right">
+              <button type="submit">Update Status</button>
+            </div>
+          </form>
+        <% } %>
+      </section>
+    <% } %>
+
+    <% if (canChangeExecutionMode) { %>
+      <section class="card stack section-card">
+        <div class="section-title-row">
+          <h2>Execution</h2>
+          <div class="inline-actions">
+            <span class="pill execution-mode-pill"><%= issue.executionMode %></span>
+            <span class="pill execution-state-pill"><%= issue.executionState %></span>
+          </div>
+        </div>
+        <form method="post" action="<%= basePath %>/tickets/<%= issue.id || issue._id %>/execution" class="stack">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <label>
+            <span>Execution mode</span>
+            <select name="executionMode" required>
+              <% executionModes.forEach((mode) => { %>
+                <option value="<%= mode %>" <%= issue.executionMode === mode ? 'selected' : '' %>><%= mode %></option>
+              <% }) %>
+            </select>
+          </label>
+          <p class="muted small">Execution state is system-managed for now and stays future-ready for v13+ Jira push flows.</p>
+          <div class="form-actions right">
+            <button type="submit">Update Execution</button>
+          </div>
+        </form>
+      </section>
+    <% } %>
+
+
+    <% if (canChangeExecutionMode) { const jiraValidationPassed = jiraConnection && jiraConnection.lastValidationStatus === 'SUCCESS'; const jiraBrowseUrl = issue.jira.issueUrl || (jiraConnection && jiraConnection.baseUrl && issue.jira.issueKey ? `${String(jiraConnection.baseUrl).replace(/\/+$/, '')}/browse/${issue.jira.issueKey}` : ''); %>
+      <section class="card stack section-card">
+        <div class="section-title-row">
+          <h2>Jira execution bridge</h2>
+          <span class="pill <%= issue.jira.pushStatus === 'PUSHED' ? 'brand-soft' : (issue.jira.pushStatus === 'FAILED' ? 'warning-soft' : 'subtle') %>"><%= issue.jira.pushStatus %></span>
+        </div>
+        <div class="stack">
+          <div class="summary-detail-item"><span class="summary-label">Resolved Project Key</span><strong><%= issue.jira.projectKey || issue.jiraDraft.projectKey || '-' %></strong></div>
+          <div class="summary-detail-item"><span class="summary-label">Resolved Work Type</span><strong><%= issue.jiraDraft.issueTypeName || '-' %></strong></div>
+          <div class="summary-detail-item"><span class="summary-label">Jira Issue</span><strong><%= issue.jira.issueKey || '-' %></strong></div>
+          <% if (issue.jira.pushedAt) { %><div class="summary-detail-item"><span class="summary-label">Pushed At</span><strong><%= formatDate(issue.jira.pushedAt) %></strong></div><% } %>
+          <div class="inline-actions wrap-actions">
+            <% if (jiraBrowseUrl) { %><a class="button-link secondary" href="<%= jiraBrowseUrl %>" target="_blank" rel="noreferrer">Open in Jira</a><% } %>
+            <% if (issue.jira && issue.jira.issueKey) { %>
+              <form method="post" action="<%= basePath %>/tickets/<%= issue.id || issue._id %>/sync-from-jira" style="display:inline-flex;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button type="submit" class="secondary">Refresh Jira Status</button>
+              </form>
+            <% } %>
+          </div>
+          <div class="summary-detail-item"><span class="summary-label">Jira Validation</span><strong><%= jiraConnection ? jiraConnection.lastValidationStatus : 'NOT_CONFIGURED' %></strong></div>
+          <% if (jiraConnection && jiraConnection.lastValidatedAt) { %><div class="summary-detail-item"><span class="summary-label">Validated At</span><strong><%= formatDate(jiraConnection.lastValidatedAt) %></strong></div><% } %>
+          <% if (issue.jira.pushErrorMessage) { %><p class="muted small"><strong>Last push error:</strong> <%= issue.jira.pushErrorMessage %></p><% } %>
+          <% if (issue.jira.pushStatus !== 'PUSHED') { %>
+            <form method="post" action="<%= basePath %>/tickets/<%= issue.id || issue._id %>/push-to-jira" class="stack">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+              <input type="hidden" name="projectKey" value="PTP" />
+              <input type="hidden" name="issueTypeName" value="Bug" />
+              <div class="summary-detail-item"><span class="summary-label">Intake Jira Project</span><strong>PTP (Product Test Project)</strong></div>
+              <div class="summary-detail-item"><span class="summary-label">Work Type</span><strong>Bug</strong></div>
+              <p class="muted small">This version uses the tenant Jira intake configuration. ESOP sends each issue into the configured intake project and work type using only stable create fields, then can push issue attachments after the Jira issue is created.</p>
+              <% if (!jiraValidationPassed) { %><p class="muted small"><strong>Push blocked:</strong> Validate Jira configuration successfully before pushing this issue.</p><% } %>
+              <div class="form-actions right">
+                <button type="submit" <%= jiraValidationPassed ? '' : 'disabled' %>>Push to Jira</button>
+              </div>
+            </form>
+          <% } else { %>
+            <p class="muted small">This issue has already been linked to Jira. Duplicate push is blocked to preserve one clean linkage.</p>
+          <% } %>
+        </div>
+      </section>
+    <% } %>
+
+
+<% if (jiraLink && jiraLink.events && jiraLink.events.length) { %>
+  <div class="summary-description-block">
+    <h3>Jira Sync History</h3>
+    <div class="stack">
+      <% jiraLink.events.slice().reverse().forEach((event) => { %>
+        <div class="comment-card">
+          <div class="comment-meta-row">
+            <strong><%= event.type %></strong>
+            <span class="pill <%= event.status === 'FAILED' ? 'warning-soft' : (event.status === 'QUEUED' ? 'subtle' : 'brand-soft') %>"><%= event.status %></span>
+          </div>
+          <p class="muted small"><%= event.detail || '-' %></p>
+          <p class="muted small"><%= formatDate(event.createdAt) %></p>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+<% } %>
+
+    <% if (canTriageIssue) { %>
+      <section class="card stack section-card">
+        <div class="section-title-row">
+          <h2>Triage</h2>
+          <span class="pill brand-soft"><%= issue.triageStatus || 'NOT_TRIAGED' %></span>
+        </div>
+        <form method="post" action="<%= basePath %>/tickets/<%= issue.id || issue._id %>/triage" class="stack triage-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <div class="grid-two">
+            <label>
+              <span>Category</span>
+              <input type="text" name="category" value="<%= issue.category %>" required />
+            </label>
+            <label>
+              <span>Priority</span>
+              <select name="priority" required>
+                <% priorities.forEach((priority) => { %>
+                  <option value="<%= priority %>" <%= issue.priority === priority ? 'selected' : '' %>><%= priority %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>
+              <span>Assign to agent</span>
+              <select name="assignedToUserId">
+                <option value="">Keep current assignment</option>
+                <% agents.forEach((agent) => { %>
+                  <option value="<%= agent._id %>" <%= issue.assignedToUserId && String(issue.assignedToUserId) === String(agent._id) ? 'selected' : '' %>><%= agent.name %> (<%= agent.email %>)</option>
+                <% }) %>
+              </select>
+            </label>
+            <label>
+              <span>Optional next status</span>
+              <select name="status">
+                <option value="">No status change</option>
+                <% allowedStatusTransitions.forEach((status) => { %>
+                  <option value="<%= status %>"><%= status %></option>
+                <% }) %>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>Triage notes</span>
+            <textarea name="triageNotes" placeholder="Summarise validation, impact, and routing decision..."><%= issue.triageNotes || '' %></textarea>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="markTriaged" value="true" <%= issue.triageStatus === 'TRIAGED' ? 'checked' : '' %> />
+            <span>Mark triage complete</span>
+          </label>
+          <div class="form-actions right">
+            <button type="submit">Save Triage</button>
+          </div>
+        </form>
+      </section>
+    <% } %>
+
+    <% if (canAssignIssue) { %>
+      <section class="card stack section-card">
+        <h2>Assignment</h2>
+        <form method="post" action="<%= basePath %>/tickets/<%= issue.id || issue._id %>/assign" class="stack">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <label>
+            <span>Assign to agent</span>
+            <select name="assignedToUserId" required>
+              <option value="">Select agent</option>
+              <% agents.forEach((agent) => { %>
+                <option value="<%= agent._id %>" <%= issue.assignedToUserId && String(issue.assignedToUserId) === String(agent._id) ? 'selected' : '' %>><%= agent.name %> (<%= agent.email %>)</option>
+              <% }) %>
+            </select>
+          </label>
+          <div class="form-actions right">
+            <button type="submit">Save Assignment</button>
+          </div>
+        </form>
+      </section>
+    <% } %>
+  </aside>
+</section>
+
+<section class="card stack section-card">
+  <div class="section-title-row">
+    <h2>Issue Attachments</h2>
+    <span class="muted small"><%= issue.attachments ? issue.attachments.length : 0 %> file(s)</span>
+  </div>
+  <% if (!issue.attachments || !issue.attachments.length) { %>
+    <p class="muted">No issue-level attachments yet.</p>
+  <% } else { %>
+    <div class="attachment-list">
+      <% issue.attachments.forEach((attachment) => { %>
+        <%- include('../partials/attachment-card', { attachment, compact: false, formatSize }) %>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class="card discussion-card section-card">
+  <div class="section-title-row">
+    <div>
+      <h2>Discussion</h2>
+      <p class="muted">Comments stay clean. History shows workflow and audit activity.</p>
+    </div>
+    <div class="tab-buttons" role="tablist" aria-label="Issue discussion tabs">
+      <button type="button" class="tab-button active" data-tab-trigger="comments" role="tab" aria-selected="true">Comments (<%= comments.length %>)</button>
+      <button type="button" class="tab-button" data-tab-trigger="history" role="tab" aria-selected="false">History (<%= historyItems.length %>)</button>
+    </div>
+  </div>
+
+  <div class="tab-panel active" data-tab-panel="comments" role="tabpanel">
+    <% if (commentForm.canComment) { %>
+      <form method="post" action="<%= basePath %>/tickets/<%= issue.id || issue._id %>/comments" enctype="multipart/form-data" class="stack comment-form-card">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <label>
+          <span>Add comment</span>
+          <textarea name="commentText" required placeholder="Write your update here..."></textarea>
+        </label>
+        <div class="grid-two">
+          <label>
+            <span>Visibility</span>
+            <% if (commentForm.canChooseVisibility) { %>
+              <select name="visibility">
+                <option value="EXTERNAL" <%= commentForm.defaultVisibility === 'EXTERNAL' ? 'selected' : '' %>>EXTERNAL</option>
+                <option value="INTERNAL">INTERNAL</option>
+              </select>
+            <% } else { %>
+              <input type="text" value="EXTERNAL" readonly />
+              <input type="hidden" name="visibility" value="EXTERNAL" />
+            <% } %>
+          </label>
+          <label>
+            <span>Attachments</span>
+            <input type="file" name="attachments" multiple accept="<%= uploadLimits.accept %>" data-file-preview-input="comment-files" />
+            <span class="muted small">Up to <%= uploadLimits.maxFileCount %> files. <%= uploadLimitSummary %><%= uploadLimits.sizeSummary.length > 6 ? " · more via config" : "" %></span>
+          </label>
+        </div>
+        <div class="selected-files" data-file-preview-list="comment-files" hidden></div>
+        <div class="form-actions right">
+          <button type="submit">Post Comment</button>
+        </div>
+      </form>
+    <% } %>
+
+    <% if (!comments.length) { %>
+      <p class="muted">No comments yet.</p>
+    <% } else { %>
+      <div class="timeline-list">
+        <% comments.forEach((item) => { %>
+          <div class="timeline-item comment-card">
+            <div class="timeline-meta-row">
+              <strong><%= item.authorName || 'Unknown user' %></strong>
+              <span class="muted small"><%= formatDate(item.createdAt) %></span>
+            </div>
+            <div class="timeline-badges">
+              <span class="pill subtle"><%= item.authorRole %></span>
+              <span class="pill <%= item.visibility === 'INTERNAL' ? 'danger-soft' : 'brand-soft' %>"><%= item.visibility %></span>
+            </div>
+            <p class="body-copy"><%= item.commentText %></p>
+            <% if (item.attachments && item.attachments.length) { %>
+              <div class="attachment-list attachment-list-inline">
+                <% item.attachments.forEach((attachment) => { %>
+                  <%- include('../partials/attachment-card', { attachment, compact: true, formatSize }) %>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="history" role="tabpanel" hidden>
+    <% if (!historyItems.length) { %>
+      <p class="muted">No history yet.</p>
+    <% } else { %>
+      <div class="timeline-list">
+        <% historyItems.forEach((item) => { %>
+          <div class="timeline-item history-card">
+            <div class="timeline-meta-row">
+              <strong><%= item.message %></strong>
+              <span class="muted small"><%= formatDate(item.createdAt) %></span>
+            </div>
+            <div class="timeline-badges">
+              <span class="pill subtle"><%= item.type %></span>
+              <span class="muted small">By <%= item.performedByName || 'Unknown' %></span>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+</section>
+
+<section class="card stack section-card">
+  <div class="section-title-row">
+    <div>
+      <h2>Audit trail</h2>
+      <p class="muted">Append-only trace for ticket and comment changes.</p>
+    </div>
+    <span class="pill brand-soft"><%= auditTrail ? auditTrail.length : 0 %> events</span>
+  </div>
+  <% if (!auditTrail || !auditTrail.length) { %>
+    <p class="muted">No audit events yet.</p>
+  <% } else { %>
+    <div class="timeline-list audit-list-inline">
+      <% auditTrail.forEach((item) => { %>
+        <div class="timeline-item audit-item">
+          <div class="timeline-meta-row">
+            <strong><%= item.action %></strong>
+            <span class="muted small"><%= formatDate(item.createdAt) %></span>
+          </div>
+          <div class="timeline-badges">
+            <span class="pill subtle"><%= item.actorUserId?.name || item.actorUserId?.email || 'System' %></span>
+            <span class="pill subtle"><%= item.entityType %></span>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class='card'><div class='page-header'><div><h2>Commitment events</h2><p class='muted'>Pause, resume, breach, and first-response history.</p></div></div><% if (!(issue.slaEvents || []).length) { %><p class='muted'>No commitment events yet.</p><% } else { %><div class='table-wrap'><table><thead><tr><th>Event</th><th>At</th><th>Details</th></tr></thead><tbody><% (issue.slaEvents || []).slice().reverse().forEach((event) => { %><tr><td><strong><%= event.eventType %></strong></td><td><%= event.at ? new Date(event.at).toLocaleString() : '-' %></td><td><%= event.reason || event.policyName || event.responseDueAt || event.resolutionDueAt || '-' %></td></tr><% }) %></tbody></table></div><% } %></section>

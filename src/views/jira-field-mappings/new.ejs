@@ -1,0 +1,134 @@
+<section class="page-header">
+  <div>
+    <h1>Create Jira Field Mapping</h1>
+    <p class="muted">Use this to auto-populate Jira fields. Example: map ESOP priority to Jira severity, or set product from entity metadata.</p>
+  </div>
+</section>
+
+<form method="post" action="<%= basePath %>/admin/jira-field-mappings" class="card stack narrow form-card">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+  <div class="grid-two">
+    <label>
+      <span>Scope</span>
+      <select name="entityId">
+        <option value="global" <%= defaults.entityId === 'global' ? 'selected' : '' %>>Global for this Jira project / work type</option>
+        <% entities.forEach((entity) => { %>
+          <option value="<%= entity._id %>" <%= String(defaults.entityId) === String(entity._id) ? 'selected' : '' %>><%= entity.path %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>
+      <span>Metadata snapshot</span>
+      <select id="metadataPreset">
+        <option value="">Select a synced Jira schema</option>
+        <% metadataRows.forEach((row) => { %>
+          <option value="<%= row.projectKey %>|<%= row.issueTypeId %>|<%= row.issueTypeName %>"><%= row.projectKey %> / <%= row.issueTypeName || row.issueTypeId %> (entity <%= row.entityId %>)</option>
+        <% }) %>
+      </select>
+    </label>
+  </div>
+
+  <div class="grid-two">
+    <label>
+      <span>Project Key</span>
+      <input type="text" name="projectKey" id="projectKey" value="<%= defaults.projectKey %>" required />
+    </label>
+    <label>
+      <span>Issue Type ID</span>
+      <input type="text" name="issueTypeId" id="issueTypeId" value="<%= defaults.issueTypeId %>" required />
+    </label>
+  </div>
+
+  <label>
+    <span>Issue Type Name</span>
+    <input type="text" name="issueTypeName" id="issueTypeName" value="<%= defaults.issueTypeName %>" />
+  </label>
+
+  <div class="grid-two">
+    <label>
+      <span>Jira Field ID</span>
+      <input type="text" name="fieldId" required placeholder="customfield_12345 or versions" />
+    </label>
+    <label>
+      <span>Friendly Field Name</span>
+      <input type="text" name="fieldName" placeholder="Severity, Product, Environment" />
+    </label>
+  </div>
+
+  <div class="grid-two">
+    <label>
+      <span>Source Type</span>
+      <select name="sourceType" id="sourceType">
+        <% enums.SOURCE_TYPES.forEach((item) => { %>
+          <option value="<%= item %>" <%= defaults.sourceType === item ? 'selected' : '' %>><%= item %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>
+      <span>Apply Mode</span>
+      <select name="applyMode">
+        <% enums.APPLY_MODES.forEach((item) => { %>
+          <option value="<%= item %>"><%= item %></option>
+        <% }) %>
+      </select>
+    </label>
+  </div>
+
+  <div class="grid-two">
+    <label>
+      <span>Source Path</span>
+      <input type="text" name="sourcePath" id="sourcePath" placeholder="priority, metadata.product, name, tenant.name" />
+      <span class="muted small">Used for ISSUE_FIELD, ENTITY_METADATA, REPORTER, CONTEXT.</span>
+    </label>
+    <label>
+      <span>Static Value</span>
+      <input type="text" name="staticValue" id="staticValue" placeholder="Production, Payments, Blocker" />
+      <span class="muted small">Used only for STATIC mappings.</span>
+    </label>
+  </div>
+
+  <div class="grid-two">
+    <label>
+      <span>Transform</span>
+      <select name="transform">
+        <% enums.TRANSFORMS.forEach((item) => { %>
+          <option value="<%= item %>"><%= item %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>
+      <span>Sort Order</span>
+      <input type="number" name="sortOrder" value="<%= defaults.sortOrder %>" min="1" step="1" />
+    </label>
+  </div>
+
+  <label>
+    <span>Help Text</span>
+    <textarea name="helpText" placeholder="Explain why this mapping exists."></textarea>
+  </label>
+
+  <div class="alert success">
+    Useful source paths: <strong>priority</strong>, <strong>category</strong>, <strong>tags</strong>, <strong>metadata.product</strong>, <strong>metadata.region</strong>, <strong>reporter.name</strong>, <strong>tenant.name</strong>.
+  </div>
+
+  <div class="form-actions right"><button type="submit">Save Mapping</button></div>
+</form>
+
+<script>
+  (function () {
+    const preset = document.getElementById('metadataPreset');
+    const projectKey = document.getElementById('projectKey');
+    const issueTypeId = document.getElementById('issueTypeId');
+    const issueTypeName = document.getElementById('issueTypeName');
+    if (!preset) return;
+    preset.addEventListener('change', function () {
+      const value = String(preset.value || '');
+      if (!value) return;
+      const parts = value.split('|');
+      projectKey.value = parts[0] || '';
+      issueTypeId.value = parts[1] || '';
+      issueTypeName.value = parts[2] || '';
+    });
+  })();
+</script>

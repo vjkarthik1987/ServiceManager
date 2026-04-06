@@ -1,0 +1,65 @@
+<section class="page-header">
+  <div>
+    <h1>Notification Center</h1>
+    <p class="muted">See what needs your attention, then tune delivery from preferences.</p>
+  </div>
+  <div class="inline-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/admin/notification-preferences">Preferences</a>
+    <form method="post" action="<%= basePath %>/admin/notifications/mark-all-read" class="inline-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button type="submit">Mark all read</button>
+    </form>
+  </div>
+</section>
+
+<section class="card stack section-card notification-summary-card">
+  <div class="summary-details-grid">
+    <div class="summary-detail-item"><span class="summary-label">In-app stream</span><strong><%= notifications.length %> shown</strong></div>
+    <div class="summary-detail-item"><span class="summary-label">Email</span><strong><%= preference.emailEnabled ? 'Enabled' : 'Disabled' %></strong></div>
+    <div class="summary-detail-item"><span class="summary-label">Digest</span><strong><%= preference.digestEnabled ? preference.digestFrequency : 'Off' %></strong></div>
+    <div class="summary-detail-item"><span class="summary-label">View</span><strong><%= state === 'unread' ? 'Unread only' : 'All notifications' %></strong></div>
+  </div>
+</section>
+
+<section class="card stack section-card">
+  <div class="inline-actions wrap-actions">
+    <a class="button-link <%= state === 'all' ? '' : 'secondary' %>" href="<%= basePath %>/admin/notifications">All</a>
+    <a class="button-link <%= state === 'unread' ? '' : 'secondary' %>" href="<%= basePath %>/admin/notifications?state=unread">Unread</a>
+  </div>
+
+  <% if (!notifications.length) { %>
+    <div class="entity-empty-row">No notifications yet.</div>
+  <% } else { %>
+    <div class="stack notification-list">
+      <% notifications.forEach((item) => { %>
+        <article class="notification-card <%= item.readAt ? 'is-read' : 'is-unread' %>">
+          <div class="section-title-row">
+            <div>
+              <div class="entity-title-row">
+                <h2><%= item.subject || item.type %></h2>
+                <span class="pill <%= item.readAt ? 'subtle' : 'brand-soft' %>"><%= item.readAt ? 'READ' : 'UNREAD' %></span>
+                <span class="pill subtle"><%= item.type %></span>
+              </div>
+              <p class="muted"><%= item.body || 'No message body.' %></p>
+            </div>
+            <div class="entity-directory-actions compact">
+              <% if (item.issueId) { %><a class="button-link secondary" href="<%= basePath %>/tickets/<%= item.issueId %>">Open issue</a><% } %>
+              <% if (!item.readAt) { %>
+                <form method="post" action="<%= basePath %>/admin/notifications/<%= item._id %>/read" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <input type="hidden" name="redirectTo" value="<%= currentPath %>" />
+                  <button type="submit">Mark read</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+          <div class="entity-subclient-meta">
+            <span class="pill subtle">Channel: <%= item.channel %></span>
+            <span class="pill subtle">Status: <%= item.status %></span>
+            <span class="pill subtle">Created: <%= new Date(item.createdAt).toLocaleString() %></span>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</section>

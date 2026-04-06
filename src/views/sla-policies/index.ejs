@@ -1,0 +1,32 @@
+<section class="hero gradient-quirky">
+  <div>
+    <div class="section-kicker">Service commitment engine</div>
+    <h1>Commitment Policies</h1>
+    <p>Hierarchical SLA, OLA, and custom commitments with blocker support, inheritance, and flexible timers.</p>
+  </div>
+  <div class="hero-actions"><a class="button-link" href="<%= basePath %>/admin/sla-policies/new">New Policy</a></div>
+</section>
+<section class="card stack">
+  <div class="page-header"><div><h2>Configured policies</h2><p class="muted">Ordered by active state, agreement type, and rank.</p></div></div>
+  <% if (!items.length) { %>
+    <p class="muted">No commitment policies configured yet.</p>
+  <% } else { %>
+    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Scope</th><th>Entity</th><th>Priority</th><th>Execution</th><th>Response</th><th>Resolution</th><th>Severity bands</th><th>Rank</th><th>Status</th></tr></thead><tbody>
+      <% items.forEach((item) => { %>
+        <tr>
+          <td><strong><%= item.name %></strong><div class="muted small"><%= item.description || '' %></div></td>
+          <td><span class="pill brand-soft"><%= item.agreementType || 'SLA' %></span></td>
+          <td><%= item.scopeLevel || 'GLOBAL' %><div class="muted small"><%= item.scopeBehavior || 'DIRECT' %></div></td>
+          <td><%= item.entityId ? (item.entityId.path || item.entityId.name) : 'Global tenant default' %></td>
+          <td><%= item.priority %></td>
+          <td><%= item.executionMode %></td>
+          <td><%= item.responseTargetMinutes %> min</td>
+          <td><%= item.resolutionTargetMinutes %> min</td>
+          <td><%= (item.severityLevels || []).map((level) => level.severity).join(', ') || 'Default only' %></td>
+          <td><%= item.rank %></td>
+          <td><span class="pill <%= item.isActive ? 'brand-soft' : 'subtle' %>"><%= item.isActive ? 'ACTIVE' : 'INACTIVE' %></span></td>
+        </tr>
+      <% }) %>
+    </tbody></table></div>
+  <% } %>
+</section>

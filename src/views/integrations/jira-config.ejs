@@ -1,0 +1,79 @@
+
+<section class="page-header">
+  <div>
+    <div class="section-kicker">Admin integration</div>
+    <h1>Jira connection</h1>
+    <p class="muted">Configure Jira once at tenant level. ESOP remains the orchestration layer and Jira becomes the execution engine.</p>
+  </div>
+</section>
+
+<section class="grid two-column">
+  <article class="card">
+    <h2>Connection settings</h2>
+    <form id="jira-config-form" method="post" action="<%= basePath %>/admin/integrations/jira" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="_method" value="PUT" />
+      <label><span>Base URL</span><input type="url" name="baseUrl" required value="<%= item?.baseUrl || '' %>" placeholder="https://your-domain.atlassian.net" /></label>
+      <label><span>Jira email</span><input type="email" name="email" required value="<%= item?.email || '' %>" /></label>
+      <label><span>API token</span><input type="password" name="apiToken" required value="" placeholder="<%= item?.apiTokenMasked || 'Enter Jira API token' %>" /></label>
+      <label><span>Default project key</span><input type="text" name="projectKeyDefault" value="<%= item?.projectKeyDefault || '' %>" placeholder="INT" /></label>
+      <div class="grid-two">
+        <label><span>Default issue type id</span><input type="text" name="issueTypeIdDefault" value="<%= item?.issueTypeIdDefault || '' %>" placeholder="10001" /></label>
+        <label><span>Default issue type name</span><input type="text" name="issueTypeNameDefault" value="<%= item?.issueTypeNameDefault || '' %>" placeholder="Task" /></label>
+      </div>
+      <label><span>Webhook secret</span><input type="password" name="webhookSecret" value="" placeholder="<%= item?.webhookSecretMasked || 'Optional shared secret' %>" /></label>
+      <input type="hidden" name="isActive" value="false" />
+      <label class="checkbox-row"><input type="checkbox" name="isActive" value="true" <%= item?.isActive !== false ? 'checked' : '' %> /> <span>Active configuration</span></label>
+      <div class="inline-actions">
+        <button type="submit">Save configuration</button>
+      </div>
+    </form>
+  </article>
+
+  <article class="card">
+    <h2>Validation</h2>
+    <div class="stack">
+      <div class="stat-card">
+        <span class="muted small">Last status</span>
+        <strong><%= item?.lastValidationStatus || 'NEVER_VALIDATED' %></strong>
+        <span class="muted small"><%= item?.lastValidationMessage || 'No validation run yet.' %></span>
+      </div>
+      <div class="muted small">Last validated at: <%= item?.lastValidatedAt ? new Date(item.lastValidatedAt).toLocaleString() : 'Never' %></div>
+      <form method="post" action="<%= basePath %>/admin/integrations/jira/validate">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <button type="submit" <%= item ? '' : 'disabled' %>>Validate connection</button>
+      </form>
+      <div class="callout">
+        <strong>Resolution priority</strong>
+        <p class="muted small">Project: entity mapping → routing rule → tenant default project key. Issue type: entity mapping → request override → tenant default issue type.</p>
+        <p class="muted small">If set, send the same value in webhook header <code>x-esop-webhook-secret</code>. You can also use env <code>JIRA_WEBHOOK_SECRET</code>.</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card">
+    <h2>Jira intake configuration</h2>
+    <div class="stack">
+      <div class="callout">
+        <strong>Zero-mapping intake</strong>
+        <p class="muted small">ESOP can push every issue into one fixed Jira intake project with one stable work type, then optionally send attachments after issue creation.</p>
+      </div>
+      <div class="grid-two">
+        <label><span>Intake project key</span><input type="text" name="intakeProjectKey" value="<%= item?.intake?.projectKey || 'PTP' %>" placeholder="PTP" form="jira-config-form" /></label>
+        <label><span>Intake issue type / work type</span><input type="text" name="intakeIssueTypeName" value="<%= item?.intake?.issueTypeName || 'Bug' %>" placeholder="Bug" form="jira-config-form" /></label>
+      </div>
+      <div class="grid-two">
+        <label><span>Default execution state after push</span><input type="text" name="intakeDefaultStatusAfterPush" value="<%= item?.intake?.defaultStatusAfterPush || 'PUSHED_TO_JIRA' %>" placeholder="PUSHED_TO_JIRA" form="jira-config-form" /></label>
+        <div class="stack">
+          <input type="hidden" name="intakeMinimalMode" value="false" form="jira-config-form" />
+          <label class="checkbox-row"><input type="checkbox" name="intakeMinimalMode" value="true" form="jira-config-form" <%= item?.intake?.minimalMode !== false ? 'checked' : '' %> /> <span>Use minimal intake mode</span></label>
+          <input type="hidden" name="intakePushAttachments" value="false" form="jira-config-form" />
+          <label class="checkbox-row"><input type="checkbox" name="intakePushAttachments" value="true" form="jira-config-form" <%= item?.intake?.pushAttachments !== false ? 'checked' : '' %> /> <span>Push issue attachments after create</span></label>
+          <input type="hidden" name="intakeIsActive" value="false" form="jira-config-form" />
+          <label class="checkbox-row"><input type="checkbox" name="intakeIsActive" value="true" form="jira-config-form" <%= item?.intake?.isActive !== false ? 'checked' : '' %> /> <span>Intake bridge active</span></label>
+        </div>
+      </div>
+    </div>
+  </article>
+
+</section>

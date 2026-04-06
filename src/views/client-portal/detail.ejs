@@ -1,0 +1,55 @@
+
+<% function formatDate(value) { return value ? new Date(value).toLocaleString() : '-'; } %>
+<% const uploadLimitSummary = uploadLimits.sizeSummary.slice(0, 6).map((item) => `${item.extension} ${item.maxSizeMb}MB`).join(' · '); %>
+<section class="page-header">
+  <div>
+    <h1><%= issue.issueNumber %> — <%= issue.title %></h1>
+    <p class="muted">A customer-friendly view of updates, replies, and attachments.</p>
+  </div>
+  <div class="header-actions wrap-actions"><a class="button-link secondary" href="<%= basePath %>/client/issues">Back to My Issues</a></div>
+</section>
+<section class="card stack">
+  <div class="inline-actions wrap-actions">
+    <span class="badge status-<%= issue.status.toLowerCase() %>"><%= issue.customerStatusLabel %></span>
+    <span class="pill subtle"><%= issue.priority %></span>
+    <span class="pill brand-soft"><%= issue.entityId ? issue.entityId.path || issue.entityId.name : '-' %></span>
+  </div>
+  <div class="summary-description-block"><h3>Description</h3><p><%= issue.description %></p></div>
+  <div class="grid-two">
+    <div class="summary-detail-item"><span class="summary-label">Raised by</span><strong><%= issue.createdByUserId ? issue.createdByUserId.name : '-' %></strong></div>
+    <div class="summary-detail-item"><span class="summary-label">Assigned team member</span><strong><%= issue.assignedToUserId ? issue.assignedToUserId.name : 'To be assigned' %></strong></div>
+    <div class="summary-detail-item"><span class="summary-label">Created</span><strong><%= formatDate(issue.createdAt) %></strong></div>
+    <div class="summary-detail-item"><span class="summary-label">Last updated</span><strong><%= formatDate(issue.updatedAt) %></strong></div>
+  </div>
+</section>
+<section class="detail-grid" style="grid-template-columns: 1.6fr 1fr;">
+  <article class="card stack" id="discussion">
+    <div class="section-title-row"><h2>Conversation</h2><span class="pill subtle"><%= comments.length %> comments</span></div>
+    <% if (!comments.length) { %><p class="muted">No comments yet.</p><% } %>
+    <% comments.forEach((comment) => { %>
+      <div class="comment-card">
+        <div class="comment-meta-row"><strong><%= comment.authorUserId ? comment.authorUserId.name : 'Support' %></strong><span class="muted small"><%= formatDate(comment.createdAt) %></span></div>
+        <p><%= comment.commentText %></p>
+        <% if (comment.attachments && comment.attachments.length) { %>
+          <div class="stack"><% comment.attachments.forEach((attachment) => { %><div class="attachment-inline-row"><a href="/api/v1/<%= tenant.slug %>/files/<%= attachment._id %>/download"><%= attachment.originalName || attachment.filename %></a></div><% }) %></div>
+        <% } %>
+      </div>
+    <% }) %>
+  </article>
+  <aside class="stack">
+    <section class="card stack">
+      <div class="section-title-row"><h2>Add reply</h2><span class="pill brand-soft">External</span></div>
+      <form method="post" action="<%= basePath %>/client/issues/<%= issue._id %>/comments" enctype="multipart/form-data" class="stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <input type="hidden" name="visibility" value="EXTERNAL" />
+        <label><span>Message</span><textarea name="commentText" required placeholder="Add the details your support team asked for"></textarea></label>
+        <label><span>Attachments</span><input type="file" name="attachments" multiple accept="<%= uploadLimits.accept %>" data-file-preview-input="client-comment-files" /><span class="muted small">Up to <%= uploadLimits.maxFileCount %> files. <%= uploadLimitSummary %></span></label>
+        <div class="selected-files" data-file-preview-list="client-comment-files" hidden></div>
+        <div class="form-actions right"><button type="submit">Send Reply</button></div>
+      </form>
+    </section>
+    <% if (issue.attachments && issue.attachments.length) { %>
+    <section class="card stack"><div class="section-title-row"><h2>Issue attachments</h2><span class="pill subtle"><%= issue.attachments.length %></span></div><% issue.attachments.forEach((attachment) => { %><div class="attachment-inline-row"><a href="/api/v1/<%= tenant.slug %>/files/<%= attachment._id %>/download"><%= attachment.originalName || attachment.filename %></a></div><% }) %></section>
+    <% } %>
+  </aside>
+</section>

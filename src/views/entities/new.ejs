@@ -1,0 +1,171 @@
+<section class="page-header">
+  <div>
+    <h1><%= formMode === 'edit' ? `Edit ${entity?.name || 'Entity'}` : (currentUser.role === 'client' ? 'Create Subclient' : 'Create Client / Subclient') %></h1>
+    <p class="muted"><%= formMode === 'edit' ? 'Update entity details, parent mapping, and Jira configuration.' : 'Create a client or a subclient within your current workspace.' %></p>
+  </div>
+</section>
+
+<section class="card narrow form-card">
+  <form method="post" action="<%= formAction || `${basePath}/entities` %>" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <% if (typeof methodOverride !== 'undefined' && methodOverride) { %><input type="hidden" name="_method" value="<%= methodOverride %>" /><% } %>
+    <div class="grid-two">
+      <label><span>Name</span><input type="text" name="name" required value="<%= defaults?.name || '' %>" /></label>
+      <label>
+        <span>Acronym</span>
+        <input type="text" name="acronym" required maxlength="4" minlength="4" pattern="[A-Za-z0-9]{4}" value="<%= defaults?.acronym || '' %>" placeholder="ABCD" style="text-transform:uppercase" />
+        <span class="muted small">Exactly 4 letters or digits, unique within the tenant. Issue numbers become like ABCD-1001.</span>
+      </label>
+    </div>
+
+    <label>
+      <span>Type</span>
+      <select name="type" id="entityType" <%= currentUser.role === 'client' ? 'disabled' : '' %> required>
+        <option value="client" <%= defaults && defaults.type === 'client' ? 'selected' : '' %>>Client</option>
+        <option value="subclient" <%= defaults && defaults.type === 'subclient' ? 'selected' : '' %>>Subclient</option>
+      </select>
+      <% if (currentUser.role === 'client') { %><input type="hidden" name="type" value="subclient" /><% } %>
+    </label>
+
+    <label>
+      <span>Parent</span>
+      <select name="parentId">
+        <option value="">Select parent</option>
+        <% parents.forEach((parent) => { %>
+          <option value="<%= parent._id %>" <%= defaults && defaults.parentId && String(defaults.parentId) === String(parent._id) ? 'selected' : '' %>><%= parent.path %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <div class="grid-three">
+      <label><span>Region</span><input type="text" name="region" value="<%= defaults?.region || '' %>" /></label>
+      <label><span>Products</span><select name="productIds" multiple size="5">
+        <% (products || []).forEach((product) => { %>
+          <option value="<%= product._id %>" <%= (defaults?.productIds || []).includes(String(product._id)) ? 'selected' : '' %>><%= product.name %> (<%= product.code %>)</option>
+        <% }) %>
+      </select><span class="muted small">Hold Ctrl/Cmd to select multiple products.</span></label>
+    </div>
+
+    <section class="stack" style="padding-top:1rem;border-top:1px solid var(--border-color);">
+      <div>
+        <h2 style="margin:0">Default commitments</h2>
+        <p class="muted small">Pick the default SLA and OLA during entity creation. Subclients can inherit from the parent client.</p>
+      </div>
+      <label class="checkbox-row" id="inheritCommitmentsRow" <%= (defaults?.type || 'client') === 'subclient' ? '' : 'hidden' %> >
+        <input type="checkbox" name="inheritCommitments" value="true" <%= defaults?.inheritCommitments !== false ? 'checked' : '' %> />
+        <span>Inherit commitments from parent when no local override is needed</span>
+      </label>
+      <div class="grid-two">
+        <label><span>Default SLA policy</span><select name="defaultSlaPolicyId"><option value="">Select SLA policy</option><% (policies || []).filter((item) => item.agreementType === 'SLA').forEach((policy) => { %><option value="<%= policy._id %>" <%= defaults?.defaultSlaPolicyId && String(defaults.defaultSlaPolicyId) === String(policy._id) ? 'selected' : '' %>><%= policy.name %> · <%= policy.scopeLevel %></option><% }) %></select></label>
+        <label><span>Default OLA policy</span><select name="defaultOlaPolicyId"><option value="">Select OLA policy</option><% (policies || []).filter((item) => item.agreementType === 'OLA').forEach((policy) => { %><option value="<%= policy._id %>" <%= defaults?.defaultOlaPolicyId && String(defaults.defaultOlaPolicyId) === String(policy._id) ? 'selected' : '' %>><%= policy.name %> · <%= policy.scopeLevel %></option><% }) %></select></label>
+      </div>
+    </section>
+
+    <% if (currentUser.role === 'superadmin') { %>
+      <section class="stack" style="padding-top:1rem;border-top:1px solid var(--border-color);">
+        <div>
+          <h2 style="margin:0">Jira mapping</h2>
+          <p class="muted small">Optional. Sub-entities can inherit from parent when no local Jira mapping is set.</p>
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" name="jiraEnabled" id="jiraEnabled" value="true" <%= defaults?.jiraEnabled ? 'checked' : '' %> />
+          <span>Enable Jira mapping for this entity</span>
+        </label>
+        <label class="checkbox-row" id="jiraInheritRow" hidden>
+          <input type="checkbox" name="jiraInheritFromParent" id="jiraInheritFromParent" value="true" <%= defaults?.jiraInheritFromParent !== false ? 'checked' : '' %> />
+          <span>Inherit from parent when local Jira mapping is incomplete</span>
+        </label>
+        <div class="grid-two" id="jiraFieldsWrap" hidden>
+          <label>
+            <span>Jira project</span>
+            <select name="jiraProjectKey" id="jiraProjectKey" data-issue-types-url="<%= apiBasePath %>/admin/integrations/jira/projects/__PROJECT_KEY__/issue-types" data-selected-issue-type-id="<%= defaults?.jiraIssueTypeId || '' %>" data-selected-issue-type-name="<%= defaults?.jiraIssueTypeName || '' %>">
+              <option value="">Select project</option>
+              <% (jiraProjects || []).forEach((project) => { %>
+                <option value="<%= project.key %>" data-project-id="<%= project.id %>" <%= defaults?.jiraProjectKey === project.key ? 'selected' : '' %>><%= project.name %> (<%= project.key %>)</option>
+              <% }) %>
+            </select>
+            <input type="hidden" name="jiraProjectId" id="jiraProjectId" value="<%= defaults?.jiraProjectId || '' %>" />
+          </label>
+          <label>
+            <span>Work type / issue type</span>
+            <select name="jiraIssueTypeId" id="jiraIssueTypeId">
+              <option value="">Select work type</option>
+            </select>
+            <input type="hidden" name="jiraIssueTypeName" id="jiraIssueTypeName" value="<%= defaults?.jiraIssueTypeName || '' %>" />
+          </label>
+        </div>
+        <label class="checkbox-row" id="jiraAutoPushRow" hidden>
+          <input type="checkbox" name="jiraAutoPushOnCreate" value="true" <%= defaults?.jiraAutoPushOnCreate ? 'checked' : '' %> />
+          <span>Automatically push issues to Jira on creation</span>
+        </label>
+      </section>
+    <% } %>
+
+    <div class="form-actions right wrap-actions">
+      <a class="button-link secondary" href="<%= basePath %>/entities">Back to list</a>
+      <button type="submit"><%= formMode === 'edit' ? 'Save Changes' : 'Create Entity' %></button>
+    </div>
+  </form>
+</section>
+
+<% if (currentUser.role === 'superadmin') { %>
+<script>
+  (function () {
+    const typeSelect = document.getElementById('entityType');
+    const enabledCheckbox = document.getElementById('jiraEnabled');
+    const inheritRow = document.getElementById('jiraInheritRow');
+    const fieldsWrap = document.getElementById('jiraFieldsWrap');
+    const autoPushRow = document.getElementById('jiraAutoPushRow');
+    const projectSelect = document.getElementById('jiraProjectKey');
+    const projectIdInput = document.getElementById('jiraProjectId');
+    const issueTypeSelect = document.getElementById('jiraIssueTypeId');
+    const issueTypeNameInput = document.getElementById('jiraIssueTypeName');
+    if (!enabledCheckbox) return;
+
+    function refreshVisibility() {
+      const enabled = enabledCheckbox.checked;
+      fieldsWrap.hidden = !enabled;
+      autoPushRow.hidden = !enabled;
+      inheritRow.hidden = !(enabled && typeSelect && typeSelect.value === 'subclient');
+    }
+
+    async function loadIssueTypes() {
+      const key = projectSelect.value;
+      const option = projectSelect.options[projectSelect.selectedIndex];
+      projectIdInput.value = option ? (option.dataset.projectId || '') : '';
+      issueTypeSelect.innerHTML = '<option value="">Select work type</option>';
+      if (!key) return;
+      try {
+        const response = await fetch(projectSelect.dataset.issueTypesUrl.replace('__PROJECT_KEY__', key), { headers: { Accept: 'application/json' } });
+        const payload = await response.json();
+        (payload.items || []).forEach((item) => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = item.name;
+          opt.dataset.issueTypeName = item.name;
+          if (item.id === projectSelect.dataset.selectedIssueTypeId || item.name === projectSelect.dataset.selectedIssueTypeName) opt.selected = true;
+          issueTypeSelect.appendChild(opt);
+        });
+        const selected = issueTypeSelect.options[issueTypeSelect.selectedIndex];
+        issueTypeNameInput.value = selected ? (selected.dataset.issueTypeName || '') : '';
+      } catch (error) {
+        issueTypeSelect.innerHTML = '<option value="">Unable to load work types</option>';
+      }
+    }
+
+    enabledCheckbox.addEventListener('change', refreshVisibility);
+    if (typeSelect) typeSelect.addEventListener('change', refreshVisibility);
+    projectSelect.addEventListener('change', async () => {
+      projectSelect.dataset.selectedIssueTypeId = '';
+      projectSelect.dataset.selectedIssueTypeName = '';
+      await loadIssueTypes();
+    });
+    issueTypeSelect.addEventListener('change', () => {
+      const opt = issueTypeSelect.options[issueTypeSelect.selectedIndex];
+      issueTypeNameInput.value = opt ? (opt.dataset.issueTypeName || '') : '';
+    });
+    refreshVisibility();
+    if (projectSelect.value) loadIssueTypes();
+  })();
+</script>
+<% } %>

@@ -1,0 +1,46 @@
+{
+  "name": "esop-v30.6-jira-governance",
+  "version": "30.6.1",
+  "description": "ESOP v30.6 Jira governance and visibility hardening release",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node src/seed/bootstrap.js",
+    "test": "cross-env NODE_ENV=test JIRA_MOCK_MODE=true ALLOW_JIRA_MOCK_OUTSIDE_TEST=true node test.js",
+    "seed:v9": "node src/seed/bootstrap.js",
+    "worker": "node worker.js",
+    "test:unit": "node tests/unit/run.js",
+    "test:integration": "node tests/integration/run.js",
+    "test:api": "node tests/api/run.js",
+    "test:contract": "node tests/contract/run.js",
+    "test:regression": "node tests/regression/run.js",
+    "test:v28": "cross-env NODE_ENV=test JIRA_MOCK_MODE=true ALLOW_JIRA_MOCK_OUTSIDE_TEST=true node test-v28.js",
+    "test:v29": "cross-env NODE_ENV=test JIRA_MOCK_MODE=true ALLOW_JIRA_MOCK_OUTSIDE_TEST=true node test-v29.js",
+    "test:v30": "cross-env NODE_ENV=test JIRA_MOCK_MODE=true ALLOW_JIRA_MOCK_OUTSIDE_TEST=true node test-v30.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "connect-mongo": "^5.1.0",
+    "csurf": "^1.11.0",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-ejs-layouts": "^2.5.1",
+    "express-session": "^1.18.0",
+    "helmet": "^7.1.0",
+    "method-override": "^3.0.0",
+    "mongoose": "^8.6.1",
+    "morgan": "^1.10.0",
+    "multer": "1.4.5-lts.1",
+    "nodemailer": "^6.9.15"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "nodemon": "^3.1.4"
+  }
+}

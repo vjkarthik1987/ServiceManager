@@ -1,0 +1,120 @@
+<%
+  function dateValue(value) {
+    if (!value) return '-';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString();
+  }
+  function sortHref(column) {
+    const nextDir = (sort && sort.sortBy === column && sort.sortDir === 'asc') ? 'desc' : 'asc';
+    return `${basePath}/tickets${buildQueryString(filters, { sortBy: column, sortDir: nextDir, page: 1 })}`;
+  }
+  function sortIndicator(column) {
+    if (!sort || sort.sortBy !== column) return '↕';
+    return sort.sortDir === 'asc' ? '↑' : '↓';
+  }
+%>
+<section class="page-header compact-header">
+  <div><h1>Issues</h1></div>
+  <div class="header-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/tickets/export<%= buildQueryString(filters, { format: 'csv' }) %>">Download CSV</a>
+    <a class="button-link secondary" href="<%= basePath %>/tickets/export<%= buildQueryString(filters, { format: 'xls' }) %>">Download Excel</a>
+    <a class="button-link" href="<%= basePath %>/tickets/new">Create Issue</a>
+  </div>
+</section>
+
+<form method="get" action="<%= basePath %>/tickets" class="card filters-form stack">
+  <div class="grid-auto-fit">
+    <% if (savedViews && savedViews.length) { %>
+      <label><span>Saved view</span><select name="savedViewId"><option value="">Custom</option><% savedViews.forEach((view) => { %><option value="<%= view._id %>"><%= view.name %><%= view.isDefault ? " (default)" : "" %></option><% }) %></select></label>
+    <% } %>
+    <label><span>Search</span><input type="text" name="q" value="<%= filters.q %>" placeholder="ESOP-1001 or issue title" /></label>
+    <label><span>Entity</span><select name="entityId"><option value="">All entities</option><% entities.forEach((entity) => { %><option value="<%= entity._id %>" <%= filters.entityId === String(entity._id) ? 'selected' : '' %>><%= entity.path %></option><% }) %></select></label>
+    <label><span>Product</span><select name="product"><option value="">All products</option><% (productOptions || []).forEach((product) => { %><option value="<%= product %>" <%= filters.product === product ? 'selected' : '' %>><%= product %></option><% }) %></select></label>
+    <label><span>Status</span><select name="status"><option value="">All statuses</option><% statuses.forEach((status) => { %><option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= status %></option><% }) %></select></label>
+    <label><span>Priority</span><select name="priority"><option value="">All priorities</option><% priorities.forEach((priority) => { %><option value="<%= priority %>" <%= filters.priority === priority ? 'selected' : '' %>><%= priority %></option><% }) %></select></label>
+    <label><span>Execution</span><input type="text" name="executionMode" value="<%= filters.executionMode || '' %>" placeholder="NATIVE / JIRA" /></label>
+    <label><span>Routing</span><input type="text" name="routingStatus" value="<%= filters.routingStatus || '' %>" placeholder="ROUTED / NO_MATCH" /></label>
+    <label><span>SLA</span><input type="text" name="slaStatus" value="<%= filters.slaStatus || '' %>" placeholder="AT_RISK / BREACHED" /></label>
+    <% if (currentUser.role !== 'client') { %><label><span>Customer visibility</span><select name="customerVisibility"><option value="">All</option><option value="VISIBLE_TO_CUSTOMER" <%= filters.customerVisibility === 'VISIBLE_TO_CUSTOMER' ? 'selected' : '' %>>Visible to customer</option><option value="INTERNAL_ONLY" <%= filters.customerVisibility === 'INTERNAL_ONLY' ? 'selected' : '' %>>Internal only</option></select></label><% } %>
+    <label><span>Triage</span><select name="triageStatus"><option value="">All triage states</option><% (triageStatuses || []).forEach((triageStatus) => { %><option value="<%= triageStatus %>" <%= filters.triageStatus === triageStatus ? 'selected' : '' %>><%= triageStatus %></option><% }) %></select></label>
+    <label><span>Assigned</span><select name="assignedToUserId"><option value="">Anyone</option><% users.forEach((user) => { %><option value="<%= user._id %>" <%= filters.assignedToUserId === String(user._id) ? 'selected' : '' %>><%= user.name %> (<%= user.role %>)</option><% }) %></select></label>
+    <label><span>Created from</span><input type="date" name="createdFrom" value="<%= filters.createdFrom || '' %>" /></label>
+    <label><span>Created to</span><input type="date" name="createdTo" value="<%= filters.createdTo || '' %>" /></label>
+  </div>
+  <div class="form-actions right wrap-actions"><a class="button-link secondary" href="<%= basePath %>/tickets">Reset</a><button type="submit">Apply Filters</button></div>
+</form>
+
+<section class="card issues-list-card">
+  <div class="issues-list-head muted small">Showing <strong><%= issues.length %></strong> of <strong><%= pager.totalItems %></strong> matching issues · 15 per page</div>
+  <% if (!issues.length) { %>
+    <p class="muted">No issues found for the selected filters.</p>
+  <% } else { %>
+  <div class="table-wrap no-horizontal-scroll">
+    <table class="issues-table issues-table-compact">
+      <thead>
+        <tr>
+          <th><a class="sort-link" href="<%= sortHref('issueNumber') %>">Issue <span><%= sortIndicator('issueNumber') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('title') %>">Issue details <span><%= sortIndicator('title') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('createdAt') %>">Dates <span><%= sortIndicator('createdAt') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('status') %>">Status <span><%= sortIndicator('status') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('jiraStatus') %>">Jira <span><%= sortIndicator('jiraStatus') %></span></a></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% issues.forEach((issue) => { %>
+          <tr>
+            <td class="issue-number-cell">
+              <strong><%= issue.issueNumber %></strong>
+            </td>
+            <td class="issue-details-cell">
+              <div class="row-title"><%= issue.title %></div>
+              <div class="issue-meta-grid">
+                <span class="pill subtle"><strong>Entity:</strong>&nbsp;<%= issue.entityId ? issue.entityId.path || issue.entityId.name : '-' %></span>
+                <span class="pill subtle"><strong>Product:</strong>&nbsp;<%= issue.product || issue.entityId?.metadata?.product || '-' %></span>
+                <span class="pill priority-pill priority-<%= String(issue.priority || '').toLowerCase() %>"><strong>Priority:</strong>&nbsp;<%= issue.priority %></span>
+                <span class="pill subtle"><strong>Triage:</strong>&nbsp;<%= issue.triageStatus || 'NOT_TRIAGED' %></span>
+                <span class="pill subtle"><strong>Assigned:</strong>&nbsp;<%= issue.assignedToUserId ? issue.assignedToUserId.name : 'Unassigned' %></span>
+                <% if (currentUser.role !== 'client') { %>
+                  <span class="pill <%= issue.customerVisibility === 'INTERNAL_ONLY' ? 'warning-soft' : 'brand-soft' %>"><strong>Visibility:</strong>&nbsp;<%= issue.customerVisibility || 'VISIBLE_TO_CUSTOMER' %></span>
+                <% } %>
+              </div>
+            </td>
+            <td class="issue-dates-cell">
+              <div><strong>Created:</strong> <%= dateValue(issue.createdAt) %></div>
+              <div class="muted small"><strong>Resolved:</strong> <%= dateValue(issue.sla?.resolvedAt || issue.closure?.closedAt) %></div>
+            </td>
+            <td class="issue-status-cell">
+              <div class="stack gap-8 align-start">
+                <span class="badge status-<%= issue.status.toLowerCase() %>"><%= issue.status %></span>
+              </div>
+            </td>
+            <td class="issue-jira-cell">
+              <% if (issue.jira?.issueKey) { %>
+                <div class="stack gap-8 align-start">
+                  <span class="pill jira-tag"><%= issue.jira.issueKey %></span>
+                  <span class="pill jira-status-pill <%= issue.jira.currentStatusName ? 'brand-soft' : 'subtle' %>"><%= issue.jira.currentStatusName || issue.jira.pushStatus || 'Linked' %></span>
+                </div>
+              <% } else { %>
+                <span class="pill subtle">Not pushed</span>
+              <% } %>
+            </td>
+            <td class="issue-actions-cell">
+              <div class="stack gap-8 align-start">
+                <a href="<%= basePath %>/tickets/<%= issue._id %>">Open</a>
+                <% if (currentUser.role !== 'client' && !issue.jira?.issueKey) { %>
+                  <form method="post" action="<%= basePath %>/tickets/<%= issue._id %>/push-to-jira" class="dashboard-jira-form">
+                    <% if (csrfToken) { %><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><% } %>
+                    <button type="submit" class="mini-button">Push to Jira</button>
+                  </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <%- include('../partials/pagination', { pager, baseUrl: `${basePath}/tickets`, filters, buildQueryString }) %>
+  <% } %>
+</section>

@@ -1,0 +1,106 @@
+<section class="page-header">
+  <div><h1><%= user.name %></h1><p class="muted"><%= user.email %> · <%= user.role === 'client' ? 'CLIENT_USER' : user.role.toUpperCase() %></p></div>
+</section>
+<section class="grid-two">
+  <article class="card stack">
+    <h2>Edit user</h2>
+    <form method="post" action="<%= basePath %>/users/<%= user._id %>/edit" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="grid-two">
+        <label><span>Name</span><input type="text" name="name" value="<%= user.name %>" required /></label>
+        <label><span>Email</span><input type="email" name="email" value="<%= user.email %>" required /></label>
+        <label><span>Role</span><select name="role" id="role-select"><option value="superadmin" <%= user.role === 'superadmin' ? 'selected' : '' %>>Superadmin</option><option value="agent" <%= user.role === 'agent' ? 'selected' : '' %>>Agent</option><option value="client" <%= user.role === 'client' ? 'selected' : '' %>>Client User</option></select></label>
+        <label><span>Active</span><select name="isActive"><option value="true" <%= user.isActive ? 'selected' : '' %>>Active</option><option value="false" <%= !user.isActive ? 'selected' : '' %>>Inactive</option></select></label>
+      </div>
+      <label><span>Reset password</span><input type="password" name="password" placeholder="Leave blank to keep current password" /></label>
+
+      <label id="client-entities-field">
+        <span>Client entities</span>
+        <select name="entityIds" id="client-entities-select" multiple size="8">
+          <% entities.forEach((item) => { const selected = memberships.some((m) => String(m.entityId?._id || m.entityId) === String(item._id)); %>
+            <option value="<%= item._id %>" <%= selected ? 'selected' : '' %>><%= item.path %></option>
+          <% }) %>
+        </select>
+        <small class="muted">Hold Ctrl/Cmd to select multiple entities.</small>
+      </label>
+
+      <label id="client-primary-field">
+        <span>Primary entity</span>
+        <select name="primaryEntityId" id="client-primary-select">
+          <option value="">Select primary entity</option>
+          <% entities.forEach((item) => { const selected = memberships.some((m) => String(m.entityId?._id || m.entityId) === String(item._id) && m.isPrimary); %>
+            <option value="<%= item._id %>" <%= selected ? 'selected' : '' %>><%= item.path %></option>
+          <% }) %>
+        </select>
+      </label>
+
+      <label id="agent-entities-field">
+        <span>Entity scopes (for agent)</span>
+        <select name="entityIds" id="agent-entities-select" multiple size="8">
+          <% entities.forEach((item) => { const selected = memberships.some((m) => String(m.entityId?._id || m.entityId) === String(item._id)); %>
+            <option value="<%= item._id %>" <%= selected ? 'selected' : '' %>><%= item.path %></option>
+          <% }) %>
+        </select>
+        <small class="muted">Hold Ctrl/Cmd to select multiple entities.</small>
+      </label>
+      <div class="form-actions right"><button type="submit">Save User</button></div>
+    </form>
+  </article>
+  <article class="card">
+    <h2>Memberships</h2>
+    <% if (!memberships.length) { %><p class="muted">No explicit memberships.</p><% } else { %>
+      <div class="table-wrap"><table><thead><tr><th>Entity</th><th>Primary</th><th>Status</th></tr></thead><tbody>
+        <% memberships.forEach((item) => { %><tr><td><%= item.entityId?.path || '—' %></td><td><%= item.isPrimary ? 'Yes' : 'No' %></td><td><%= item.status %></td></tr><% }) %>
+      </tbody></table></div>
+    <% } %>
+  </article>
+</section>
+<script>
+(function(){
+  var roleSelect=document.getElementById('role-select');
+  var clientEntitiesField=document.getElementById('client-entities-field');
+  var clientEntitiesSelect=document.getElementById('client-entities-select');
+  var clientPrimaryField=document.getElementById('client-primary-field');
+  var clientPrimarySelect=document.getElementById('client-primary-select');
+  var agentEntitiesField=document.getElementById('agent-entities-field');
+  var agentEntitiesSelect=document.getElementById('agent-entities-select');
+  if(!roleSelect)return;
+
+  function selectedValues(select){
+    return Array.prototype.slice.call(select.options).filter(function(option){ return option.selected; }).map(function(option){ return option.value; });
+  }
+
+  function syncPrimaryOptions(){
+    var allowed = selectedValues(clientEntitiesSelect);
+    Array.prototype.forEach.call(clientPrimarySelect.options, function(option, index){
+      if(index===0){ option.hidden=false; return; }
+      option.hidden = allowed.indexOf(option.value) === -1;
+    });
+    if (allowed.length && allowed.indexOf(clientPrimarySelect.value) === -1) {
+      clientPrimarySelect.value = allowed[0];
+    }
+    if (!allowed.length) clientPrimarySelect.value = '';
+  }
+
+  function syncVisibility(){
+    var role=roleSelect.value;
+    var isClient = role==='client';
+    clientEntitiesField.style.display=isClient?'':'none';
+    clientPrimaryField.style.display=isClient?'':'none';
+    agentEntitiesField.style.display=role==='agent'?'':'none';
+    clientEntitiesSelect.required=isClient;
+    clientPrimarySelect.required=isClient;
+    agentEntitiesSelect.required=role==='agent';
+
+    clientEntitiesSelect.disabled=!isClient;
+    clientPrimarySelect.disabled=!isClient;
+    agentEntitiesSelect.disabled=role!=='agent';
+
+    syncPrimaryOptions();
+  }
+
+  clientEntitiesSelect.addEventListener('change', syncPrimaryOptions);
+  roleSelect.addEventListener('change', syncVisibility);
+  syncVisibility();
+})();
+</script>

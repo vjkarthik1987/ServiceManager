@@ -1,0 +1,8 @@
+
+<section class="page-header"><div><h1>Ops Console</h1><p class="muted">Queue, notification, audit, and health visibility.</p></div></section>
+<section class="grid-two">
+  <div class="card stack section-card"><h2>Metrics</h2><pre class="code-block"><%= JSON.stringify(metrics, null, 2) %></pre></div>
+  <div class="card stack section-card"><h2>Queue / DLQ</h2><div class="stack"><% jobs.forEach((job) => { %><div class="summary-detail-item"><span class="summary-label"><%= job.type %> · <%= job.status %></span><strong><%= job.attempts %>/<%= job.maxAttempts %></strong></div><% }) %></div></div>
+  <div class="card stack section-card"><h2>Failed / queued notifications</h2><div class="stack"><% failedNotifications.forEach((item) => { %><div class="summary-detail-item"><span class="summary-label"><%= item.type %> · <%= item.status %></span><strong><%= item.recipientEmail || '-' %></strong></div><% }) %></div></div>
+  <div class="card stack section-card"><h2>Recent audit</h2><div class="stack"><% recentAudits.forEach((entry) => { %><div class="summary-detail-item"><span class="summary-label"><%= entry.action %></span><strong><%= entry.entityType %></strong></div><% }) %></div></div>
+</section>

@@ -1,0 +1,124 @@
+<section class="hero gradient-quirky dashboard-hero">
+  <div>
+    <div class="section-kicker">Workspace overview</div>
+    <h1>Welcome <%= currentUser && currentUser.name ? currentUser.name : (tenant ? tenant.name : 'to ESOP') %></h1>
+    <p class="muted">Here is what needs your attention today across issues, Jira flow, and SLA health.</p>
+  </div>
+  <div class="hero-actions wrap-actions hero-actions-inline hero-quick-actions">
+    <a class="button-link quick-action" href="<%= basePath %>/tickets/new">+ Issue</a>
+    <% if (currentUser && ['superadmin', 'client'].includes(currentUser.role)) { %>
+      <a class="button-link secondary quick-action" href="<%= basePath %>/entities/new<%= currentUser.role === 'client' ? '?type=subclient' : '' %>">+ Entity</a>
+      <a class="button-link secondary quick-action" href="<%= basePath %>/users/new?role=client">+ User</a>
+    <% } %>
+  </div>
+</section>
+
+<section class="stats-grid dashboard-primary-stats">
+  <a class="stat-card" href="<%= basePath %>/tickets"><h3>Issues</h3><p class="big-number"><%= stats.issuesCount %></p></a>
+  <div class="stat-card"><h3>Open issues</h3><p class="big-number"><%= stats.openIssuesCount || 0 %></p><p class="muted small">Still active in the workspace</p></div>
+  <div class="stat-card"><h3>Jira linked</h3><p class="big-number"><%= stats.jiraLinkedIssuesCount || 0 %></p><p class="muted small">Already pushed and linked</p></div>
+  <div class="stat-card"><h3>Updated today</h3><p class="big-number"><%= stats.updatedTodayCount || 0 %></p><p class="muted small">Fresh movement since midnight</p></div>
+  <% if (currentUser.role === 'superadmin') { %>
+    <a class="stat-card" href="<%= basePath %>/entities"><h3>Entities</h3><p class="big-number"><%= stats.entitiesCount %></p></a>
+    <a class="stat-card" href="<%= basePath %>/users"><h3>Users</h3><p class="big-number"><%= stats.usersCount %></p></a>
+    <div class="stat-card"><h3>Agents</h3><p class="big-number"><%= stats.agentsCount %></p></div>
+    <div class="stat-card jira-queue-card"><h3>Jira pending</h3><p class="big-number"><%= stats.jiraQueueCount || 0 %></p><p class="muted small">Queued or ready for push</p></div>
+    <div class="stat-card"><h3>SLA at risk</h3><p class="big-number"><%= stats.slaAtRiskIssues || 0 %></p></div>
+    <div class="stat-card"><h3>SLA breached</h3><p class="big-number"><%= stats.slaBreachedIssues || 0 %></p></div>
+  <% } else { %>
+    <div class="stat-card"><h3>Your Scope</h3><p>Only tickets in authorized entities are shown.</p></div>
+    <div class="stat-card"><h3>Workflow</h3><p>OPEN → IN_PROGRESS → WAITING_FOR_CLIENT → RESOLVED → CLOSED</p></div>
+    <div class="stat-card jira-queue-card"><h3>Jira pending</h3><p class="big-number"><%= stats.jiraQueueCount || 0 %></p><p class="muted small">Ready for push or waiting in queue</p></div>
+    <div class="stat-card"><h3>SLA Watch</h3><p><%= stats.slaAtRiskIssues || 0 %> at risk · <%= stats.slaBreachedIssues || 0 %> breached</p></div>
+  <% } %>
+</section>
+
+<section class="grid-two dashboard-secondary-grid">
+  <article class="card stack section-card dashboard-ops-card">
+    <div class="page-header compact-header">
+      <div>
+        <h2>Operational snapshot</h2>
+        <p class="muted">Fast pulse of execution and workspace readiness.</p>
+      </div>
+    </div>
+    <div class="summary-detail-grid compact-summary-grid">
+      <div class="summary-detail-item"><span class="summary-label">Jira connection</span><strong><%= jiraConnection ? (jiraConnection.intake && jiraConnection.intake.isActive ? 'ACTIVE' : 'INACTIVE') : 'NOT_CONFIGURED' %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Jira validation</span><strong><%= jiraConnection ? jiraConnection.lastValidationStatus : 'NOT_CONFIGURED' %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">At risk / breached</span><strong><%= stats.slaAtRiskIssues || 0 %> / <%= stats.slaBreachedIssues || 0 %></strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Execution focus</span><strong><%= stats.jiraQueueCount || 0 %> pending Jira actions</strong></div>
+    </div>
+    <% if (jiraConnection && jiraConnection.lastValidationMessage) { %>
+      <p class="muted small">Validation note: <%= jiraConnection.lastValidationMessage %></p>
+    <% } %>
+    <div class="hero-actions wrap-actions hero-actions-inline hero-quick-actions">
+      <% if (currentUser && currentUser.role === 'superadmin') { %>
+        <a class="button-link secondary quick-action" href="<%= basePath %>/admin/integrations/jira">Review Jira config</a>
+      <% } %>
+      <a class="button-link secondary quick-action" href="<%= basePath %>/agent/workspace">Open agent workspace</a>
+    </div>
+  </article>
+
+  <article class="card stack section-card dashboard-ops-card">
+    <div class="page-header compact-header">
+      <div>
+        <h2>Suggested focus</h2>
+        <p class="muted">A simple checklist to keep the desk moving.</p>
+      </div>
+    </div>
+    <div class="stack dashboard-focus-list">
+      <div class="focus-row"><span class="pill brand-soft">1</span><span>Clear Jira pending issues first so execution does not stall.</span></div>
+      <div class="focus-row"><span class="pill warning-soft">2</span><span>Review at-risk SLAs before they turn into breaches.</span></div>
+      <div class="focus-row"><span class="pill subtle">3</span><span>Use Recent Issues below as the daily command list for triage and follow-up.</span></div>
+    </div>
+  </article>
+</section>
+
+<section class="card section-card">
+  <div class="page-header">
+    <div><h2>Recent issues</h2><p class="muted">Showing the latest 15 issues in this workspace.</p></div>
+    <a class="button-link secondary" href="<%= basePath %>/tickets">View all</a>
+  </div>
+  <% const jiraValidationPassed = jiraConnection && jiraConnection.lastValidationStatus === 'SUCCESS'; %>
+  <% const intakeProjectKey = jiraConnection && jiraConnection.intake && jiraConnection.intake.projectKey ? jiraConnection.intake.projectKey : 'PTP'; %>
+  <% const intakeIssueTypeName = jiraConnection && jiraConnection.intake && jiraConnection.intake.issueTypeName ? jiraConnection.intake.issueTypeName : 'Bug'; %>
+  <% if (!recentIssues.length) { %><p class="muted">No issues yet.</p><% } else { %>
+  <div class="table-wrap"><table><thead><tr><th>Issue</th><th>Title</th><th>Entity</th><th>Created on</th><th>Status</th><th>Jira Status</th><th>Priority</th><th>SLA</th><th>Action</th></tr></thead><tbody>
+  <% recentIssues.forEach((issue) => { %>
+    <% const jiraStatusLabel = issue.jira && issue.jira.issueKey ? (issue.jira.currentStatusName || issue.jira.pushStatus || issue.executionState || 'PUSHED') : 'Not pushed'; %>
+    <tr>
+      <td><strong><%= issue.issueNumber %></strong></td>
+      <td><%= issue.title %></td>
+      <td><%= issue.entityId ? issue.entityId.name : '-' %></td>
+      <td><%= issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : '-' %></td>
+      <td><span class="badge status-<%= issue.status.toLowerCase() %>"><%= issue.status %></span></td>
+      <td>
+        <% if (issue.jira && issue.jira.issueKey) { %>
+          <span class="pill brand-soft"><%= jiraStatusLabel %></span>
+          <div class="muted small"><%= issue.jira.issueKey %></div>
+        <% } else { %>
+          <span class="pill subtle">Not pushed</span>
+        <% } %>
+      </td>
+      <td><%= issue.priority %></td>
+      <td><% if (issue.sla && issue.sla.hasPolicy) { %><span class="pill <%= issue.sla.resolutionStatus === 'BREACHED' ? 'danger-soft' : (issue.sla.resolutionStatus === 'AT_RISK' ? 'warning-soft' : 'brand-soft') %>"><%= issue.sla.resolutionStatus %></span><% } else { %><span class="pill subtle">NO_SLA</span><% } %></td>
+      <td>
+        <div class="dashboard-row-actions">
+          <a href="<%= basePath %>/tickets/<%= issue._id %>">Open</a>
+          <% if (!(issue.jira && issue.jira.issueKey) && currentUser && ['agent', 'superadmin'].includes(currentUser.role)) { %>
+            <form method="post" action="<%= basePath %>/tickets/<%= issue.id || issue._id %>/push-to-jira" class="inline-form dashboard-jira-form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+              <input type="hidden" name="projectKey" value="<%= intakeProjectKey %>" />
+              <input type="hidden" name="issueTypeName" value="<%= intakeIssueTypeName %>" />
+              <button type="submit" class="button-link secondary mini-button" <%= jiraValidationPassed ? '' : 'disabled title="Validate Jira configuration before pushing."' %>>Push to Jira</button>
+            </form>
+          <% } %>
+        </div>
+      </td>
+    </tr>
+  <% }) %>
+  </tbody></table></div>
+  <% if (!jiraValidationPassed && currentUser && ['agent', 'superadmin'].includes(currentUser.role)) { %>
+    <p class="muted small dashboard-help-note">Push to Jira stays disabled until Jira validation succeeds in the admin integration screen.</p>
+  <% } %>
+  <% } %>
+</section>

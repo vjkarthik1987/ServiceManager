@@ -1,0 +1,105 @@
+<section class="page-header"><div><h1>Create User</h1><p class="muted">Create tenant users and assign one or more entity scopes. Temporary password is fixed as <strong>password</strong> for now and provisioning mail is sent to karthikvj@suntecsbs.com.</p></div></section>
+<section class="card stack">
+  <form method="post" action="<%= basePath %>/users" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="grid-two">
+      <label><span>Name</span><input type="text" name="name" required /></label>
+      <label><span>Email</span><input type="email" name="email" required /></label>
+      <label><span>Temporary password</span><input type="text" value="password" readonly disabled /></label>
+      <label>
+        <span>Role</span>
+        <select name="role" id="role-select" <%= currentUser.role === 'client' ? 'disabled' : '' %>>
+          <% if (currentUser.role !== 'client') { %>
+            <option value="agent" <%= defaults && defaults.role === 'agent' ? 'selected' : '' %>>Agent</option>
+          <% } %>
+          <option value="client" <%= !defaults || defaults.role === 'client' ? 'selected' : '' %>>Client User</option>
+        </select>
+        <% if (currentUser.role === 'client') { %><input type="hidden" name="role" value="client" /><% } %>
+      </label>
+    </div>
+
+    <label id="client-entities-field">
+      <span>Client entities</span>
+      <select name="entityIds" id="client-entities-select" multiple size="8">
+        <% entities.forEach((entity) => { %>
+          <option value="<%= entity._id %>"><%= entity.path %></option>
+        <% }) %>
+      </select>
+      <small class="muted">Hold Ctrl/Cmd to select multiple entities.</small>
+    </label>
+
+    <label id="client-primary-field">
+      <span>Primary entity</span>
+      <select name="entityId" id="client-primary-select">
+        <option value="">Select primary entity</option>
+        <% entities.forEach((entity) => { %>
+          <option value="<%= entity._id %>"><%= entity.path %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <label id="agent-entities-field" style="display:none;">
+      <span>Agent assigned entities</span>
+      <select name="entityIds" id="agent-entities-select" multiple size="8">
+        <% entities.forEach((entity) => { %>
+          <option value="<%= entity._id %>"><%= entity.path %></option>
+        <% }) %>
+      </select>
+      <small class="muted">Hold Ctrl/Cmd to select multiple entities.</small>
+    </label>
+
+    <div class="form-actions right wrap-actions">
+      <a class="button-link secondary" href="<%= basePath %>/users">Back to list</a>
+      <button type="submit">Create User</button>
+    </div>
+  </form>
+</section>
+<script>
+(function(){
+  var roleSelect=document.getElementById('role-select');
+  var clientEntitiesField=document.getElementById('client-entities-field');
+  var clientEntitiesSelect=document.getElementById('client-entities-select');
+  var clientPrimaryField=document.getElementById('client-primary-field');
+  var clientPrimarySelect=document.getElementById('client-primary-select');
+  var agentEntitiesField=document.getElementById('agent-entities-field');
+  var agentEntitiesSelect=document.getElementById('agent-entities-select');
+  if(!roleSelect)return;
+
+  function selectedValues(select){
+    return Array.prototype.slice.call(select.options).filter(function(option){ return option.selected; }).map(function(option){ return option.value; });
+  }
+
+  function syncPrimaryOptions(){
+    var allowed = selectedValues(clientEntitiesSelect);
+    Array.prototype.forEach.call(clientPrimarySelect.options, function(option, index){
+      if(index===0){ option.hidden=false; return; }
+      option.hidden = allowed.indexOf(option.value) === -1;
+    });
+    if (allowed.length && allowed.indexOf(clientPrimarySelect.value) === -1) {
+      clientPrimarySelect.value = allowed[0];
+    }
+    if (!allowed.length) clientPrimarySelect.value = '';
+  }
+
+  function syncVisibility(){
+    var role=roleSelect.value;
+    var isClient = role==='client';
+    clientEntitiesField.style.display=isClient?'':'none';
+    clientPrimaryField.style.display=isClient?'':'none';
+    agentEntitiesField.style.display=role==='agent'?'':'none';
+    clientEntitiesSelect.required=isClient;
+    clientPrimarySelect.required=isClient;
+    agentEntitiesSelect.required=role==='agent';
+
+    clientEntitiesSelect.disabled=!isClient;
+    clientPrimarySelect.disabled=!isClient;
+    agentEntitiesSelect.disabled=role!=='agent';
+
+    syncPrimaryOptions();
+  }
+
+  clientEntitiesSelect.addEventListener('change', syncPrimaryOptions);
+  roleSelect.addEventListener('change',syncVisibility);
+  syncVisibility();
+})();
+</script>

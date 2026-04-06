@@ -1,0 +1,127 @@
+<%
+  const transitionLines = (workflow.transitions || []).map((t) => [
+    t.fromStatus,
+    t.toStatus,
+    (t.rolesAllowed || []).join(','),
+    t.requiresApproval ? 'true' : 'false'
+  ].join('|')).join('\n');
+  const fieldPermissionLines = (workflow.fieldPermissions || []).map((t) => [
+    t.fieldKey,
+    (t.readableBy || []).join(','),
+    (t.editableBy || []).join(',')
+  ].join('|')).join('\n');
+%>
+
+<section class="page-header">
+  <div>
+    <h1>Workflow Governance</h1>
+    <p class="muted">Keep workflow control simple: define allowed status moves, approval mode, and which roles can read or edit key fields.</p>
+  </div>
+</section>
+
+<section class="card stack section-card workflow-preset-card">
+  <div class="section-title-row">
+    <div>
+      <div class="section-kicker">Quick start</div>
+      <h2 style="margin-bottom:6px">Preset workflow packs</h2>
+      <p class="muted">Use these as copy-ready starting points instead of typing from scratch.</p>
+    </div>
+  </div>
+  <div class="workflow-preset-grid">
+    <% (presets || []).forEach((preset) => { %>
+      <article class="workflow-help-item">
+        <strong><%= preset.label %></strong>
+        <p class="muted small"><%= preset.description %></p>
+        <button type="button" class="button-link secondary workflow-preset-button" data-workflow-name="<%= preset.label %>" data-workflow-transitions="<%- preset.transitions.replace(/\n/g, '&#10;') %>" data-workflow-fields="<%- preset.fieldPermissions.replace(/\n/g, '&#10;') %>" data-workflow-approval="<%= preset.key === 'strict' ? 'true' : 'false' %>">Apply to form</button>
+      </article>
+    <% }) %>
+  </div>
+</section>
+
+<section class="workflow-grid">
+  <section class="card stack section-card">
+    <div class="section-title-row">
+      <div>
+        <div class="section-kicker">Configuration</div>
+        <h2 style="margin-bottom:6px">Portal workflow</h2>
+        <p class="muted">This governs ESOP-side transitions, not raw Jira workflow complexity.</p>
+      </div>
+      <span class="pill brand-soft"><%= workflow.name || 'Default' %></span>
+    </div>
+
+    <form method="post" action="<%= basePath %>/admin/workflows" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="grid-two">
+        <label>
+          <span>Workflow name</span>
+          <input type="text" name="name" value="<%= workflow.name || 'Default' %>" placeholder="Default portal workflow" />
+        </label>
+        <label>
+          <span>Approval mode</span>
+          <select name="approvalEnabled">
+            <option value="false" <%= !workflow.approvalEnabled ? 'selected' : '' %>>Disabled</option>
+            <option value="true" <%= workflow.approvalEnabled ? 'selected' : '' %>>Enabled</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        <span>Transitions</span>
+        <textarea name="transitions" rows="10" placeholder="OPEN|IN_PROGRESS|superadmin,agent|false&#10;IN_PROGRESS|WAITING_FOR_CLIENT|superadmin,agent|false&#10;RESOLVED|CLOSED|superadmin|true"><%= transitionLines %></textarea>
+        <span class="muted small">Format: FROM | TO | rolesAllowed | requiresApproval</span>
+      </label>
+
+      <label>
+        <span>Field permissions</span>
+        <textarea name="fieldPermissions" rows="8" placeholder="priority|superadmin,agent,client|superadmin,agent&#10;status|superadmin,agent,client|superadmin,agent,client"><%= fieldPermissionLines %></textarea>
+        <span class="muted small">Format: fieldKey | readableBy | editableBy</span>
+      </label>
+
+      <div class="form-actions right wrap-actions">
+        <button type="submit">Save workflow</button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="card stack section-card workflow-help-card">
+    <div>
+      <div class="section-kicker">Recommended defaults</div>
+      <h2 style="margin-bottom:6px">Keep it lightweight</h2>
+      <p class="muted">For ESOP, the customer-facing workflow should stay readable even when Jira behind it is more complex.</p>
+    </div>
+    <div class="stack workflow-help-list">
+      <div class="workflow-help-item">
+        <strong>Status path</strong>
+        <span class="muted small">OPEN → IN_PROGRESS → WAITING_FOR_CLIENT → RESOLVED → CLOSED</span>
+      </div>
+      <div class="workflow-help-item">
+        <strong>Reopen path</strong>
+        <span class="muted small">RESOLVED → IN_PROGRESS and CLOSED → IN_PROGRESS for controlled reopen.</span>
+      </div>
+      <div class="workflow-help-item">
+        <strong>Approval usage</strong>
+        <span class="muted small">Turn on approvals only for closure or high-impact status changes.</span>
+      </div>
+      <div class="workflow-help-item">
+        <strong>Field control</strong>
+        <span class="muted small">Let clients read more than they can edit. Keep priority and routing changes agent-driven.</span>
+      </div>
+    </div>
+  </aside>
+</section>
+
+<script>
+  document.querySelectorAll('.workflow-preset-button').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var form = document.querySelector('form[action$="/admin/workflows"]');
+      if (!form) return;
+      form.querySelector('[name="name"]').value = button.getAttribute('data-workflow-name') || 'Default';
+      form.querySelector('[name="transitions"]').value = (button.getAttribute('data-workflow-transitions') || '').replace(/&#10;/g, '
+');
+      form.querySelector('[name="fieldPermissions"]').value = (button.getAttribute('data-workflow-fields') || '').replace(/&#10;/g, '
+');
+      form.querySelector('[name="approvalEnabled"]').value = button.getAttribute('data-workflow-approval') || 'false';
+    });
+  });
+</script>

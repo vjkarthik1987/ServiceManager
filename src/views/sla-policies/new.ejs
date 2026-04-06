@@ -1,0 +1,61 @@
+<section class="hero">
+  <div>
+    <div class="section-kicker">Service commitment engine</div>
+    <h1>New Service Commitment Policy</h1>
+    <p>Create hierarchical SLA / OLA / custom commitments with severity bands, inheritance, and flexible time units.</p>
+  </div>
+</section>
+<section class="card stack">
+  <form method="post" action="<%= basePath %>/admin/sla-policies" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="grid-two">
+      <label><span>Name</span><input type="text" name="name" required /></label>
+      <label><span>Agreement type</span><select name="agreementType"><% agreementTypes.forEach((item) => { %><option value="<%= item %>" <%= defaults.agreementType === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+      <label><span>Scope level</span><select name="scopeLevel"><% scopeLevels.forEach((item) => { %><option value="<%= item %>" <%= defaults.scopeLevel === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+      <label><span>Entity scope</span><select name="entityId"><option value="">Global tenant default</option><% entities.forEach((entity) => { %><option value="<%= entity._id %>"><%= entity.path || entity.name %></option><% }) %></select></label>
+      <label><span>Inheritance mode</span><select name="scopeBehavior"><% scopeBehaviors.forEach((item) => { %><option value="<%= item %>" <%= defaults.scopeBehavior === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+      <label><span>Category</span><input type="text" name="category" value="<%= defaults.category %>" /></label>
+      <label><span>Priority filter</span><select name="priority"><% priorityOptions.forEach((item) => { %><option value="<%= item %>" <%= defaults.priority === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+      <label><span>Execution mode</span><select name="executionMode"><% executionOptions.forEach((item) => { %><option value="<%= item %>" <%= defaults.executionMode === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+      <label><span>Rank</span><input type="number" name="rank" min="1" value="<%= defaults.rank %>" required /></label>
+      <label><span>Default first response (minutes)</span><input type="number" name="responseTargetMinutes" min="0" value="<%= defaults.responseTargetMinutes %>" required /></label>
+      <label><span>Default resolution (minutes)</span><input type="number" name="resolutionTargetMinutes" min="0" value="<%= defaults.resolutionTargetMinutes %>" required /></label>
+      <label><span>Warning threshold (%)</span><input type="number" name="warningThresholdPercent" min="1" max="99" value="<%= defaults.warningThresholdPercent %>" required /></label>
+      <label><span>Business hours mode</span><select name="businessHoursMode"><option value="TWENTY_FOUR_SEVEN">24 x 7</option><option value="BUSINESS_HOURS">Business hours</option></select></label>
+      <label><span>Business hours start</span><input type="time" name="businessHoursStart" value="09:00" /></label>
+      <label><span>Business hours end</span><input type="time" name="businessHoursEnd" value="18:00" /></label>
+      <label class="checkbox-row"><input type="checkbox" name="isActive" value="true" checked /><span>Policy is active</span></label>
+      <label class="checkbox-row"><input type="checkbox" name="inheritsFromParent" value="true" checked /><span>Allow parent inheritance</span></label>
+    </div>
+    <label><span>Description</span><textarea name="description" placeholder="Who this policy is for and why it exists..."></textarea></label>
+    <label><span>Escalation recipients</span><input type="text" name="escalationRecipients" placeholder="ops@suntec.com, delivery@suntec.com" /></label>
+    <label><span>Escalation note</span><textarea name="escalationNote" placeholder="Escalation steps or owning team..."></textarea></label>
+
+    <div class="stack">
+      <div class="page-header"><div><h2>Severity bands</h2><p class="muted">Define timers per severity. Leave a metric blank if it does not apply.</p></div></div>
+      <% severityLevels.forEach((severity) => { %>
+        <section class="card stack" style="margin: 0;">
+          <div class="page-header"><div><h3><%= severity %></h3><p class="muted">Use this for <%= severity %> tickets.</p></div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Metric</th><th>Value</th><th>Unit</th></tr></thead>
+              <tbody>
+                <% metricTypes.forEach((metricType) => { %>
+                  <tr>
+                    <td><%= metricType.replace(/_/g, ' ') %></td>
+                    <td><input type="number" min="0" name="<%= severity %>_<%= metricType %>_value" /></td>
+                    <td><select name="<%= severity %>_<%= metricType %>_unit"><% timeUnits.forEach((unit) => { %><option value="<%= unit %>"><%= unit %></option><% }) %></select></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <label><span><%= severity %> escalation recipients</span><input type="text" name="<%= severity %>_escalationRecipients" placeholder="lead@suntec.com, manager@suntec.com" /></label>
+          <label><span><%= severity %> escalation note</span><textarea name="<%= severity %>_escalationNote" placeholder="Optional note for this severity..."></textarea></label>
+        </section>
+      <% }) %>
+    </div>
+
+    <div class="form-actions right"><button type="submit">Create Policy</button></div>
+  </form>
+</section>

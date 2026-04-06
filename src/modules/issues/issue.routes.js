@@ -1,0 +1,22 @@
+
+const csrf = require('csurf');
+const router = require('express').Router({ mergeParams: true });
+const { listIssuesPage, showCreateIssue, createIssue, getIssueOrDeny, viewIssuePage, updateIssueStatus, assignIssue, triageIssue, updateExecutionMode, createComment, listComments, getTimeline, exportIssuesExcel, pushIssueToJira, syncIssueFromJira, getIssueJiraSyncHistory } = require('./issue.controller');
+const { optionalFiles } = require('./issue.upload');
+const csrfProtection = csrf();
+router.get('/', listIssuesPage);
+router.get('/export', exportIssuesExcel);
+router.get('/new', showCreateIssue);
+router.post('/', optionalFiles('attachments'), csrfProtection, createIssue);
+router.get('/:id', getIssueOrDeny, viewIssuePage);
+router.post('/:id/status', getIssueOrDeny, updateIssueStatus);
+router.post('/:id/assign', getIssueOrDeny, assignIssue);
+router.post('/:id/triage', getIssueOrDeny, triageIssue);
+router.post('/:id/execution', getIssueOrDeny, updateExecutionMode);
+router.post('/:id/push-to-jira', getIssueOrDeny, pushIssueToJira);
+router.post('/:id/sync-from-jira', getIssueOrDeny, syncIssueFromJira);
+router.get('/:id/comments', getIssueOrDeny, listComments);
+router.post('/:id/comments', getIssueOrDeny, optionalFiles('attachments'), csrfProtection, createComment);
+router.get('/:id/timeline', getIssueOrDeny, getTimeline);
+router.get('/:id/jira-sync-history', getIssueOrDeny, getIssueJiraSyncHistory);
+module.exports = router;

@@ -1,0 +1,154 @@
+<% const uploadLimitSummary = uploadLimits.sizeSummary.slice(0, 6).map((item) => `${item.extension} ${item.maxSizeMb}MB`).join(' · '); %>
+<section class="page-header">
+  <div>
+    <h1><%= portalMode === 'client' ? 'Raise Issue' : 'Create Issue' %></h1>
+    <p class="muted"><%= portalMode === 'client' ? 'Raise a ticket for your scoped entities and track replies in one place.' : 'Create an issue only within entities you are authorized to access.' %></p>
+  </div>
+</section>
+<% if (!entities.length) { %>
+  <div class="alert error">No authorized entity is available for this user. Please contact your administrator.</div>
+<% } %>
+
+<form method="post" action="<%= createAction %>" enctype="multipart/form-data" class="card stack narrow form-card">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+  <label>
+    <span>Entity</span>
+    <select name="entityId" id="entityId" required data-jira-fields-url="<%= apiBasePath %>/entities/__ENTITY_ID__/jira-required-fields">
+      <option value="">Select entity</option>
+      <% entities.forEach((entity) => { %>
+        <option value="<%= entity._id %>" <%= defaults.entityId && String(defaults.entityId) === String(entity._id) ? 'selected' : '' %>><%= entity.path %></option>
+      <% }) %>
+    </select>
+  </label>
+  <% if (entities.length === 1) { %><p class="muted small">Only one authorized entity is available, so it has been preselected.</p><% } %>
+
+  <label>
+    <span>Title</span>
+    <input type="text" name="title" required maxlength="200" />
+  </label>
+
+  <label>
+    <span>Description</span>
+    <textarea name="description" required></textarea>
+  </label>
+
+  <div class="grid-two">
+    <label>
+      <span>Priority</span>
+      <select name="priority" required>
+        <% priorities.forEach((priority) => { %>
+          <option value="<%= priority %>" <%= defaults.priority === priority ? 'selected' : '' %>><%= priority %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>
+      <span>Category</span>
+      <input type="text" name="category" value="<%= defaults.category %>" required maxlength="100" placeholder="Access, Billing, Integration" />
+    </label>
+  </div>
+
+  <label>
+    <span>Tags</span>
+    <input type="text" name="tags" placeholder="billing, login, urgency" />
+  </label>
+
+  <% if (currentUser && ['agent', 'superadmin'].includes(currentUser.role)) { %>
+  <div class="grid-two">
+    <label>
+      <span>Customer visibility</span>
+      <select name="customerVisibility">
+        <% customerVisibilities.forEach((visibility) => { %>
+          <option value="<%= visibility %>" <%= defaults.customerVisibility === visibility ? 'selected' : '' %>><%= visibility %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>
+      <span>Source</span>
+      <select name="source">
+        <option value="portal">portal</option>
+        <option value="api">api</option>
+        <option value="email">email</option>
+        <option value="future-ready">future-ready</option>
+      </select>
+    </label>
+  </div>
+  <p class="muted small">Set <strong>INTERNAL_ONLY</strong> for tickets that agents and superadmins should track without exposing them to client users.</p>
+  <% } else { %>
+  <input type="hidden" name="customerVisibility" value="VISIBLE_TO_CUSTOMER" />
+  <input type="hidden" name="source" value="portal" />
+  <% } %>
+
+  <section class="stack" id="jira-dynamic-section" hidden>
+    <div>
+      <h2 style="margin:0">Additional information required for processing</h2>
+      <p class="muted small" id="jira-dynamic-hint">Only Jira-required fields are shown. Optional Jira fields are hidden.</p>
+    </div>
+    <div class="grid-two" id="jira-dynamic-fields"></div>
+  </section>
+
+  <label>
+    <span>Attachments</span>
+    <input type="file" name="attachments" multiple accept="<%= uploadLimits.accept %>" data-file-preview-input="issue-create-files" />
+    <span class="muted small">Up to <%= uploadLimits.maxFileCount %> files. <%= uploadLimitSummary %><%= uploadLimits.sizeSummary.length > 6 ? " · more via config" : "" %></span>
+  </label>
+  <div class="selected-files" data-file-preview-list="issue-create-files" hidden></div>
+
+  <div class="form-actions right"><button type="submit">Create Issue</button></div>
+</form>
+
+<script>
+  (function () {
+    const entitySelect = document.getElementById('entityId');
+    const section = document.getElementById('jira-dynamic-section');
+    const fieldsContainer = document.getElementById('jira-dynamic-fields');
+    const hint = document.getElementById('jira-dynamic-hint');
+    if (!entitySelect || !section || !fieldsContainer) return;
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    function renderField(field) {
+      const name = `jiraField__${field.fieldId}`;
+      const required = field.required ? 'required' : '';
+      const requiredMark = field.required ? '*' : '';
+      const options = (field.allowedValues || []).map((option) => `<option value="${escapeHtml(option.id || option.value)}">${escapeHtml(option.name || option.value)}</option>`).join('');
+      if (field.uiType === 'textarea') {
+        return `<label><span>${escapeHtml(field.name)} ${requiredMark}</span><textarea name="${escapeHtml(name)}" ${required}></textarea></label>`;
+      }
+      if (field.uiType === 'select' || field.uiType === 'multiselect') {
+        return `<label><span>${escapeHtml(field.name)} ${requiredMark}</span><select name="${escapeHtml(name)}" ${required}><option value="">Select...</option>${options}</select></label>`;
+      }
+      return `<label><span>${escapeHtml(field.name)} ${requiredMark}</span><input type="text" name="${escapeHtml(name)}" ${required} /></label>`;
+    }
+
+    async function loadFields() {
+      const entityId = entitySelect.value;
+      if (!entityId) {
+        section.hidden = true;
+        fieldsContainer.innerHTML = '';
+        return;
+      }
+      try {
+        const response = await fetch(entitySelect.dataset.jiraFieldsUrl.replace('__ENTITY_ID__', entityId), { headers: { Accept: 'application/json' } });
+        const payload = await response.json();
+        const item = payload.item || {};
+        const fields = item.fields || [];
+        if (!fields.length) {
+          section.hidden = true;
+          fieldsContainer.innerHTML = '';
+          return;
+        }
+        hint.textContent = `Only required Jira fields for ${(item.jiraConfig && item.jiraConfig.projectKey) || ''} / ${(item.jiraConfig && item.jiraConfig.issueTypeName) || ''}`;
+        fieldsContainer.innerHTML = fields.map(renderField).join('');
+        section.hidden = false;
+      } catch (error) {
+        section.hidden = true;
+        fieldsContainer.innerHTML = '';
+      }
+    }
+
+    entitySelect.addEventListener('change', loadFields);
+    if (entitySelect.value) loadFields();
+  })();
+</script>

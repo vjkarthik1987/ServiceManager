@@ -1,0 +1,20 @@
+
+<section class="page-header"><div><h1>Saved Views</h1><p class="muted">Persist issue filters for quick re-use.</p></div></section>
+<section class="grid-two">
+  <div class="card stack section-card">
+    <h2>Create saved view</h2>
+    <form method="post" action="<%= basePath %>/admin/saved-views" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label><span>Name</span><input type="text" name="name" required /></label>
+      <label><span>Search</span><input type="text" name="q" /></label>
+      <label><span>Status</span><input type="text" name="status" /></label>
+      <label><span>Priority</span><input type="text" name="priority" /></label>
+      <label><span>Entity ID</span><input type="text" name="entityId" /></label>
+      <label><span>Assigned User ID</span><input type="text" name="assignedToUserId" /></label>
+      <label><span>Triage Status</span><input type="text" name="triageStatus" /></label>
+      <label><span>Default</span><select name="isDefault"><option value="false">No</option><option value="true">Yes</option></select></label>
+      <div class="form-actions right"><button type="submit">Save view</button></div>
+    </form>
+  </div>
+  <div class="card stack section-card"><h2>My views</h2><div class="stack"><% views.forEach((view) => { %><div class="summary-detail-item"><span class="summary-label"><%= view.name %> <%= view.isDefault ? '(default)' : '' %></span><strong><a href="<%= basePath %>/tickets?<%= new URLSearchParams(view.filters || {}).toString() %>">Open</a></strong></div><% }) %></div></div>
+</section>

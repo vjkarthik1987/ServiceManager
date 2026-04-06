@@ -1,0 +1,100 @@
+<section class="hero gradient-quirky client-dashboard-hero">
+  <div>
+    <div class="section-kicker">Client workspace</div>
+    <h1>Welcome <%= currentUser && currentUser.name ? currentUser.name : 'back' %></h1>
+    <p class="muted client-dashboard-subcopy">A calmer, clearer view of what needs your attention, what is moving, and where you may need to respond.</p>
+  </div>
+  <div class="hero-actions wrap-actions hero-actions-inline">
+    <a class="button-link secondary" href="<%= basePath %>/client/issues">My Issues</a>
+    <a class="button-link" href="<%= basePath %>/client/issues/new">Raise Issue</a>
+  </div>
+</section>
+
+<section class="stats-grid client-stats-grid dashboard-primary-stats">
+  <article class="stat-card client-stat-card emphasis"><span class="stat-label">Open Issues</span><strong class="big-number"><%= stats.myOpenIssues %></strong><p class="muted small">Everything still active in your scope</p></article>
+  <article class="stat-card client-stat-card"><span class="stat-label">Waiting for You</span><strong class="big-number"><%= stats.waitingForMe %></strong><p class="muted small">Replies or confirmations needed from your side</p></article>
+  <article class="stat-card client-stat-card"><span class="stat-label">In Progress</span><strong class="big-number"><%= stats.inProgress %></strong><p class="muted small">Tickets our team is currently working on</p></article>
+  <article class="stat-card client-stat-card"><span class="stat-label">Updated Today</span><strong class="big-number"><%= stats.updatedToday %></strong><p class="muted small">Fresh movement since midnight</p></article>
+  <article class="stat-card client-stat-card"><span class="stat-label">Resolved Recently</span><strong class="big-number"><%= stats.resolvedRecently %></strong><p class="muted small">Resolved or closed items visible to you</p></article>
+  <article class="stat-card client-stat-card"><span class="stat-label">Needs Follow-up</span><strong class="big-number"><%= stats.staleOpen %></strong><p class="muted small">Open tickets with no recent movement for 3+ days</p></article>
+  <article class="stat-card client-stat-card"><span class="stat-label">Entities in Scope</span><strong class="big-number"><%= stats.entitiesInScope %></strong><p class="muted small">Clients or subclients you can view</p></article>
+  <article class="stat-card client-stat-card soft-note"><span class="stat-label">Quick Guidance</span><p class="body-copy muted">If something says <strong>Waiting for your input</strong>, that is the fastest place to unblock progress.</p></article>
+</section>
+
+<section class="grid-two dashboard-secondary-grid client-dashboard-grid">
+  <article class="card stack section-card client-dashboard-panel">
+    <div class="page-header compact-header">
+      <div>
+        <h2>What to do next</h2>
+        <p class="muted">A simple guide so the client portal feels more like a workspace than a ticket list.</p>
+      </div>
+    </div>
+    <div class="stack dashboard-focus-list">
+      <div class="focus-row"><span class="pill warning-soft">1</span><span>Start with issues marked <strong>Waiting for your input</strong>. A quick reply there usually accelerates the whole flow.</span></div>
+      <div class="focus-row"><span class="pill brand-soft">2</span><span>Check anything updated today before raising a follow-up. The answer may already be there.</span></div>
+      <div class="focus-row"><span class="pill subtle">3</span><span>Use <strong>Raise Issue</strong> for new requests and keep existing conversations inside the same ticket for cleaner tracking.</span></div>
+    </div>
+  </article>
+
+  <article class="card stack section-card client-dashboard-panel client-dashboard-panel-soft">
+    <div class="page-header compact-header">
+      <div>
+        <h2>Customer view</h2>
+        <p class="muted">Only customer-visible items are shown here, with internal complexity abstracted away.</p>
+      </div>
+    </div>
+    <div class="summary-detail-grid compact-summary-grid">
+      <div class="summary-detail-item"><span class="summary-label">Visible workflow</span><strong>New → In Progress → Waiting for your input → Resolved</strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Best action</span><strong>Reply on the ticket instead of starting a fresh thread</strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Scope</span><strong><%= stats.entitiesInScope %> active entities visible</strong></div>
+      <div class="summary-detail-item"><span class="summary-label">Fresh updates</span><strong><%= stats.updatedToday %> touched today</strong></div>
+    </div>
+  </article>
+</section>
+
+<section class="card section-card client-recent-issues-card">
+  <div class="page-header">
+    <div>
+      <h2>Recent updates</h2>
+      <p class="muted">Showing the latest 10 customer-visible issues across your scope.</p>
+    </div>
+    <a class="button-link secondary" href="<%= basePath %>/client/issues">View all</a>
+  </div>
+  <% if (!recentIssues.length) { %>
+    <p class="muted">No customer-visible issues yet.</p>
+  <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Issue</th>
+            <th>Title</th>
+            <th>Entity</th>
+            <th>Customer Status</th>
+            <th>Updated</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recentIssues.forEach((issue) => { %>
+            <tr>
+              <td><strong><%= issue.issueNumber %></strong></td>
+              <td>
+                <div class="client-issue-title-cell">
+                  <span><%= issue.title %></span>
+                  <% if (issue.isRecentlyUpdated) { %><span class="pill brand-soft">Updated today</span><% } %>
+                </div>
+              </td>
+              <td><%= issue.entityId ? issue.entityId.path || issue.entityId.name : '-' %></td>
+              <td>
+                <span class="pill <%= issue.isWaitingForClient ? 'warning-soft' : 'brand-soft' %>"><%= issue.customerStatusLabel %></span>
+              </td>
+              <td><%= issue.updatedAt ? new Date(issue.updatedAt).toLocaleString() : '-' %></td>
+              <td><a href="<%= basePath %>/client/issues/<%= issue._id %>">Open</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>

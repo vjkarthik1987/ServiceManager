@@ -1,0 +1,81 @@
+<section class="auth-shell auth-shell-wow">
+  <div class="auth-showcase-card">
+    <div class="auth-showcase-panel auth-showcase-copy">
+      <div class="section-kicker">Workspace login</div>
+      <h1 class="auth-display-title">Welcome to <span><%= tenant ? tenant.name : 'ESOP' %></span></h1>
+      <p class="auth-display-copy muted">
+        A calmer, sharper service workspace for teams that need clarity without the clutter.
+      </p>
+
+      <div class="auth-feature-list">
+        <div class="auth-feature-chip">
+          <span class="auth-feature-icon">✦</span>
+          <div>
+            <strong>Clean by default</strong>
+            <p class="muted">Focused screens, clearer actions, better spacing.</p>
+          </div>
+        </div>
+        <div class="auth-feature-chip">
+          <span class="auth-feature-icon">↗</span>
+          <div>
+            <strong>Built for orchestration</strong>
+            <p class="muted">Ticketing, triage, Jira execution, all in one flow.</p>
+          </div>
+        </div>
+        <div class="auth-feature-chip">
+          <span class="auth-feature-icon">●</span>
+          <div>
+            <strong>Tenant-aware workspace</strong>
+            <p class="muted">You are signing into <strong>/<%= tenant ? tenant.slug : '' %></strong>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="auth-quote-card">
+        <span class="auth-quote-mark">“</span>
+        <div>
+          <strong>Minimal where it should be.</strong>
+          <p class="muted">Quirky where it helps. Serious where it matters.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-showcase-panel auth-form-panel">
+      <div class="auth-form-top">
+        <div>
+          <div class="auth-form-badge">Secure sign in</div>
+          <h2 class="auth-form-title">Sign in</h2>
+          <p class="muted auth-form-copy">Use your workspace credentials to continue.</p>
+        </div>
+        <div class="auth-orbit" aria-hidden="true">
+          <span class="auth-orbit-core"></span>
+          <span class="auth-orbit-ring auth-orbit-ring-one"></span>
+          <span class="auth-orbit-ring auth-orbit-ring-two"></span>
+        </div>
+      </div>
+
+      <form method="post" action="<%= basePath %>/login" class="stack auth-form-stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+        <label class="auth-label">
+          <span>Email</span>
+          <input type="email" name="email" placeholder="you@company.com" required autofocus />
+        </label>
+
+        <label class="auth-label">
+          <span>Password</span>
+          <input type="password" name="password" placeholder="Enter your password" required />
+        </label>
+
+        <button type="submit" class="auth-submit-button">Enter workspace</button>
+      </form>
+
+      <div class="auth-form-footer">
+        <a href="<%= basePath %>/forgot-password">Forgot password?</a>
+        <span class="auth-footer-divider"></span>
+        <span class="muted">Need a new workspace?</span>
+        <a href="/signup">Create one</a>
+      </div>
+    </div>
+  </div>
+</section>

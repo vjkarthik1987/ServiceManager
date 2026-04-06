@@ -1,0 +1,31 @@
+<section class="page-header">
+  <div><h1>Routing Rules</h1><p class="muted">Manage ranked routing logic for support groups, execution mode, and Jira project defaults.</p></div>
+</section>
+<section class="grid-two">
+  <article class="card stack">
+    <h2>Create routing rule</h2>
+    <form method="post" action="<%= basePath %>/admin/routing-rules" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="grid-two">
+        <label><span>Name</span><input type="text" name="name" required /></label>
+        <label><span>Category</span><input type="text" name="category" placeholder="GENERAL" required /></label>
+        <label><span>Priority</span><select name="priority"><option>ANY</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option><option>BLOCKER</option></select></label>
+        <label><span>Execution mode</span><select name="executionMode"><option>NATIVE</option><option>JIRA</option></select></label>
+        <label><span>Support group</span><select name="supportGroupId" required><option value="">Select</option><% supportGroups.forEach((item) => { %><option value="<%= item._id %>"><%= item.name %> (<%= item.code %>)</option><% }) %></select></label>
+        <label><span>Default assignee</span><select name="defaultAssigneeUserId"><option value="">Optional</option><% agents.forEach((item) => { %><option value="<%= item._id %>"><%= item.name %></option><% }) %></select></label>
+        <label><span>Entity scope</span><select name="entityId"><option value="">Tenant default</option><% entities.forEach((item) => { %><option value="<%= item._id %>"><%= item.path %></option><% }) %></select></label>
+        <label><span>Jira project key</span><input type="text" name="jiraProjectKey" /></label>
+        <label><span>Rank</span><input type="number" name="rank" value="100" /></label>
+      </div>
+      <label><input type="checkbox" name="isActive" checked /> Active</label>
+      <div class="form-actions right"><button type="submit">Create Rule</button></div>
+    </form>
+  </article>
+  <article class="card">
+    <h2>Current rules</h2>
+    <% if (!items.length) { %><p class="muted">No routing rules yet.</p><% } else { %>
+    <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Name</th><th>Match</th><th>Route</th></tr></thead><tbody>
+      <% items.forEach((item) => { %><tr><td><%= item.rank %></td><td><strong><%= item.name %></strong><div class="muted small"><%= item.isActive ? 'Enabled' : 'Disabled' %></div></td><td><%= item.category %> / <%= item.priority %><div class="muted small"><%= item.entityId?.path || 'Tenant default' %></div></td><td><%= item.supportGroupId?.name || '—' %><div class="muted small"><%= item.executionMode %><% if (item.jiraProjectKey) { %> · <%= item.jiraProjectKey %><% } %></div></td></tr><% }) %>
+    </tbody></table></div><% } %>
+  </article>
+</section>

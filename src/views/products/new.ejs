@@ -1,0 +1,7 @@
+<section class='page-header'><div><h1>New Product</h1><p class='muted'>Create a reusable product option for entities and tickets.</p></div></section>
+<section class='card narrow form-card'><form method='post' action='<%= basePath %>/admin/products' class='stack'><input type='hidden' name='_csrf' value='<%= csrfToken %>' />
+<label><span>Code</span><input type='text' name='code' required value='<%= defaults.code %>' /></label>
+<label><span>Name</span><input type='text' name='name' required value='<%= defaults.name %>' /></label>
+<label><span>Description</span><textarea name='description' rows='4'><%= defaults.description %></textarea></label>
+<label class='checkbox-row'><input type='checkbox' name='isActive' value='true' checked /><span>Active</span></label>
+<div class='form-actions right wrap-actions'><a class='button-link secondary' href='<%= basePath %>/admin/products'>Back to list</a><button type='submit'>Create Product</button></div></form></section>

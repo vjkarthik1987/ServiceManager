@@ -1,0 +1,261 @@
+
+<%
+  function formatDate(value) { return value ? new Date(value).toLocaleString() : '-'; }
+  const filters = workspace.filters || {};
+  const counts = workspace.counts || {};
+  const selected = selectedIssue || null;
+%>
+<section class="page-header workspace-header-block">
+  <div>
+    <div class="section-kicker">v28 Agent Console</div>
+    <h1>Agent Workspace</h1>
+    <p class="muted">Dense, operational, queue-driven support cockpit for agents and superadmins.</p>
+  </div>
+  <div class="header-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/tickets">Classic Issues View</a>
+    <a class="button-link" href="<%= basePath %>/tickets/new">Create Issue</a>
+  </div>
+</section>
+
+<section class="stats-grid workspace-kpis">
+  <article class="card stat-card"><span class="muted small">My Open Issues</span><strong><%= counts.myOpenIssues || 0 %></strong></article>
+  <article class="card stat-card"><span class="muted small">Unassigned</span><strong><%= counts.unassigned || 0 %></strong></article>
+  <article class="card stat-card"><span class="muted small">In Triage</span><strong><%= counts.inTriage || 0 %></strong></article>
+  <article class="card stat-card"><span class="muted small">Jira Pending</span><strong><%= counts.jiraPending || 0 %></strong></article>
+  <article class="card stat-card"><span class="muted small">Breached SLA</span><strong><%= counts.breachedOnly || 0 %></strong></article>
+  <article class="card stat-card"><span class="muted small">Updated Today</span><strong><%= counts.updatedToday || 0 %></strong></article>
+</section>
+
+<section class="agent-workspace-layout">
+  <aside class="card workspace-sidebar-panel stack">
+    <div>
+      <div class="section-kicker">Queues</div>
+      <h2>Work queues</h2>
+    </div>
+    <div class="queue-list">
+      <% queueOptions.forEach((queue) => { %>
+        <a class="queue-link <%= filters.queue === queue.key ? 'active' : '' %>" href="<%= basePath %>/agent/workspace?queue=<%= queue.key %>">
+          <span><%= queue.label %></span>
+          <span class="pill subtle"><%= counts[queue.countKey] || 0 %></span>
+        </a>
+      <% }) %>
+    </div>
+
+    <div class="workspace-sidebar-section stack">
+      <div class="section-kicker">Saved Views</div>
+      <% if (!workspace.savedViews.length) { %>
+        <p class="muted small">No personal saved views yet.</p>
+      <% } %>
+      <% workspace.savedViews.forEach((view) => { %>
+        <div class="saved-view-row">
+          <a class="saved-view-link" href="<%= basePath %>/agent/workspace?savedViewId=<%= view._id %>"><%= view.name %></a>
+          <% if (view.isDefault) { %><span class="pill brand-soft">Default</span><% } %>
+        </div>
+      <% }) %>
+    </div>
+
+    <form class="stack compact-form" method="post" action="<%= apiBasePath %>/saved-views" data-json-form>
+      <div class="section-kicker">Save current filter</div>
+      <label><span>Name</span><input type="text" name="name" placeholder="My queue" required /></label>
+      <input type="hidden" name="q" value="<%= filters.q %>" />
+      <input type="hidden" name="entityId" value="<%= filters.entityId %>" />
+      <input type="hidden" name="status" value="<%= filters.status %>" />
+      <input type="hidden" name="priority" value="<%= filters.priority %>" />
+      <input type="hidden" name="triageStatus" value="<%= filters.triageStatus %>" />
+      <input type="hidden" name="assignedToUserId" value="<%= filters.assignedToUserId %>" />
+      <input type="hidden" name="createdByUserId" value="<%= filters.createdByUserId %>" />
+      <input type="hidden" name="executionMode" value="<%= filters.executionMode %>" />
+      <input type="hidden" name="routingStatus" value="<%= filters.routingStatus %>" />
+      <input type="hidden" name="slaStatus" value="<%= filters.slaStatus %>" />
+      <input type="hidden" name="queue" value="<%= filters.queue %>" />
+      <label class="checkbox-row"><input type="checkbox" name="isDefault" value="true" /> <span>Make default</span></label>
+      <button type="submit">Save View</button>
+    </form>
+  </aside>
+
+  <main class="workspace-main-panel stack">
+    <form method="get" action="<%= basePath %>/agent/workspace" class="card filters-form stack">
+      <input type="hidden" name="queue" value="<%= filters.queue %>" />
+      <div class="grid-auto-fit">
+        <label><span>Search</span><input type="text" name="q" value="<%= filters.q %>" placeholder="Issue number, title or tag" /></label>
+        <label><span>Entity</span><select name="entityId"><option value="">All entities</option><% workspace.entities.forEach((entity) => { %><option value="<%= entity._id %>" <%= filters.entityId === String(entity._id) ? 'selected' : '' %>><%= entity.path || entity.name %></option><% }) %></select></label>
+        <label><span>Status</span><select name="status"><option value="">All</option><% ['NEW','OPEN','IN_PROGRESS','WAITING_FOR_CLIENT','RESOLVED','CLOSED'].forEach((item) => { %><option value="<%= item %>" <%= filters.status === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+        <label><span>Priority</span><select name="priority"><option value="">All</option><% ['LOW','MEDIUM','HIGH','CRITICAL','BLOCKER'].forEach((item) => { %><option value="<%= item %>" <%= filters.priority === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+        <label><span>Triage</span><select name="triageStatus"><option value="">All</option><% ['NOT_TRIAGED','IN_TRIAGE','TRIAGED'].forEach((item) => { %><option value="<%= item %>" <%= filters.triageStatus === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+        <label><span>Assigned To</span><select name="assignedToUserId"><option value="">Any</option><% workspace.agents.forEach((agent) => { %><option value="<%= agent._id %>" <%= filters.assignedToUserId === String(agent._id) ? 'selected' : '' %>><%= agent.name %></option><% }) %></select></label>
+        <label><span>Execution Mode</span><select name="executionMode"><option value="">All</option><option value="NATIVE" <%= filters.executionMode === 'NATIVE' ? 'selected' : '' %>>NATIVE</option><option value="JIRA" <%= filters.executionMode === 'JIRA' ? 'selected' : '' %>>JIRA</option></select></label>
+        <label><span>SLA Status</span><select name="slaStatus"><option value="">All</option><% ['ON_TRACK','AT_RISK','MET','BREACHED'].forEach((item) => { %><option value="<%= item %>" <%= filters.slaStatus === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+      </div>
+      <div class="form-actions right">
+        <a class="button-link secondary" href="<%= basePath %>/agent/workspace?queue=<%= filters.queue || 'MY_OPEN' %>">Reset</a>
+        <button type="submit">Apply Filters</button>
+      </div>
+    </form>
+
+    <section class="card stack section-card">
+      <div class="section-title-row">
+        <h2>Ticket list</h2>
+        <span class="muted small"><%= workspace.total %> issues</span>
+      </div>
+      <div class="bulk-toolbar" data-bulk-toolbar hidden>
+        <span class="muted small" data-bulk-count>0 selected</span>
+        <select data-bulk-action>
+          <option value="">Bulk action</option>
+          <option value="CHANGE_STATUS">Change status</option>
+          <option value="ASSIGN">Assign to agent</option>
+          <option value="ADD_TAGS">Add tags</option>
+          <option value="SET_EXECUTION_MODE">Set execution mode</option>
+          <option value="SET_TRIAGE_STATUS">Set triage status</option>
+        </select>
+        <input type="text" data-bulk-value placeholder="Value / comma tags" />
+        <button type="button" data-run-bulk>Apply</button>
+      </div>
+      <div class="table-wrap">
+        <table class="workspace-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" data-select-all /></th>
+              <th>Issue Number</th><th>Title</th><th>Entity</th><th>Status</th><th>Priority</th><th>Triage</th><th>Assigned To</th><th>Support Group</th><th>Execution</th><th>Jira Push</th><th>SLA</th><th>Updated At</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!workspace.items.length) { %>
+              <tr><td colspan="13" class="muted">No issues match this workspace view.</td></tr>
+            <% } %>
+            <% workspace.items.forEach((item) => { %>
+              <tr class="workspace-row <%= selected && String(selected._id) === String(item._id) ? 'is-selected' : '' %>" data-issue-id="<%= item._id %>">
+                <td><input type="checkbox" class="bulk-checkbox" value="<%= item._id %>" /></td>
+                <td><a href="<%= basePath %>/agent/workspace?<%= new URLSearchParams({ ...filters, selectedIssueId: String(item._id) }).toString() %>"><strong><%= item.issueNumber %></strong></a></td>
+                <td><div class="row-title"><%= item.title %></div></td>
+                <td><%= item.entityId && item.entityId.path ? item.entityId.path : (item.entityId && item.entityId.name ? item.entityId.name : '-') %></td>
+                <td><span class="badge status-<%= String(item.status || '').toLowerCase() %>"><%= item.status %></span></td>
+                <td><span class="pill priority-pill priority-<%= String(item.priority || '').toLowerCase() %>"><%= item.priority %></span></td>
+                <td><span class="pill subtle"><%= item.triageStatus || 'NOT_TRIAGED' %></span></td>
+                <td><%= item.assignedToUserId && item.assignedToUserId.name ? item.assignedToUserId.name : 'Unassigned' %></td>
+                <td><%= item.supportGroupId && item.supportGroupId.name ? item.supportGroupId.name : '-' %></td>
+                <td><span class="pill execution-mode-pill"><%= item.executionMode %></span> <span class="pill execution-state-pill"><%= item.executionState %></span></td>
+                <td><span class="pill <%= item.jira && item.jira.pushStatus === 'PUSHED' ? 'brand-soft' : (item.jira && item.jira.pushStatus === 'FAILED' ? 'warning-soft' : 'subtle') %>"><%= item.jira && item.jira.pushStatus ? item.jira.pushStatus : 'NOT_PUSHED' %></span></td>
+                <td><span class="pill <%= item.sla && (item.sla.responseStatus === 'BREACHED' || item.sla.resolutionStatus === 'BREACHED') ? 'danger-soft' : (item.sla && (item.sla.responseStatus === 'AT_RISK' || item.sla.resolutionStatus === 'AT_RISK') ? 'warning-soft' : 'brand-soft') %>"><%= item.sla && (item.sla.responseStatus === 'BREACHED' || item.sla.resolutionStatus === 'BREACHED') ? 'BREACHED' : (item.sla && (item.sla.responseStatus === 'AT_RISK' || item.sla.resolutionStatus === 'AT_RISK') ? 'AT_RISK' : (item.sla && item.sla.hasPolicy ? 'ON_TRACK' : 'NO_SLA')) %></span></td>
+                <td><%= formatDate(item.updatedAt) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination-bar">
+        <div class="muted small">Page <%= workspace.page %> of <%= workspace.pages %></div>
+        <div class="inline-actions">
+          <% if (workspace.page > 1) { %><a class="button-link secondary" href="<%= basePath %>/agent/workspace?<%= new URLSearchParams({ ...filters, page: workspace.page - 1 }).toString() %>">Previous</a><% } %>
+          <% if (workspace.page < workspace.pages) { %><a class="button-link secondary" href="<%= basePath %>/agent/workspace?<%= new URLSearchParams({ ...filters, page: workspace.page + 1 }).toString() %>">Next</a><% } %>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="card workspace-context-panel stack">
+    <% if (!selected) { %>
+      <p class="muted">Select an issue to see quick context.</p>
+    <% } else { %>
+      <div>
+        <div class="section-kicker">Selected Ticket</div>
+        <h2><%= selected.issueNumber %></h2>
+        <p class="muted"><%= selected.title %></p>
+      </div>
+      <div class="summary-details-grid compact-grid">
+        <div class="summary-detail-item"><span class="summary-label">Entity</span><strong><%= selected.entityId && selected.entityId.path ? selected.entityId.path : (selected.entityId && selected.entityId.name ? selected.entityId.name : '-') %></strong></div>
+        <div class="summary-detail-item"><span class="summary-label">Status</span><strong><%= selected.status %></strong></div>
+        <div class="summary-detail-item"><span class="summary-label">Priority</span><strong><%= selected.priority %></strong></div>
+        <div class="summary-detail-item"><span class="summary-label">Assignee</span><strong><%= selected.assignedToUserId && selected.assignedToUserId.name ? selected.assignedToUserId.name : 'Unassigned' %></strong></div>
+        <div class="summary-detail-item"><span class="summary-label">Execution</span><strong><%= selected.executionMode %> · <%= selected.executionState %></strong></div>
+        <div class="summary-detail-item"><span class="summary-label">Jira</span><strong><%= selected.jira && selected.jira.issueKey ? selected.jira.issueKey : (selected.jira && selected.jira.pushStatus ? selected.jira.pushStatus : 'NOT_PUSHED') %></strong></div>
+        <div class="summary-detail-item"><span class="summary-label">SLA</span><strong><%= selected.slaDisplay %></strong></div>
+        <div class="summary-detail-item"><span class="summary-label">Attachments</span><strong><%= selected.attachmentCount %></strong></div>
+      </div>
+      <div class="stack">
+        <div class="section-kicker">Quick actions</div>
+        <div class="quick-actions-vertical">
+          <a class="button-link secondary" href="<%= basePath %>/tickets/<%= selected._id %>">Open detail page</a>
+          <% if (selected.executionMode === 'JIRA' && selected.jira && selected.jira.pushStatus !== 'PUSHED') { %>
+            <form method="post" action="<%= basePath %>/tickets/<%= selected._id %>/push-to-jira">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+              <button type="submit">Push to Jira</button>
+            </form>
+          <% } %>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="section-kicker">Recent comments</div>
+        <% if (!selected.latestComments.length) { %><p class="muted small">No recent comments.</p><% } %>
+        <% selected.latestComments.forEach((comment) => { %>
+          <article class="comment-card compact-comment-card">
+            <div class="comment-meta-row">
+              <strong><%= comment.authorUserId && comment.authorUserId.name ? comment.authorUserId.name : comment.authorRole %></strong>
+              <span class="pill subtle"><%= comment.visibility %></span>
+            </div>
+            <p class="body-copy"><%= comment.commentText %></p>
+            <p class="muted small"><%= formatDate(comment.createdAt) %></p>
+          </article>
+        <% }) %>
+      </div>
+      <% if (selected.attachments && selected.attachments.length) { %>
+        <div class="stack">
+          <div class="section-kicker">Attachments</div>
+          <% selected.attachments.slice(0, 5).forEach((attachment) => { %>
+            <a class="attachment-inline-link" href="<%= apiBasePath %>/files/<%= attachment._id || attachment.id %>/download"><%= attachment.originalName || attachment.filename %></a>
+          <% }) %>
+        </div>
+      <% } %>
+    <% } %>
+  </aside>
+</section>
+
+<script>
+  (function () {
+    const checkboxes = Array.from(document.querySelectorAll('.bulk-checkbox'));
+    const selectAll = document.querySelector('[data-select-all]');
+    const toolbar = document.querySelector('[data-bulk-toolbar]');
+    const countNode = document.querySelector('[data-bulk-count]');
+    const actionNode = document.querySelector('[data-bulk-action]');
+    const valueNode = document.querySelector('[data-bulk-value]');
+    const runButton = document.querySelector('[data-run-bulk]');
+
+    function selectedIds() { return checkboxes.filter((item) => item.checked).map((item) => item.value); }
+    function syncToolbar() {
+      const ids = selectedIds();
+      if (!toolbar) return;
+      toolbar.hidden = !ids.length;
+      if (countNode) countNode.textContent = ids.length + ' selected';
+      if (selectAll) selectAll.checked = ids.length && ids.length === checkboxes.length;
+    }
+    checkboxes.forEach((item) => item.addEventListener('change', syncToolbar));
+    if (selectAll) selectAll.addEventListener('change', function () { checkboxes.forEach((item) => { item.checked = !!selectAll.checked; }); syncToolbar(); });
+    syncToolbar();
+
+    document.querySelectorAll('[data-json-form]').forEach((form) => {
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(form).entries());
+        const response = await fetch(form.action, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-test-bypass-csrf': '1' }, body: JSON.stringify(data), credentials: 'same-origin' });
+        if (response.ok) window.location.reload(); else alert('Unable to save view.');
+      });
+    });
+
+    if (runButton) runButton.addEventListener('click', async function () {
+      const ids = selectedIds();
+      const action = actionNode.value;
+      const rawValue = valueNode.value;
+      if (!ids.length || !action) { alert('Select rows and a bulk action.'); return; }
+      const payload = {};
+      if (action === 'CHANGE_STATUS') payload.status = rawValue;
+      if (action === 'ASSIGN') payload.assignedToUserId = rawValue;
+      if (action === 'SET_EXECUTION_MODE') payload.executionMode = rawValue;
+      if (action === 'SET_TRIAGE_STATUS') payload.triageStatus = rawValue;
+      if (action === 'ADD_TAGS') payload.tags = rawValue.split(',').map((item) => item.trim()).filter(Boolean);
+      const response = await fetch('<%= apiBasePath %>/issues/bulk-update', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-test-bypass-csrf': '1' }, credentials: 'same-origin', body: JSON.stringify({ issueIds: ids, action, payload }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) { alert(result.error || 'Bulk update failed.'); return; }
+      alert('Bulk update complete. Updated: ' + result.updatedCount + ', Skipped: ' + result.skippedCount);
+      window.location.reload();
+    });
+  })();
+</script>

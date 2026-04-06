@@ -1,0 +1,12 @@
+
+<section class="page-header"><div><h1>Notification Preferences</h1><p class="muted">Choose delivery, digesting, and type subscriptions.</p></div></section>
+<section class="card stack section-card">
+  <form method="post" action="<%= basePath %>/admin/notification-preferences" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <label><span>Email enabled</span><select name="emailEnabled"><option value="true" <%= preference.emailEnabled ? 'selected' : '' %>>Yes</option><option value="false" <%= !preference.emailEnabled ? 'selected' : '' %>>No</option></select></label>
+    <label><span>Digest enabled</span><select name="digestEnabled"><option value="true" <%= preference.digestEnabled ? 'selected' : '' %>>Yes</option><option value="false" <%= !preference.digestEnabled ? 'selected' : '' %>>No</option></select></label>
+    <label><span>Digest frequency</span><select name="digestFrequency"><option value="DAILY" <%= preference.digestFrequency === 'DAILY' ? 'selected' : '' %>>Daily</option><option value="HOURLY" <%= preference.digestFrequency === 'HOURLY' ? 'selected' : '' %>>Hourly</option></select></label>
+    <label><span>Subscribed types</span><input type="text" name="subscribedTypes" value="<%= (preference.subscribedTypes || []).join(', ') %>" placeholder="Leave blank for all types" /></label>
+    <div class="form-actions right"><button type="submit">Save preferences</button></div>
+  </form>
+</section>
