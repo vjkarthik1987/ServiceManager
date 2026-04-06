@@ -115,5 +115,16 @@
         });
       })();
     </script>
+    <script>
+      const dpr = window.devicePixelRatio || 1;
+      if (dpr > 1.2) {
+        // Reduce base font size if DPI scaling is above 120%
+        console.log(dpr);
+        document.documentElement.style.fontSize = '12px';
+      } else {
+        // Normal size
+        document.documentElement.style.fontSize = '12px';
+      }
+    </script>
   </body>
 </html>
