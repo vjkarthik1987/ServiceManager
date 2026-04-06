@@ -1783,7 +1783,7 @@ td {
 
   .auth-feature-chip {
     grid-template-columns: 40px minmax(0, 1fr);
-    padding: 16px;
+    padding: 18px;
   }
 
   .auth-feature-icon {
