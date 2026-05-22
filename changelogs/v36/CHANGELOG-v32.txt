@@ -1,0 +1,12 @@
+v32 — AI Operations Copilot
+
+- Replaced Home Operational Snapshot with a scrollable Immediate Attention Required queue.
+- Added proactive action items for SLA breach, at-risk SLA, waiting for client, ready-to-close, and unassigned intake.
+- Improved dashboard filter dropdown z-index so menus stay above charts.
+- Flattened dropdown option styling to remove noisy shadows/separators.
+- Ordered status analytics by workflow sequence instead of alphabetic labels.
+- Made resolved/closed/SLA met green and breached red in dashboard charts.
+- Changed Top 10 Clients, Product, and Region charts to cleaner horizontal bars.
+- Added SLA by workflow stage chart with counted vs waiting/excluded time.
+- Added dashboard command-center polish and cleaner chart download icon styling.
+- Preserved v31 knowledge upload, guided intake, RCA, SLA pause, and chatbot knowledge behavior.

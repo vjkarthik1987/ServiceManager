@@ -1,0 +1,28 @@
+<section class="page-header">
+  <div><h1>Status Mappings</h1><p class="muted">Abstract internal and Jira statuses into customer-facing labels.</p></div>
+</section>
+<section class="grid-two">
+  <article class="card stack">
+    <h2>Create mapping</h2>
+    <form method="post" action="<%= basePath %>/admin/status-mappings" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="grid-two">
+        <label><span>Project key</span><input type="text" name="jiraProjectKey" value="DEFAULT" /></label>
+        <label><span>Internal status</span><input type="text" name="internalStatus" placeholder="IN_PROGRESS" required /></label>
+        <label><span>Customer label</span><input type="text" name="customerLabel" placeholder="In progress" required /></label>
+        <label><span>Badge tone</span><select name="badgeTone"><option value="subtle">Subtle</option><option value="brand-soft">Brand</option><option value="success-soft">Success</option><option value="warning-soft">Warning</option></select></label>
+        <label><span>Rank</span><input type="number" name="rank" value="100" /></label>
+      </div>
+      <label><input type="checkbox" name="isActive" checked /> Active</label>
+      <div class="form-actions right"><button type="submit">Save Mapping</button></div>
+    </form>
+  </article>
+  <article class="card">
+    <h2>Current mappings</h2>
+    <% if (!items.length) { %><p class="muted">No status mappings configured.</p><% } else { %>
+      <div class="table-wrap"><table><thead><tr><th>Project</th><th>Internal</th><th>Customer label</th><th>State</th></tr></thead><tbody>
+        <% items.forEach((item) => { %><tr><td><%= item.jiraProjectKey %></td><td><%= item.internalStatus %></td><td><span class="pill <%= item.badgeTone %>"><%= item.customerLabel %></span></td><td><%= item.isActive ? 'Active' : 'Inactive' %></td></tr><% }) %>
+      </tbody></table></div>
+    <% } %>
+  </article>
+</section>

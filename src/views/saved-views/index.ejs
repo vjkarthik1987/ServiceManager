@@ -1,0 +1,38 @@
+
+<section class="hero gradient-quirky dashboard-hero filters-hero">
+  <div><div class="section-kicker">Jira-style filter studio</div><h1>Filters</h1><p class="muted">Build, save, open and share powerful issue filters. Shared links still respect each user’s role and entity access.</p></div>
+  <div class="hero-actions wrap-actions"><a class="button-link secondary" href="<%= basePath %>/tickets">Issues</a></div>
+</section>
+<section class="grid-two filters-studio-grid">
+  <div class="card stack section-card filters-builder-card">
+    <div><h2>Create a filter</h2><p class="muted small">Start broad, then add only the fields you need. Comma-separate multiple values.</p></div>
+    <form method="post" action="<%= basePath %>/filters" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label><span>Filter name</span><input type="text" name="name" required placeholder="S1 open issues for ING" /></label>
+      <label><span>Search text</span><input type="text" name="q" placeholder="title, description or issue number" /></label>
+      <div class="grid-two">
+        <label><span>Status</span><input type="text" name="status" placeholder="OPEN, IN_PROGRESS" /></label>
+        <label><span>Severity</span><input type="text" name="priority" placeholder="S1, S2, HIGH" /></label>
+        <label><span>Type</span><input type="text" name="requestType" placeholder="BUG, CR, SERVICE_REQUEST" /></label>
+        <label><span>SLA status</span><input type="text" name="slaStatus" placeholder="BREACHED, AT_RISK" /></label>
+        <label><span>Client / entity id</span><input type="text" name="entityId" placeholder="Optional entity id" /></label>
+        <label><span>Assigned user id</span><input type="text" name="assignedToUserId" placeholder="Optional user id" /></label>
+      </div>
+      <div class="grid-two"><label><span>Sharing</span><select name="shareMode"><option value="LINK_ACCESS">Share by link — access controlled</option><option value="PRIVATE">Private</option></select></label><label><span>Default filter</span><select name="isDefault"><option value="false">No</option><option value="true">Yes</option></select></label></div>
+      <div class="form-actions right wrap-actions"><button type="submit">Save filter</button></div>
+    </form>
+  </div>
+  <div class="card stack section-card filters-list-card">
+    <div><h2>Saved filters</h2><p class="muted small">Open applies the filter. Copy link shares a role-safe URL.</p></div>
+    <% if (!views.length) { %><p class="muted">No filters saved yet.</p><% } %>
+    <div class="stack saved-filter-stack">
+      <% views.forEach((view) => { const qs = new URLSearchParams(view.filters || {}).toString(); const href = `${basePath}/tickets?${qs}`; %>
+        <article class="saved-filter-card">
+          <div><strong><%= view.name %></strong> <%= view.isDefault ? '<span class="pill brand-soft">default</span>' : '' %><p class="muted small"><%= qs || 'No filter criteria' %></p></div>
+          <div class="filter-actions"><a class="button-link secondary small-button" href="<%= href %>">Open</a><button class="secondary small-button" type="button" data-copy-filter-link="<%= href %>">Copy link</button></div>
+        </article>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<script>(function(){document.querySelectorAll('[data-copy-filter-link]').forEach(function(btn){btn.addEventListener('click',function(){var url=new URL(btn.getAttribute('data-copy-filter-link'), window.location.origin).toString(); if(navigator.clipboard){navigator.clipboard.writeText(url).then(function(){btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy link';},1200);});}else{prompt('Copy filter link', url);}});});})();</script>

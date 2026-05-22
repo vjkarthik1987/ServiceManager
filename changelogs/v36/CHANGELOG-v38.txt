@@ -1,0 +1,13 @@
+v38 — Workflow Governance Experience
+
+Functional changes included:
+- Added v38 request taxonomy admin page.
+- Added platform-native request types including optional Service Request.
+- Added progressive request type chooser in issue creation.
+- Added type-specific guided question sections.
+- Added requestClassification persistence.
+- Added home resolution calendar.
+- Reordered sidebar navigation.
+- Added Regional Head and Support Head roles to role model, navigation, and operational routes.
+- Improved table readability and email console card styling.
+- Preserved v37 non-Docker runtime and notification platform.

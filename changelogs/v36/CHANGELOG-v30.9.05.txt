@@ -1,0 +1,12 @@
+ESOP v30.9.05
+
+Included in this version:
+- refreshed client dashboard opening cards with stronger visual hierarchy
+- improved customer-view summary card styling
+- polished client issue detail spacing and customer attachment rows
+- closed status badge now appears green in client views
+- improved admin notifications card spacing and card styling
+- attachment storage hardened to keep file bytes on disk and metadata in MongoDB
+- attachment metadata now records checksum, visibility, and internal-only flags
+- secure file download route now blocks internal-only files for client users
+- env example updated for storage mode and malware-scan hook flags

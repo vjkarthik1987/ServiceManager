@@ -1,0 +1,9 @@
+Service Desk v38.3
+
+- Increased resolution calendar readability with larger day numbers, weekday labels, badges, and cell heights.
+- Kept Issues advanced filters collapsed by default and added a richer/wow filter panel treatment.
+- Added Regional Head region selection during user creation, stored on the user profile.
+- Improved Create User screen with a dedicated regional ownership panel.
+- Fixed New Product EJS crash where formAction/submitLabel were not defined on create render.
+- Fixed sub-client edit behavior by standardizing entity form values to subclient so edits preserve selected parent instead of becoming root clients.
+- Added the supplied robot image as the Service Desk AI header avatar, empty-state avatar, and per-message avatar for both user and bot chat messages.

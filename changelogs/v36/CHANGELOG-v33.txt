@@ -1,0 +1,29 @@
+# v33 — Enterprise Knowledge Intelligence + Workflow Detail Polish
+
+## Knowledge Intelligence
+- Added auto KB draft generation when an internal user closes an issue with RCA.
+- Extended AI Knowledge uploads to support operational memory, KB drafts, runbook-style drafts, confidence and review status metadata.
+- Added issue-detail guidance showing that closed issues with RCA become internal KB candidates for review before customer visibility.
+
+## Issue workflow fixes
+- Client direct close remains available on issue detail with closure note.
+- Added REOPENED as an explicit status.
+- Added reopen transitions from resolved/ready-to-close/closed states.
+- Made WAITING_FOR_CLIENT reachable from more internal workflow states.
+- Agent users can now create issues.
+
+## Issue detail UX
+- Added top workflow flow-track: intake → triage → execution → waiting → resolved → closure.
+- Improved top issue pills and Issue Detail label.
+- Improved update-status UI with From → To layout.
+- Improved triage area layout.
+- Made Jira sync history collapsible.
+- Made audit trail collapsed by default.
+- Purple-styled Push to Jira action.
+
+## Issues and assignment
+- Recent issue rows now open issue detail when clicking issue/title.
+- Added SLA breached quick filter in issues page.
+- Added Agent Manager/Superadmin sidebar item for Unassigned Issues with count.
+- Added Unassigned Issues page.
+- Reworked assignment search into typeahead selection instead of static dropdown.

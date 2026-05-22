@@ -1,0 +1,7 @@
+v30.99.3 — Chatbot Context-Aware Follow-ups
+
+- Added assistant conversation context storage.
+- Follow-up prompts such as “show it”, “show them”, “of those”, “same client”, and “what about S1” now reuse the previous issue-query filters.
+- Count-to-list transitions now work without retyping the full query.
+- List-to-count refinements retain the prior entity/status/severity context.
+- Existing 30.99.1/30.99.2 fixes are retained: multi-status OR logic, Jira pending separation, scope-safe query builder, and smart issue-title generation.

@@ -1,0 +1,11 @@
+service-desk-v38.01-intake-taxonomy-fix
+
+Fixes on top of v38:
+- Service Request enablement now persists because requestTaxonomy is explicitly stored in the Tenant schema.
+- Added Service Request Jira issue type mapping support in Admin Console.
+- Reworked Raise Issue guided questions so Issue, CR, Query, and Service Request have visibly different basic question sets.
+- Added type-specific intake answer persistence on issues.
+- Added type-specific intake answer display on issue detail page.
+
+How to enable Service Request:
+Admin Console → Request Taxonomy → Service Request → tick "Show this request type" → Save Request Taxonomy.

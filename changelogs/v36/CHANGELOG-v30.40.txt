@@ -1,0 +1,8 @@
+v30.40 - Scoped AI Assistant
+
+- Added tenant-scoped assistant API: POST /api/v1/:tenantSlug/assistant/message.
+- Added assistant intent handling for CREATE_ISSUE and GET_ISSUE_STATUS.
+- Assistant issue creation respects logged-in user entity scope and creates issues only inside permitted entities.
+- Assistant status lookup returns customer-safe status for client users and richer internal status/Jira/SLA context for internal roles.
+- Wired the right-side Service Desk AI panel to the assistant API.
+- Added lightweight chat bubbles and assistant input states.

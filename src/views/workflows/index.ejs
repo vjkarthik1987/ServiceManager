@@ -1,0 +1,66 @@
+
+<section class="page-header">
+  <div>
+    <h1>Workflow Governance</h1>
+    <p class="muted">Define one workflow per issue type. In the same place, decide which statuses are client-visible and which stay internal-only.</p>
+  </div>
+</section>
+
+<form method="post" action="<%= basePath %>/admin/workflows" class="stack">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+  <% (workflows || []).forEach((workflow) => { %>
+    <section class="card stack section-card">
+      <div class="section-title-row">
+        <div>
+          <div class="section-kicker">Issue type</div>
+          <h2 style="margin-bottom:6px"><%= workflow.issueType %></h2>
+          <p class="muted">Statuses format: STATUS | clientVisible | clientBucket | clientLabel. Transitions format: FROM | TO | rolesAllowed | requiresApproval</p>
+        </div>
+        <span class="pill brand-soft"><%= workflow.issueType %></span>
+      </div>
+
+      <div class="grid-two">
+        <label>
+          <span>Workflow name</span>
+          <input type="text" name="name_<%= workflow.issueType %>" value="<%= workflow.name %>" />
+        </label>
+        <label>
+          <span>Approval mode</span>
+          <select name="approvalEnabled_<%= workflow.issueType %>">
+            <option value="false" <%= !workflow.approvalEnabled ? 'selected' : '' %>>Disabled</option>
+            <option value="true" <%= workflow.approvalEnabled ? 'selected' : '' %>>Enabled</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid-two">
+        <label>
+          <span>Status definitions</span>
+          <textarea name="statuses_<%= workflow.issueType %>" rows="10"><%= workflow.statuses %></textarea>
+        </label>
+        <label>
+          <span>Transitions</span>
+          <textarea name="transitions_<%= workflow.issueType %>" rows="10"><%= workflow.transitions %></textarea>
+        </label>
+      </div>
+
+      <div class="card muted" style="padding:14px 16px;">
+        <strong style="display:block; margin-bottom:8px;">Client view preview</strong>
+        <div class="stack">
+          <% (workflow.preview || []).forEach((item) => { %>
+            <div class="summary-detail-item">
+              <span class="summary-label"><%= item.internalStatus %></span>
+              <strong><%= item.clientVisible ? 'Shown to client' : 'Internal only' %></strong>
+              <span class="muted small">→ <%= item.clientBucket %> · <%= item.clientLabel %></span>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+  <% }) %>
+
+  <div class="form-actions right wrap-actions">
+    <button type="submit">Save workflows</button>
+  </div>
+</form>

@@ -1,0 +1,10 @@
+v30.99.2 — Chatbot scoped query builder and answer guardrails
+
+- Added a centralized assistant issue query builder used by count and list/report-style issue queries.
+- Enforced role/entity/customer-visibility scope before applying chatbot filters.
+- Preserved OR logic within the same filter, e.g. status NEW OR OPEN.
+- Preserved AND logic across filters, e.g. status + entity + severity.
+- Kept Jira pending separate from open/active issue status.
+- Count-style questions now avoid fetching and returning full issue rows.
+- Added optional “filters used” explanation for debugging chatbot query interpretation.
+- Retained 30.99.1 smart title generation and intent/filter accuracy fixes.

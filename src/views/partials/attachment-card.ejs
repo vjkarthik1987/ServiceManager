@@ -1,0 +1,26 @@
+<div class="attachment-item row-card <%= compact ? 'compact-row' : '' %>">
+  <div class="attachment-preview">
+    <% if (attachment.previewKind === 'image' && attachment.previewUrl) { %>
+      <a href="<%= attachment.previewUrl %>" target="_blank" rel="noopener noreferrer">
+        <img src="<%= attachment.previewUrl %>" alt="<%= attachment.originalName %> preview" class="attachment-thumb" loading="lazy" />
+      </a>
+    <% } else if (attachment.previewKind === 'pdf' && attachment.previewUrl) { %>
+      <div class="attachment-pdf-tile">
+        <span>PDF</span>
+        <a class="button-link secondary compact" href="<%= attachment.previewUrl %>" target="_blank" rel="noopener noreferrer">Preview</a>
+      </div>
+    <% } else { %>
+      <div class="attachment-icon" aria-hidden="true">📎</div>
+    <% } %>
+  </div>
+  <div class="attachment-body">
+    <strong><%= attachment.originalName %></strong>
+    <span class="muted small"><%= attachment.mimeType || attachment.fileType %> • <%= formatSize(attachment.size) %></span>
+  </div>
+  <div class="attachment-actions-inline">
+    <% if (attachment.previewUrl) { %>
+      <a class="button-link secondary compact" href="<%= attachment.previewUrl %>" target="_blank" rel="noopener noreferrer">Preview</a>
+    <% } %>
+    <a class="button-link secondary compact" href="<%= attachment.downloadUrl || attachment.url %>">Download</a>
+  </div>
+</div>

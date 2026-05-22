@@ -1,0 +1,12 @@
+ESOP v30.15.03
+
+What changed
+1. Added a new 12-column dashboard row with four 3-column charts:
+   - Top 10 clients by issues created
+   - Top 10 agents by issues assigned
+   - Issues per product
+   - Issues per region
+2. All four new charts follow the selected dashboard filters and date window.
+3. Removed the "Segments" stat box from the Status and Severity Mix card.
+4. Removed the trailing small total labels from the Status and Severity Mix stacked chart.
+5. Updated dashboard version metadata to v30.15.03.

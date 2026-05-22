@@ -1,0 +1,4 @@
+ESOP v30.12.01
+- Fixed Jira webhook idempotency handling so duplicate webhook fingerprints no longer short-circuit status sync.
+- Webhook handler now continues to update the matching ESOP issue even when the event record already exists.
+- Response payload now indicates whether the webhook matched a previously seen event via duplicate=true/false.

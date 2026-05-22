@@ -1,0 +1,17 @@
+Service Desk v38.1 — Intake Experience & Entity Taxonomy Controls
+
+Built on v38.03 premium progressive intake.
+
+Changes:
+- Added top margin and spacing fixes for intake navigation buttons.
+- Made the stepper full-width and increased Choose / Details / Review readability.
+- Increased request type card typography.
+- Added optional browser voice input for the description field.
+- Added copy button for the knowledge solution result.
+- Moved modules to the right-side operational context panel.
+- Increased description textarea height.
+- Improved type-specific section heading sizes.
+- Hid second-level classification when it is not mandatory for the selected entity/request type.
+- Added entity create/edit controls to choose visible request taxonomies from the predefined platform set.
+- Entity-level taxonomy now influences the raise-request screen and backend validation.
+- Preserved v37 notification platform and v38 progressive intake architecture.

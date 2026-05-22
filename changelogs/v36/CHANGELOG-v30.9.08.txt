@@ -1,0 +1,7 @@
+v30.9.08
+- Renamed key user-facing references from User to Client User in major admin/entity/user screens.
+- Expanded entity acronym support from 4 to 6 characters and aligned auto-generation/validation.
+- Reframed Priority as Severity in the major issue creation/listing/workspace views while keeping backend storage backward-compatible.
+- Added Query as a third request type alongside Bug and CR.
+- Upgraded workflow configuration to be definable per issue type (BUG / CR / QUERY) with per-transition allowed roles.
+- Enforced issue-type-specific workflow transitions in issue status update and triage flows.

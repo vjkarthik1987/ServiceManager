@@ -1,0 +1,11 @@
+Service Desk v30.30
+
+- Added responsive three-zone workspace shell: sidebar, main workspace, and right-side Service Desk AI panel.
+- Chatbot panel is visible on large desktops and collapses into a drawer on laptop/tablet widths.
+- Added Ask AI floating action button for collapsed mode, hidden when the assistant drawer is open.
+- Reduced sidebar and main-area visual density for better laptop usability.
+- Added right-side breathing room to main workspace next to the chatbot panel.
+- Updated Jira configuration form so API token is required only for first-time setup and can be left blank to retain existing token.
+- Updated Jira connection save logic to preserve existing API token during edits.
+- Added token presence validation before Jira credential validation.
+- Updated app/server displayed version metadata to v30.30.

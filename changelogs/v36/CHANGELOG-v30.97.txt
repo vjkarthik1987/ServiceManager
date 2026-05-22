@@ -1,0 +1,22 @@
+Service Desk v30.97 — HTTPS enablement
+
+1. Added hardened HTTPS startup in server.js.
+   - USE_HTTPS=true starts a native HTTPS server.
+   - SSL_KEY_PATH and SSL_CERT_PATH are validated before startup.
+   - SSL_CA_PATH is supported for optional certificate chain files.
+   - Relative certificate paths are resolved from the project root.
+
+2. Added local HTTPS cert folder.
+   - certs/test.key
+   - certs/test.crt
+   - certs/cert.pem
+
+3. Improved secure session configuration.
+   - COOKIE_SECURE is now explicit and environment-driven.
+   - SESSION_TTL_DAYS controls both Mongo session TTL and browser cookie lifetime.
+
+4. Updated .env and .env.example for v30.97.
+   - Local HTTPS defaults to https://localhost:3000.
+   - Production proxy example included for Railway/Nginx/load balancer TLS termination.
+
+5. Updated package version to 30.97.0.

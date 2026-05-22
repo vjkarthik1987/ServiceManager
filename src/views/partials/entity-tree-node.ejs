@@ -1,0 +1,49 @@
+<article class="card stack section-card entity-tree-node entity-tree-node-compact entity-tree-level-<%= level || 0 %>">
+  <div class="entity-directory-head">
+    <div>
+      <div class="entity-title-row">
+        <h2><a href="<%= basePath %>/entities/<%= entity._id %>"><%= entity.name %></a></h2>
+        <span class="pill subtle"><%= entity.acronym || '—' %></span>
+        <span class="pill <%= entity.isActive ? 'success-soft' : 'subtle' %>"><%= entity.isActive ? 'Active' : 'Inactive' %></span>
+        <span class="pill brand-soft"><%= entity.type %></span>
+      </div>
+      <div class="entity-breadcrumb" aria-label="Entity path">
+        <% String(entity.path || entity.name || '').split(' / ').forEach((segment, index, all) => { %>
+          <span class="crumb"><%= segment %></span><% if (index < all.length - 1) { %><span class="crumb-sep">›</span><% } %>
+        <% }) %>
+      </div>
+    </div>
+    <div class="entity-directory-actions compact wrap-actions">
+      <a href="<%= basePath %>/entities/<%= entity._id %>">View</a>
+      <a href="<%= basePath %>/entities/<%= entity._id %>/users">Client Users (<%= entity.clientUserCount || 0 %>)</a>
+      <% if (currentUser && currentUser.role === 'superadmin') { %>
+        <a href="<%= basePath %>/entities/<%= entity._id %>/edit">Edit</a>
+        <form method="post" action="<%= basePath %>/entities/<%= entity._id %>/status" class="entity-status-form" onsubmit="return handleEntityStatusSubmit(this, '<%= entity.name.replace(/'/g, "\'") %>', <%= entity.isActive ? 'true' : 'false' %>)">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="isActive" value="<%= entity.isActive ? 'false' : 'true' %>" />
+          <input type="hidden" name="confirmationExpected" value="" />
+          <input type="hidden" name="confirmationCode" value="" />
+          <button type="submit" class="link-button <%= entity.isActive ? 'danger-link-button' : '' %>"><%= entity.isActive ? 'Deactivate' : 'Activate' %></button>
+        </form>
+      <% } %>
+      <% if (currentUser && ['superadmin', 'client'].includes(currentUser.role)) { %>
+        <a class="mini-add" href="<%= basePath %>/entities/new?parentId=<%= entity._id %>&type=subclient" title="Add subclient">+</a>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="entity-meta-grid">
+    <div class="entity-meta-chip"><span class="summary-label">Region</span><strong><%= entity.metadata?.region || '—' %></strong></div>
+    <div class="entity-meta-chip"><span class="summary-label">Product</span><strong><%= entity.metadata?.product || '—' %></strong></div>
+    <div class="entity-meta-chip"><span class="summary-label">Children</span><strong><%= (entity.children || []).length %></strong></div>
+    <div class="entity-meta-chip"><span class="summary-label">Jira mode</span><strong><%= entity.jiraConfig?.isEnabled ? (entity.jiraConfig.projectKey || 'Enabled') : 'Disabled' %></strong></div>
+  </div>
+
+  <% if (entity.children && entity.children.length) { %>
+    <div class="entity-subtree entity-level-<%= level || 0 %>">
+      <% entity.children.forEach((child) => { %>
+        <%- include('entity-tree-node', { entity: child, level: (level || 0) + 1, basePath, currentUser, csrfToken }) %>
+      <% }) %>
+    </div>
+  <% } %>
+</article>

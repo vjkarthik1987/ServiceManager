@@ -1,0 +1,21 @@
+
+<section class="auth-shell">
+  <div class="auth-card wide">
+    <div class="section-kicker">Create workspace</div>
+    <h1>Launch your service desk</h1>
+    <p class="muted">Each organization gets its own tenant-aware workspace URL.</p>
+    <form method="post" action="/signup" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="grid-two">
+        <label><span>Organization name</span><input type="text" name="organizationName" required /></label>
+        <label><span>Workspace slug</span><input type="text" name="tenantSlug" placeholder="acme-bank" required /></label>
+      </div>
+      <div class="grid-two">
+        <label><span>Admin name</span><input type="text" name="adminName" required /></label>
+        <label><span>Admin email</span><input type="email" name="adminEmail" required /></label>
+      </div>
+      <label><span>Admin password</span><input type="password" name="adminPassword" minlength="8" required /></label>
+      <button type="submit">Create workspace</button>
+    </form>
+  </div>
+</section>

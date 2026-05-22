@@ -1,0 +1,30 @@
+{
+  "defaultRequestTypes": [
+    "Issue",
+    "CR",
+    "Query",
+    "Service Request"
+  ],
+  "defaultTaxonomy": {
+    "Issue": [
+      "Application Issue",
+      "Installation Issue",
+      "Access Issue",
+      "Data Issue"
+    ],
+    "CR": [
+      "Enhancement",
+      "Workflow Change",
+      "Regulatory Change"
+    ],
+    "Query": [
+      "Clarification",
+      "Configuration Help"
+    ],
+    "Service Request": [
+      "Access",
+      "Environment",
+      "Deployment"
+    ]
+  }
+}

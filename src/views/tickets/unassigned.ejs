@@ -1,0 +1,28 @@
+<section class="hero gradient-quirky">
+  <div>
+    <div class="section-kicker">Agent Manager Queue</div>
+    <h1>Unassigned Issues</h1>
+    <p class="muted">Issues in your scope that need ownership or assignment.</p>
+  </div>
+  <div class="hero-actions"><a class="button-link secondary" href="<%= basePath %>/tickets">All issues</a></div>
+</section>
+
+<section class="card section-card">
+  <div class="section-title-row"><h2>Needs assignment</h2><span class="pill warning-soft"><%= issues.length %></span></div>
+  <% if (!issues.length) { %><p class="muted">No unassigned issues right now.</p><% } else { %>
+    <div class="table-wrap"><table><thead><tr><th>Issue</th><th>Title</th><th>Entity</th><th>Status</th><th>Severity</th><th>Raised by</th><th>Created</th><th>Action</th></tr></thead><tbody>
+      <% issues.forEach((issue) => { %>
+        <tr>
+          <td><a href="<%= basePath %>/tickets/<%= issue._id %>"><strong><%= issue.issueNumber %></strong></a></td>
+          <td><a href="<%= basePath %>/tickets/<%= issue._id %>"><%= issue.title %></a></td>
+          <td><%= issue.entityId ? (issue.entityId.path || issue.entityId.name) : '-' %></td>
+          <td><span class="badge status-<%= String(issue.status || '').toLowerCase() %>"><%= issue.status %></span></td>
+          <td><span class="pill subtle"><%= issue.priority %></span></td>
+          <td><%= issue.createdByUserId ? (issue.createdByUserId.name || issue.createdByUserId.email) : '-' %></td>
+          <td><%= issue.createdAt ? new Date(issue.createdAt).toLocaleString() : '-' %></td>
+          <td><a class="button-link secondary mini-button" href="<%= basePath %>/tickets/<%= issue._id %>#triage-card">Assign / Triage</a></td>
+        </tr>
+      <% }) %>
+    </tbody></table></div>
+  <% } %>
+</section>

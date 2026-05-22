@@ -1,0 +1,5 @@
+ESOP v30.9.01.01
+- bulk issue upload now accepts entityAcronym / entityCode or entityName instead of Mongo entityId
+- template updated to use business-facing entity values
+- bulk upload page explicitly shows acronym reference table
+- error messages no longer leak internal entityId requirement

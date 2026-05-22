@@ -1,0 +1,6 @@
+ESOP v30.12.06
+- Fixed createIssue regression where issueNumber was referenced before definition.
+- Generated issue number explicitly before Issue.create.
+- Deferred issue-created audit and stakeholder notification side effects off the response path.
+- Removed post-create hydration query for API issue creation response by serializing saved issue directly.
+- Deferred non-critical auto-push activity/link side effects when Jira auto-push is enabled.

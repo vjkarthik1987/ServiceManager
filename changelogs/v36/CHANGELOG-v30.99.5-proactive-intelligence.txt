@@ -1,0 +1,8 @@
+v30.99.5 — Chatbot proactive operational intelligence
+
+- Added user-domain chatbot intent so "How many client users are there?" counts users, not entities.
+- Added role-aware user counts for client users, agent users, agent managers, superadmins and all users.
+- Added scoped user count logic using tenant and permitted entity memberships.
+- Added proactive operational scan for prompts such as "Which issues need attention today?" and "What should I work on next?".
+- Ranks attention items using SLA breach, high severity, unassigned ownership, Jira push failures/pending state and aging.
+- Keeps 30.99.1 intent/filter/title fixes, 30.99.2 query guardrails, 30.99.3 follow-up context and 30.99.4 safe actions.

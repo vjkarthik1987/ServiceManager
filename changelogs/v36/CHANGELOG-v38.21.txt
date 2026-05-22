@@ -1,0 +1,12 @@
+# v38.21 — Home Watch + Voice Input Fix
+
+- Added a visible top-right Today Watch button to the home hero with an attention count badge.
+- Wired both hero-level Today Watch and inline Immediate Attention watch to the same popup.
+- Added calm pulse treatment only when watch items exist.
+- Hardened voice input handling on the request intake form:
+  - hides voice button where SpeechRecognition is unsupported,
+  - handles microphone permission denial gracefully,
+  - safely stops recording on step changes/navigation,
+  - prevents duplicate transcript insertion,
+  - dispatches input events after transcript insertion.
+- Left calendar popup, month navigation, and reassess severity/urgency logic unchanged.

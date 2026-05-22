@@ -1,0 +1,9 @@
+v30.97.2 — Cloudinary Persistent Storage
+
+- Added Cloudinary storage provider.
+- Added signed Cloudinary upload support using CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.
+- Kept local storage provider as fallback.
+- Kept SharePoint provider code for later use, but Cloudinary can now be used immediately for persistent uploads.
+- Added Cloudinary config/test routes for superadmin diagnostics.
+- Extended FileAsset storageProvider enum to include cloudinary.
+- File downloads/previews continue through Service Desk RBAC-controlled endpoints.

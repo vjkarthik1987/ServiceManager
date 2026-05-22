@@ -1,0 +1,5 @@
+ESOP v30.12
+- Fixed Agent Manager issue visibility to respect assigned entity scope instead of showing all tenant issues.
+- Updated smoke tests and fixture acronyms from legacy 4-character samples to 6-character values.
+- Performance pass on issue listing and dashboard/report reads: scoped product filters, lean reads, lighter field selection, and narrower populate payloads.
+- Dashboard agent counts now include Agent User and Agent Manager roles.

@@ -1,0 +1,13 @@
+v38.4 corrective build
+- Fixed superadmin client dashboard filter by casting selected entity/user ids for Mongo aggregation pipelines.
+- Fixed CSV header escaping so dashboard/report exports retain all columns.
+- Improved saved Filters page design, Open and Copy Link actions.
+- Removed user DP/avatar from user chat messages; AI robot remains for ServiceDesk AI.
+- Added client home spacing after operational health before recent updates.
+- Improved knowledge-base answer wording and guidance tone.
+- Added subtle dashboard card colors and soft hover animation for superadmin/client/agent home cards.
+- Added support for promoting an existing user to Regional Head / Support Head.
+- Forced AI Automation sidebar item to white.
+- Improved Create User visual flow with upfront user-type selection and centered form.
+- Improved Product/Module master UX and placed products and modules together on the Products page.
+- Improved Change Password form alignment and visual polish.

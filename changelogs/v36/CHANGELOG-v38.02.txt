@@ -1,0 +1,8 @@
+v38.02 — Progressive intake cleanup
+
+- Removed the duplicate visible Request Type dropdown from the create issue form.
+- Request type is now selected only through the top cards/popup-style selector.
+- Added hidden requestType persistence so backend behavior remains unchanged.
+- Guided questions now strictly show only the selected type's question set.
+- Inactive question sections are disabled before submit so irrelevant fields are not posted.
+- Added CSS safeguard to prevent hidden question sets from visually appearing.

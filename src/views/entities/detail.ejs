@@ -1,0 +1,47 @@
+<section class="page-header">
+  <div>
+    <h1><%= entity.name %></h1>
+    <p class="muted">View entity details, hierarchy, metadata, and Jira configuration.</p>
+  </div>
+  <div class="header-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/entities">Back to list</a>
+    <% if (currentUser.role === 'superadmin') { %><a class="button-link" href="<%= basePath %>/entities/<%= entity._id %>/edit">Edit</a><% } %>
+  </div>
+</section>
+
+<section class="card stack">
+  <div class="grid-two">
+    <div><span class="muted small">Type</span><div><strong><%= entity.type %></strong></div></div>
+    <div><span class="muted small">Acronym</span><div><strong><%= entity.acronym || '—' %></strong></div></div>
+    <div><span class="muted small">Status</span><div><strong><%= entity.isActive ? 'Active' : 'Inactive' %></strong></div></div>
+    <div><span class="muted small">Path</span><div><%= entity.path %></div></div>
+    <div><span class="muted small">Parent</span><div><%= entity.parentId?.name || '—' %></div></div>
+    <div><span class="muted small">Region</span><div><%= entity.metadata?.region || '—' %></div></div>
+    <div><span class="muted small">Product</span><div><%= entity.metadata?.product || '—' %></div></div>
+    <div><span class="muted small">Created</span><div><%= entity.createdAt ? new Date(entity.createdAt).toLocaleString() : '—' %></div></div>
+  </div>
+</section>
+
+<section class="card stack">
+  <h2 style="margin:0">Jira configuration</h2>
+  <div class="grid-two">
+    <div><span class="muted small">Enabled</span><div><%= entity.jiraConfig?.isEnabled ? 'Yes' : 'No' %></div></div>
+    <div><span class="muted small">Project key</span><div><%= entity.jiraConfig?.projectKey || '—' %></div></div>
+    <div><span class="muted small">Issue type</span><div><%= entity.jiraConfig?.issueTypeName || entity.jiraConfig?.issueTypeId || '—' %></div></div>
+    <div><span class="muted small">Auto-push on create</span><div><%= entity.jiraConfig?.autoPushOnCreate ? 'Yes' : 'No' %></div></div>
+  </div>
+</section>
+
+<section class="card stack">
+  <h2 style="margin:0">Children</h2>
+  <% if (!children.length) { %><p class="muted">No child entities.</p><% } else { %>
+    <div class="stack">
+      <% children.forEach((child) => { %>
+        <div class="entity-child-row">
+          <div><strong><a href="<%= basePath %>/entities/<%= child._id %>"><%= child.name %></a></strong><div class="muted small"><%= child.path %> · <%= child.acronym || '—' %></div></div>
+          <div class="entity-inline-actions"><span class="pill subtle"><%= child.type %></span></div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</section>

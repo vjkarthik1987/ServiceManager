@@ -1,0 +1,14 @@
+# v30.50
+
+- Added AI assistant issue search intent.
+- Assistant can now answer scoped queries such as:
+  - Show my issues
+  - Show my open issues
+  - Show tickets assigned to me
+  - Show breached issues
+  - Show high severity issues
+  - Show issues waiting for client
+  - Show issues updated today
+- Assistant search respects the same tenant, entity, role, and customer visibility scope as the existing UI.
+- Added scoped client/entity list below Welcome on dashboard pages for non-superadmin users.
+- Superadmin dashboard remains unchanged and does not show the scoped client/entity welcome line.

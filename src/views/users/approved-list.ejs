@@ -1,0 +1,72 @@
+<section class="page-header">
+  <div>
+    <h1>Approved Agent User Pool</h1>
+    <p class="muted">Only users from this pool can be turned into Agent User or Agent Manager accounts.</p>
+  </div>
+  <div class="header-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/users/new?role=agent_user">Create Agent User</a>
+    <a class="button-link" href="<%= basePath %>/users">Back to Users</a>
+  </div>
+</section>
+
+<form method="get" action="<%= basePath %>/users/approved" class="card filters-form stack">
+  <div class="grid-two">
+    <label><span>Search</span><input type="text" name="q" value="<%= filters.q %>" placeholder="Name or email" /></label>
+  </div>
+  <div class="form-actions right wrap-actions"><a class="button-link secondary" href="<%= basePath %>/users/approved">Reset</a><button type="submit">Apply</button></div>
+</form>
+
+<section class="grid-two approved-entry-grid">
+  <article class="card stack">
+    <h2>Add one user</h2>
+    <form method="post" action="<%= basePath %>/users/approved" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label><span>Name</span><input type="text" name="name" required /></label>
+      <label><span>Email</span><input type="email" name="email" required /></label>
+      <div class="form-actions right wrap-actions"><button type="submit">Add to pool</button></div>
+    </form>
+  </article>
+  <article class="card stack">
+    <h2>Bulk add</h2>
+    <form method="post" action="<%= basePath %>/users/approved/bulk" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>One row per user</span>
+        <textarea name="bulkUsers" rows="8" placeholder="Jane Doe, jane@example.com&#10;John Smith, john@example.com" required></textarea>
+      </label>
+      <small class="muted">Accepted separators: comma, semicolon, tab, or pipe.</small>
+      <div class="form-actions right wrap-actions"><button type="submit">Bulk add</button></div>
+    </form>
+  </article>
+</section>
+
+<section class="card approved-user-list-card">
+  <% if (!approvedUsers.length) { %>
+    <p class="muted">No approved users yet.</p>
+  <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Status</th><th>Linked user</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <% approvedUsers.forEach((item) => { %>
+            <tr>
+              <td><%= item.name %></td>
+              <td><%= item.email %></td>
+              <td><span class="pill"><%= item.isActive ? 'ACTIVE' : 'INACTIVE' %></span></td>
+              <td><%= item.linkedUserId ? 'Created in Service Desk' : 'Not yet used' %></td>
+              <td>
+                <form method="post" action="<%= basePath %>/users/approved/<%= item._id %>/status" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <input type="hidden" name="isActive" value="<%= item.isActive ? 'false' : 'true' %>" />
+                  <button type="submit" class="button-link secondary"><%= item.isActive ? 'Deactivate' : 'Activate' %></button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>

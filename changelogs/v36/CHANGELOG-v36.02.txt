@@ -1,0 +1,12 @@
+# v36.02 corrective build
+
+- User provisioning emails now go to the created user's email address. Tracking email is only sent when explicitly configured.
+- New users created from UI/API now use default temporary password: password.
+- Fixed child entity creation by treating any entity with a parent as a sub-client/child entity.
+- Optimized Users page loading by batching user membership lookups instead of querying memberships per user.
+- Added spacing between Approved Agent User entry cards and approved users list.
+- Added superadmin chat-based client/superadmin user creation with default password and audit logging.
+- Fixed Change Password access for client/client_user routes.
+- Added client status action panel on /client/issues/:id for close/reopen/information-provided flows.
+- Status updates from client issue pages now redirect back to the client issue page.
+- First response SLA now marks as met when the first external response is provided by the appropriate opposite-side actor, including client response to agent-created issues.

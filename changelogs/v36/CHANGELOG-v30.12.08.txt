@@ -1,0 +1,5 @@
+ESOP v30.12.08
+- restores synchronous routing details in create-issue API response
+- keeps audit/notification side effects deferred for performance
+- returns populated support group details without the full post-create hydration query
+- preserves 30.12.07 hot-path authorization and upload optimizations

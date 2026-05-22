@@ -1,0 +1,7 @@
+Service Desk v30.60
+
+- Expanded AI assistant issue search intent detection.
+- Fixed open issue search to return a larger scoped result set with total count.
+- Added severity-specific issue search such as S1/S2/P1/P2 and high severity aliases.
+- Added guarded assistant actions: add comment, change status, mark waiting for client, and assign issue.
+- Preserved role and entity-scope boundaries for all assistant reads and writes.

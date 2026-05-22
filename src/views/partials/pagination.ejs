@@ -1,0 +1,8 @@
+
+<% if (pager && pager.totalPages > 1) { %>
+  <nav class="pagination-bar">
+    <a class="button-link secondary <%= !pager.hasPrev ? 'disabled' : '' %>" href="<%= pager.hasPrev ? `${baseUrl}${buildQueryString(filters, { page: pager.page - 1, pageSize: pager.pageSize })}` : '#' %>">Previous</a>
+    <span class="muted small">Page <strong><%= pager.page %></strong> of <strong><%= pager.totalPages %></strong> · <%= pager.totalItems %> items</span>
+    <a class="button-link secondary <%= !pager.hasNext ? 'disabled' : '' %>" href="<%= pager.hasNext ? `${baseUrl}${buildQueryString(filters, { page: pager.page + 1, pageSize: pager.pageSize })}` : '#' %>">Next</a>
+  </nav>
+<% } %>

@@ -1,0 +1,11 @@
+Service Desk v30.70
+
+Assistant intelligence
+- Added SLA explanation intent for issue-specific questions such as "Why is ABCD-1001 breached?", "How much SLA is left?", and "Which stage consumed time?".
+- Added issue summary intent for prompts such as "Summarize ABCD-1001" or "Give me a recap of ABCD-1001".
+- Improved assistant phrasing tolerance for similar statements, including singular/plural comment wording such as "Add comment" and "Add comments".
+- Improved assistant examples in the chatbot placeholder.
+
+UI tuning
+- Increased sidebar navigation font size for laptop readability.
+- Increased chatbot panel width on desktop and laptop drawer mode.

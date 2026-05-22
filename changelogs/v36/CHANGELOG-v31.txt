@@ -1,0 +1,18 @@
+Service Desk v31 — Operational Intelligence Layer
+
+Added
+- Guided issue intake questions for client and agent issue creation: affected users, blocking impact, workaround, environment, start time, and business impact.
+- v31 AI classification seed stored on issues for severity/category/type rationale and confidence.
+- Admin AI Knowledge Uploads module at /:tenantSlug/admin/knowledge for uploading historical issue databases, Jira exports, RCA libraries, and KB text/CSV/JSON files.
+- Mandatory closure/RCA capture when agents or superadmins close issues: root cause, resolution summary, preventive action.
+- Client direct closure from client issue detail for resolved/answered/ready-to-close issues with a closure confirmation note.
+- WAITING_FOR_CLIENT SLA governance: status transition pauses SLA, stage tracker marks waiting time as excluded, and dashboard copy clarifies exclusion.
+- Dashboard raised-vs-closed chart now includes toggleable closed-within-SLA and closed-breached-SLA series.
+
+Changed
+- Client status transitions now allow READY_TO_CLOSE/RESOLVED to move directly to CLOSED.
+- Issue detail shows guided intake, AI classification suggestion, and closure/RCA sections.
+- Status update flow now updates SLA stage history consistently for normal status changes.
+
+Notes
+- v31 keeps AI as suggestion-first, human-confirmed. No autonomous closure, Jira push, or severity changes are performed without user action.

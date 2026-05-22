@@ -1,0 +1,9 @@
+v30.97.4 — Chatbot entity-aware issue counts
+
+Fixes:
+- Count-style assistant questions now apply entity/client/subclient acronyms mentioned in the user message.
+- Example: "How many open issues are there with SPRBNK" now filters to SPRBNK instead of counting all open issues in the permitted scope.
+- Count replies now include the entity label when an entity filter is applied.
+
+Notes:
+- Local, Cloudinary, HTTPS, Jira, and existing database behavior remain unchanged from v30.97.3.

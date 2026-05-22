@@ -1,0 +1,6 @@
+ESOP v30.9.09
+- Fixed issue creation crash by wiring severity from request body into resolved priority handling.
+- Renamed workspace dashboard to Home in sidebar and page title.
+- Added placeholder Dashboard and Reports pages in sidebar for future build-out.
+- Improved Jira configuration page spacing between Validation and Connection settings cards.
+- Made successful Jira validation status render in green.

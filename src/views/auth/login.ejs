@@ -1,0 +1,47 @@
+<section class="auth-shell auth-shell-wow auth-shell-minimal">
+  <div class="auth-showcase-card auth-minimal-card">
+    <div class="auth-showcase-panel auth-showcase-copy auth-minimal-brand">
+      <div class="auth-mini-mark" aria-hidden="true">
+        <span></span>
+      </div>
+      <div class="section-kicker">/<%= tenant ? tenant.slug : 'workspace' %></div>
+      <h1 class="auth-display-title">Service, sorted.</h1>
+      <p class="auth-display-copy muted">
+        A calm workspace for tickets, triage and execution.
+      </p>
+      <div class="auth-mini-pill">minimal • secure • a little quirky</div>
+    </div>
+
+    <div class="auth-showcase-panel auth-form-panel auth-minimal-form-panel">
+      <div class="auth-form-top auth-minimal-form-top">
+        <div>
+          <div class="auth-form-badge">Secure sign in</div>
+          <h2 class="auth-form-title"><%= tenant ? tenant.name : 'Service Desk' %></h2>
+          <p class="muted auth-form-copy">Enter your workspace.</p>
+        </div>
+      </div>
+
+      <form method="post" action="<%= basePath %>/login" class="stack auth-form-stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+        <label class="auth-label">
+          <span>Email</span>
+          <input type="email" name="email" placeholder="you@company.com" required autofocus />
+        </label>
+
+        <label class="auth-label">
+          <span>Password</span>
+          <input type="password" name="password" placeholder="Enter your password" required />
+        </label>
+
+        <button type="submit" class="auth-submit-button">Enter</button>
+      </form>
+
+      <div class="auth-form-footer">
+        <a href="<%= basePath %>/forgot-password">Forgot password?</a>
+        <span class="auth-footer-divider"></span>
+        <a href="/signup">Create workspace</a>
+      </div>
+    </div>
+  </div>
+</section>

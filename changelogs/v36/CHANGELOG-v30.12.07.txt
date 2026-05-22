@@ -1,0 +1,6 @@
+ESOP v30.12.07
+- Builds on v30.12.06.
+- Added cached accessible entity Set helper for faster hot-path authorization checks.
+- Switched secure file authorization to Set-based entity access lookup.
+- Parallelized file asset uploads during issue/comment attachment handling with Promise.all.
+- Saved comment and parent issue in parallel after comment creation and SLA updates.

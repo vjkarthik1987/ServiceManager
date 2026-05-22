@@ -1,0 +1,8 @@
+ESOP v30.14
+- Builds on v30.12.13 reports scope and client fix baseline.
+- Activates the /:tenantSlug/dashboards route with a dedicated dashboard page.
+- Adds two-row dashboard filter shell.
+- Adds searchable single-line multiselect controls with chips for entity, status, assigned agent, severity, and type.
+- Uses configured workflow statuses and tenant priority configuration instead of hard-coded dashboard/report filter options.
+- Adds the first dashboard graph: an 8-column line chart for issues raised vs issues closed over the selected period.
+- Updates app version strings to v30.14.

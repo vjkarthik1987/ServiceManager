@@ -1,0 +1,9 @@
+<section class='page-header taxonomy-form-shell'><div><div class='section-kicker'>Module definition</div><h1><%= title %></h1><p class='muted'>Define reusable modules once, then associate them with entities during client/sub-client setup.</p></div></section>
+<section class='card narrow form-card taxonomy-form-card taxonomy-form-shell'><form method='post' action='<%= (locals.formAction || `${basePath}/admin/modules`) %>' class='stack'>
+<input type='hidden' name='_csrf' value='<%= csrfToken %>' />
+<div class='grid-two'><label><span>Code</span><input name='code' required maxlength='20' value='<%= defaults.code || "" %>' style='text-transform:uppercase' placeholder='BILLING' /></label><label><span>Name</span><input name='name' required value='<%= defaults.name || "" %>' placeholder='Billing Engine' /></label></div>
+<div class='grid-two'><label><span>Owner team</span><input name='ownerTeam' value='<%= defaults.ownerTeam || "" %>' placeholder='Payments L2, Integration Team' /></label><label><span>Criticality</span><select name='criticality'><% ['LOW','MEDIUM','HIGH','CRITICAL'].forEach((c)=>{ %><option value='<%= c %>' <%= (defaults.criticality || 'MEDIUM') === c ? 'selected' : '' %>><%= c %></option><% }) %></select></label></div>
+<label><span>Description</span><textarea name='description'><%= defaults.description || '' %></textarea></label>
+<label class='checkbox-row'><input type='checkbox' name='isActive' value='true' <%= defaults.isActive !== false ? 'checked' : '' %> /><span>Module is active</span></label>
+<div class='form-actions right wrap-actions'><a class='button-link secondary' href='<%= basePath %>/admin/modules'>Back</a><button type='submit'><%= (locals.submitLabel || 'Create Module') %></button></div>
+</form></section>

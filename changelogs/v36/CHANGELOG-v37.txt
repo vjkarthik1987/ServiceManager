@@ -1,0 +1,10 @@
+Service Desk v37 — Notification Platform, Non-Docker Build
+
+1. Removed Docker-only runtime requirement from the v37 package.
+2. Kept the v37 notification/email platform upgrades.
+3. Fixed user provisioning tracking email: no more raw plain-text admin copy; it now uses the branded HTML renderer.
+4. Preserved branded welcome/password reset/test/notification emails.
+5. Preserved email queue/worker foundation with non-Docker run options.
+6. Added RUN-NON-DOCKER-v37.md with npm/MongoDB/Railway instructions.
+7. Updated package metadata for the non-Docker distribution.
+8. Kept upload validation and attachment runtime behavior from the previous base.

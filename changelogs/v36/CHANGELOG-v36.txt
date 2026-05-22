@@ -1,0 +1,8 @@
+v36 — SLA Policy v2 + Module Definition
+
+- Added reusable Module master under Admin > Modules.
+- Entities can now select applicable modules along with products.
+- Issues can capture module for routing, SLA, RCA, KB, and dashboard intelligence.
+- SLA policy form now supports support package and separate Response / Incident Workaround / Problem Permanent Fix targets.
+- Added AXIS-style SLA template matching response, workaround, and permanent-fix commitments.
+- SLA snapshots now carry permanent-fix target, due date, and status foundations.

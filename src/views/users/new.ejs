@@ -1,0 +1,182 @@
+<section class="page-header user-create-shell"><div><h1>Create User</h1><p class="muted">Client users can still be created directly. Agent users and agent managers must be selected from the approved user pool. Temporary passwords are generated automatically.</p></div></section>
+<section class="card stack user-create-card user-create-shell">
+  <form method="post" action="<%= basePath %>/users" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="form-actions wrap-actions" style="justify-content:flex-start;">
+      <% if (currentUser.role === 'superadmin') { %>
+        <a class="button-link secondary" href="<%= basePath %>/users/approved">Manage approved user pool</a>
+      <% } %>
+    </div>
+
+    <div class="user-type-prompt">
+      <label>
+        <span>First, what kind of user is this?</span>
+        <select name="role" id="role-select" <%= currentUser.role === 'client' ? 'disabled' : '' %>>
+          <% if (currentUser.role !== 'client') { %>
+            <option value="superadmin" <%= defaults && defaults.role === 'superadmin' ? 'selected' : '' %>>Superadmin</option>
+            <option value="agent_manager" <%= defaults && defaults.role === 'agent_manager' ? 'selected' : '' %>>Agent Manager</option>
+            <option value="agent_user" <%= defaults && defaults.role === 'agent_user' ? 'selected' : '' %>>Agent User</option>
+            <option value="regional_head" <%= defaults && defaults.role === 'regional_head' ? 'selected' : '' %>>Regional Head</option>
+            <option value="support_head" <%= defaults && defaults.role === 'support_head' ? 'selected' : '' %>>Support Head</option>
+            <option value="engagement_manager" <%= defaults && defaults.role === 'engagement_manager' ? 'selected' : '' %>>Engagement Manager</option>
+          <% } %>
+          <option value="client" <%= !defaults || defaults.role === 'client' ? 'selected' : '' %>>Client User</option>
+        </select>
+        <% if (currentUser.role === 'client') { %><input type="hidden" name="role" value="client" /><% } %>
+      </label>
+      <small class="muted">The rest of the form will adapt based on this choice. Temporary password is auto-generated on create.</small>
+    </div>
+
+    <input type="hidden" name="approvedUserId" id="approved-user-id" value="" />
+
+    <div id="existing-user-field" class="stack" style="display:none;">
+      <label>
+        <span>Or promote an existing user</span>
+        <select name="existingUserId" id="existing-user-select">
+          <option value="">Create from approved pool instead</option>
+          <% (existingInternalUsers || []).forEach((item) => { %>
+            <option value="<%= item._id %>"><%= item.name %> · <%= item.email %> · <%= item.role %></option>
+          <% }) %>
+        </select>
+        <small class="muted">Regional Head and Support Head can be selected from existing users too.</small>
+      </label>
+    </div>
+
+    <div id="approved-user-field" class="stack" style="display:none;">
+      <label>
+        <span>Approved user</span>
+        <input type="text" id="approved-user-search" placeholder="Search approved name or email" autocomplete="off" />
+        <small class="muted">Start typing a name or email, then pick one from the list. This is mandatory for agent roles.</small>
+      </label>
+      <div class="table-wrap" style="max-height:220px; overflow:auto; border:1px solid var(--border-color, #e5e7eb); border-radius:14px;">
+        <table>
+          <thead><tr><th>Select</th><th>Name</th><th>Email</th></tr></thead>
+          <tbody id="approved-user-options-body">
+            <% approvedUsers.forEach((item) => { %>
+              <tr data-approved-user-row data-name="<%= item.name.toLowerCase() %>" data-email="<%= item.email.toLowerCase() %>" data-id="<%= item._id %>" data-value="<%= item.name %> · <%= item.email %>">
+                <td><button class="button-link secondary" type="button" data-approved-user-pick>Select</button></td>
+                <td><%= item.name %></td>
+                <td><%= item.email %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% if (!approvedUsers.length) { %><p class="muted">No approved users found yet. Add them first in the approved user pool.</p><% } %>
+    </div>
+
+    <div id="manual-user-fields" class="grid-two">
+      <label><span>Name</span><input type="text" name="name" id="name-input" /></label>
+      <label><span>Email</span><input type="email" name="email" id="email-input" /></label>
+    </div>
+
+    <label id="region-access-field" class="user-region-access-field" style="display:none;">
+      <span>Regions for Regional Head</span>
+      <select name="regions" id="region-access-select" multiple size="5">
+        <% (regionOptions || []).forEach((region) => { %>
+          <option value="<%= region %>" <%= (defaults?.regions || []).includes(region) ? 'selected' : '' %>><%= region %></option>
+        <% }) %>
+      </select>
+      <small class="muted">Select the regions this Regional Head should own. Client access is automatically based on clients and subclients in those regions.</small>
+    </label>
+
+    <label id="entity-access-field">
+      <span>Client / Entity access</span>
+      <select name="entityIds" id="entity-access-select" multiple size="10">
+        <% entities.forEach((entity) => { %>
+          <option value="<%= entity._id %>"><%= entity.path %></option>
+        <% }) %>
+      </select>
+      <small class="muted">Hold Ctrl/Cmd to select the clients or entities this user should access. Superadmin does not require entity access.</small>
+    </label>
+
+    <div class="form-actions right wrap-actions">
+      <a class="button-link secondary" href="<%= basePath %>/users">Back to list</a>
+      <button type="submit">Create User</button>
+    </div>
+  </form>
+</section>
+<script>
+(function(){
+  var roleSelect=document.getElementById('role-select');
+  var entityField=document.getElementById('entity-access-field');
+  var regionField=document.getElementById('region-access-field');
+  var regionSelect=document.getElementById('region-access-select');
+  var entitySelect=document.getElementById('entity-access-select');
+  var manualFields=document.getElementById('manual-user-fields');
+  var approvedField=document.getElementById('approved-user-field');
+  var existingField=document.getElementById('existing-user-field');
+  var approvedSearch=document.getElementById('approved-user-search');
+  var approvedId=document.getElementById('approved-user-id');
+  var nameInput=document.getElementById('name-input');
+  var emailInput=document.getElementById('email-input');
+  var rows=[].slice.call(document.querySelectorAll('[data-approved-user-row]'));
+  if(!roleSelect || !entityField || !entitySelect || !regionField || !regionSelect || !manualFields || !approvedField || !existingField || !approvedSearch || !approvedId || !nameInput || !emailInput)return;
+
+  function isApprovedPoolRole(role){
+    return role==='agent' || role==='agent_user' || role==='agent_manager' || role==='regional_head' || role==='support_head';
+  }
+
+  function syncVisibility(){
+    var role=roleSelect.value;
+    var needsEntities = role !== 'superadmin' && role !== 'regional_head';
+    entityField.style.display=needsEntities?'':'none';
+    entitySelect.required=needsEntities;
+    entitySelect.disabled=!needsEntities;
+    var needsRegions = role === 'regional_head';
+    regionField.style.display = needsRegions ? '' : 'none';
+    regionSelect.disabled = !needsRegions;
+
+    var useApproved = isApprovedPoolRole(role);
+    approvedField.style.display = useApproved ? '' : 'none';
+    existingField.style.display = (role==='regional_head' || role==='support_head') ? '' : 'none';
+    manualFields.style.display = useApproved ? '' : '';
+    nameInput.readOnly = useApproved;
+    emailInput.readOnly = useApproved;
+    nameInput.required = !useApproved;
+    emailInput.required = !useApproved;
+    approvedSearch.required = useApproved;
+    if(!useApproved){
+      approvedId.value='';
+      approvedSearch.value='';
+      rows.forEach(function(row){ row.hidden = false; row.classList.remove('selected-row'); });
+      nameInput.value='';
+      emailInput.value='';
+    }
+  }
+
+  function filterRows(){
+    var q=(approvedSearch.value || '').toLowerCase().trim();
+    rows.forEach(function(row){
+      var match = !q || row.getAttribute('data-name').indexOf(q) !== -1 || row.getAttribute('data-email').indexOf(q) !== -1;
+      row.hidden = !match;
+    });
+  }
+
+  rows.forEach(function(row){
+    var button=row.querySelector('[data-approved-user-pick]');
+    if(!button)return;
+    button.addEventListener('click', function(){
+      approvedId.value = row.getAttribute('data-id');
+      approvedSearch.value = row.getAttribute('data-value');
+      nameInput.value = row.children[1] ? row.children[1].textContent.trim() : '';
+      emailInput.value = row.children[2] ? row.children[2].textContent.trim() : '';
+      rows.forEach(function(item){ item.classList.remove('selected-row'); });
+      row.classList.add('selected-row');
+      filterRows();
+    });
+  });
+
+  approvedSearch.addEventListener('input', function(){
+    approvedId.value='';
+    nameInput.value='';
+    emailInput.value='';
+    rows.forEach(function(item){ item.classList.remove('selected-row'); });
+    filterRows();
+  });
+
+  roleSelect.addEventListener('change',syncVisibility);
+  syncVisibility();
+  filterRows();
+})();
+</script>

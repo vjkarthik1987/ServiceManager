@@ -1,0 +1,54 @@
+<section class="hero gradient-quirky dashboard-hero">
+  <div>
+    <div class="section-kicker">v35 Intelligent automation</div>
+    <h1>AI Automation Center</h1>
+    <p class="muted">Governed auto-resolution candidates, duplicate clusters, knowledge drafts, and operational health signals.</p>
+  </div>
+  <div class="hero-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/dashboards">Dashboards</a>
+    <a class="button-link secondary" href="<%= basePath %>/knowledge">Knowledge Hub</a>
+  </div>
+</section>
+
+<section class="stats-grid dashboard-primary-stats">
+  <div class="stat-card"><h3>Auto-resolution candidates</h3><p class="big-number"><%= autoCandidates.length %></p><p class="muted small">Low-risk, human-review-first candidates.</p></div>
+  <div class="stat-card"><h3>Duplicate clusters</h3><p class="big-number"><%= duplicateClusters.length %></p><p class="muted small">Possible master/child incident opportunities.</p></div>
+  <div class="stat-card"><h3>Knowledge drafts</h3><p class="big-number"><%= kbDrafts.length %></p><p class="muted small">KB and runbook drafts needing review.</p></div>
+  <div class="stat-card"><h3>Client health rows</h3><p class="big-number"><%= healthRows.length %></p><p class="muted small">Lowest scores are shown first.</p></div>
+</section>
+
+<section class="grid-two dashboard-secondary-grid reports-section-gap">
+  <article class="card section-card stack">
+    <div class="section-title-row"><div><h2>Governed auto-resolution queue</h2><p class="muted small">AI can suggest resolution only. Human approval is required.</p></div><span class="pill brand-soft">Suggest only</span></div>
+    <div class="table-wrap reports-scrollable-table"><table><thead><tr><th>Issue</th><th>Client</th><th>Status</th><th>AI action</th></tr></thead><tbody>
+      <% autoCandidates.forEach((issue) => { %><tr><td><a href="<%= basePath %>/tickets/<%= issue._id %>"><strong><%= issue.issueNumber %></strong></a><br><span class="muted small"><%= issue.title %></span></td><td><%= issue.entityId?.name || '—' %></td><td><span class="pill"><%= issue.status %></span></td><td><span class="pill success-soft">Suggest KB / self-heal</span></td></tr><% }) %>
+      <% if (!autoCandidates.length) { %><tr><td colspan="4" class="muted">No auto-resolution candidates right now.</td></tr><% } %>
+    </tbody></table></div>
+  </article>
+
+  <article class="card section-card stack">
+    <div class="section-title-row"><div><h2>Duplicate incident clusters</h2><p class="muted small">Use these to create master incidents and reduce noise.</p></div><span class="pill warning-soft">Review</span></div>
+    <div class="table-wrap reports-scrollable-table"><table><thead><tr><th>Cluster</th><th>Count</th><th>Examples</th></tr></thead><tbody>
+      <% duplicateClusters.forEach((cluster) => { %><tr><td><strong><%= cluster._id || 'Similar title' %></strong></td><td><%= cluster.count %></td><td><%= (cluster.issues || []).slice(0,3).map((x) => x.issueNumber).join(', ') %></td></tr><% }) %>
+      <% if (!duplicateClusters.length) { %><tr><td colspan="3" class="muted">No duplicate clusters found.</td></tr><% } %>
+    </tbody></table></div>
+  </article>
+</section>
+
+<section class="grid-two dashboard-secondary-grid reports-section-gap">
+  <article class="card section-card stack">
+    <div class="section-title-row"><div><h2>Operational health score</h2><p class="muted small">Lower score means higher governance attention.</p></div><span class="pill brand-soft">v35</span></div>
+    <div class="table-wrap reports-scrollable-table"><table><thead><tr><th>Client</th><th>Score</th><th>Open</th><th>Breached</th><th>Reopened</th></tr></thead><tbody>
+      <% healthRows.forEach((row) => { %><tr><td><strong><%= row.label %></strong></td><td><span class="pill <%= row.score < 70 ? 'danger-soft' : row.score < 85 ? 'warning-soft' : 'success-soft' %>"><%= row.score %></span></td><td><%= row.open %></td><td><%= row.breached %></td><td><%= row.reopened %></td></tr><% }) %>
+      <% if (!healthRows.length) { %><tr><td colspan="5" class="muted">No health rows available.</td></tr><% } %>
+    </tbody></table></div>
+  </article>
+
+  <article class="card section-card stack">
+    <div class="section-title-row"><div><h2>Knowledge and runbook drafts</h2><p class="muted small">Review before publishing; never auto-publish AI knowledge.</p></div><a class="button-link secondary" href="<%= basePath %>/knowledge">Manage KB</a></div>
+    <div class="table-wrap reports-scrollable-table"><table><thead><tr><th>Draft</th><th>Type</th><th>Status</th></tr></thead><tbody>
+      <% kbDrafts.forEach((doc) => { %><tr><td><strong><%= doc.title %></strong></td><td><%= doc.sourceType %></td><td><span class="pill"><%= doc.knowledgeStatus %></span></td></tr><% }) %>
+      <% if (!kbDrafts.length) { %><tr><td colspan="3" class="muted">No AI-generated knowledge drafts yet.</td></tr><% } %>
+    </tbody></table></div>
+  </article>
+</section>

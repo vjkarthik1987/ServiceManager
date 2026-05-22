@@ -1,0 +1,6 @@
+v30.19
+- Fixed scoped dashboards for client, agent user, and agent manager by tightening entity scope resolution and client-own-issue fallback.
+- Rebranded visible workspace chrome from ESOP to Service Desk.
+- Renamed sidebar item Agents to Agent Assignment.
+- Enhanced Agent Assignment page with current assignments table.
+- Added + New SLA/OLA policy options on entity creation page that redirect to policy creation.

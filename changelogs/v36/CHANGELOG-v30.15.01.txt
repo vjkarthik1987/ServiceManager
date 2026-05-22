@@ -1,0 +1,5 @@
+v30.15.01
+- Dashboard first-row 8-column and 4-column charts now use matching card heights.
+- Issues raised vs closed line chart now supports show/hide toggles for each line.
+- Added 6-column Issues by Status column chart driven by configured status options.
+- Added 6-column Status and Severity stacked chart driven by configured statuses and configured severities.

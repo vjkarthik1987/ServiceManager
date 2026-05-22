@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <title><%= title ? `${title} | ${tenant ? tenant.name : 'Service Desk'} Workspace` : `${tenant ? tenant.name : 'Service Desk'} Workspace` %></title>
+    <link rel="icon" type="image/svg+xml" href="/images/favicon-esop.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+
+  <body>
+    <% const roleLabel = currentUser ? (currentUser.role === 'client' ? 'CLIENT_USER' : currentUser.role.toUpperCase()) : ''; %>
+    <% const navItems = [
+      { href: currentUser && currentUser.role === 'client' ? `${basePath}/client/dashboard` : `${basePath}/dashboard`, label: 'Home', show: !!currentUser },
+      { href: currentUser && currentUser.role === 'client' ? `${basePath}/client/issues` : `${basePath}/tickets`, label: currentUser && currentUser.role === 'client' ? 'My Issues' : 'Issues', show: !!currentUser },
+      { href: `${basePath}/users`, label: 'Users', show: currentUser && ['superadmin','agent_manager','support_head','engagement_manager','regional_head'].includes(currentUser.role) },
+      { href: `${basePath}/admin/products`, label: 'Products', show: currentUser && ['superadmin','support_head'].includes(currentUser.role) },
+      { href: `${basePath}/admin/modules`, label: 'Modules', show: currentUser && ['superadmin','support_head'].includes(currentUser.role) },
+      { href: `${basePath}/dashboards`, label: 'Dashboard', show: currentUser && ['agent', 'agent_user', 'agent_manager', 'support_head', 'regional_head', 'engagement_manager', 'superadmin', 'client'].includes(currentUser.role) },
+      { href: `${basePath}/reports`, label: 'Reports', show: currentUser && ['client', 'agent', 'agent_user', 'agent_manager', 'support_head', 'regional_head', 'superadmin'].includes(currentUser.role) },
+      { href: `${basePath}/agent/workspace`, label: 'Agent Workspace', show: currentUser && ['agent', 'agent_user', 'agent_manager', 'support_head', 'superadmin'].includes(currentUser.role) },
+      { href: `${basePath}/agent/unassigned`, label: `Unassigned Issues${unassignedIssueCount ? ' (' + unassignedIssueCount + ')' : ''}`, show: currentUser && ['agent_manager', 'support_head', 'superadmin'].includes(currentUser.role) },
+      { href: `${basePath}/entities`, label: 'Entities', show: currentUser && ['superadmin', 'support_head', 'regional_head', 'client', 'agent'].includes(currentUser.role) },
+      { href: `${basePath}/assignments/new`, label: 'Agent Assignment', show: currentUser && ['superadmin','support_head'].includes(currentUser.role) },
+      { href: `${basePath}/knowledge`, label: 'Knowledge Hub', show: currentUser && ['superadmin','support_head','regional_head'].includes(currentUser.role) },
+        { href: `${basePath}/filters`, label: 'Filters', show: currentUser },
+      { href: `${basePath}/admin/notifications`, label: `Notifications${unreadNotificationCount ? ' (' + unreadNotificationCount + ')' : ''}`, show: currentUser && !!currentUser },
+      { href: `${basePath}/admin/notification-preferences`, label: 'Notification Prefs', show: currentUser && !!currentUser },
+      { href: `${basePath}/users/account/change-password`, label: 'Change Password', show: currentUser && !!currentUser },
+      { href: `${basePath}/admin/saved-views`, label: 'Saved Views', show: currentUser && !!currentUser },
+      { href: `${basePath}/admin/routing-rules`, label: 'Routing Rules', show: currentUser && currentUser.role === 'superadmin' },
+      { href: `${basePath}/admin/status-mappings`, label: 'Status Mapping', show: currentUser && currentUser.role === 'superadmin' },
+      { href: `${basePath}/admin/sla-policies`, label: 'SLA Policies', show: currentUser && currentUser.role === 'superadmin' },
+      { href: `${basePath}/admin/integrations/jira`, label: 'Jira', show: currentUser && currentUser.role === 'superadmin' },
+      { href: `${basePath}/admin/workflows`, label: 'Workflow', show: currentUser && currentUser.role === 'superadmin' },
+      { href: `${basePath}/admin/audit`, label: 'Audit Explorer', show: currentUser && currentUser.role === 'superadmin' },
+      { href: `${basePath}/admin/automation`, label: 'AI Automation', show: currentUser && ['superadmin','agent_manager','support_head'].includes(currentUser.role) },
+      { href: `${basePath}/admin/ops`, label: 'Ops Console', show: currentUser && ['superadmin','support_head'].includes(currentUser.role) },
+      { href: `${basePath}/admin/console`, label: 'Admin Console', show: currentUser && currentUser.role === 'superadmin' }
+    ]; %>
+
+    <% if (currentUser) { %>
+      <button class="mobile-menu-button" type="button" onclick="document.body.classList.toggle('sidebar-open')">☰ Workspace</button>
+      <button class="chatbot-toggle" type="button" onclick="document.body.classList.toggle('chatbot-open')">Ask AI</button>
+
+      <div class="mobile-backdrop" onclick="document.body.classList.remove('sidebar-open'); document.body.classList.remove('chatbot-open');"></div>
+
+      <div class="workspace-shell">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <a class="brand" href="<%= basePath %>/dashboard">Service Desk</a>
+            <div class="workspace-chip"><span class="dot"></span><%= tenant ? tenant.name : 'Workspace' %></div>
+            <div class="muted small"><%= tenant ? `/${tenant.slug}` : '' %></div>
+          </div>
+
+          <div class="sidebar-top-actions">
+            <form method="post" action="<%= basePath %>/logout" class="inline-form logout-form top-logout-form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+              <button class="button-link logout-dark" type="submit">Logout</button>
+            </form>
+          </div>
+
+          <nav class="sidebar-nav">
+            <% navItems.filter((item) => item.show).forEach((item) => { const isActive = currentPath && (currentPath === item.href || currentPath.startsWith(item.href + '/')); %>
+              <a class="nav-link <%= isActive ? 'active' : '' %>" href="<%= item.href %>"><%= item.label %></a>
+            <% }) %>
+          </nav>
+
+          <div class="sidebar-footer">
+            <span class="pill"><%= currentUser.name %> · <%= roleLabel %></span>
+          </div>
+        </aside>
+
+        <main class="main-shell with-sidebar">
+          <div class="container page">
+            <% if (success) { %>
+              <div class="alert success" data-alert><span><%= success %></span><button type="button" class="alert-close" data-close-alert>×</button></div>
+            <% } %>
+            <% if (error) { %>
+              <div class="alert error" data-alert><span><%= error %></span><button type="button" class="alert-close" data-close-alert>×</button></div>
+            <% } %>
+
+            <%- body %>
+
+            <footer class="main-footer">© SunTec. For any further clarifications, please send an email to support@suntecgroup.com</footer>
+          </div>
+        </main>
+
+        <aside class="chatbot-panel">
+          <div class="chatbot-card">
+            <div class="chatbot-head">
+              <img class="chatbot-head-avatar" src="/images/service-desk-ai-robot.png" alt="Service Desk AI" />
+              <div>
+                <strong>Service Desk AI</strong>
+                <div class="muted small">Ask about issues, reports, SLA, clients</div>
+              </div>
+              <button class="chatbot-close" type="button" onclick="document.body.classList.remove('chatbot-open')">×</button>
+            </div>
+
+            <div class="chatbot-body" data-assistant-messages>
+              <div class="chatbot-empty" data-assistant-empty>
+                <img class="chatbot-orb chatbot-orb-image" src="/images/service-desk-ai-robot.png" alt="Service Desk AI" />
+                <p>Ask me about this workspace.</p>
+                <span class="muted small">Try “Show all open issues”, “Create issue for Client A: payment timeout affecting all users, severity high”, “Push ABCD-1001 to Jira”, “Why is ABCD-1001 breached?”, or “Summarize ABCD-1001”.</span>
+              </div>
+            </div>
+
+            <form class="chatbot-input-row" data-assistant-form data-base-path="<%= basePath %>">
+              <input type="text" name="message" placeholder="Search, update, or raise issues..." autocomplete="off" />
+              <button type="submit">Send</button>
+            </form>
+          </div>
+        </aside>
+      </div>
+    <% } else { %>
+      <main class="main-shell">
+        <div class="container page">
+          <% if (success) { %>
+            <div class="alert success" data-alert><span><%= success %></span><button type="button" class="alert-close" data-close-alert>×</button></div>
+          <% } %>
+          <% if (error) { %>
+            <div class="alert error" data-alert><span><%= error %></span><button type="button" class="alert-close" data-close-alert>×</button></div>
+          <% } %>
+
+          <%- body %>
+
+          <footer class="main-footer">© SunTec. For any further clarifications, please send an email to support@suntecgroup.com</footer>
+        </div>
+      </main>
+    <% } %>
+
+    <script>
+      (function () {
+        function formatSize(size) {
+          var bytes = Number(size || 0);
+          if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+          if (bytes >= 1024) return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+          return bytes + ' B';
+        }
+
+        document.querySelectorAll('[data-close-alert]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            var alert = button.closest('[data-alert]');
+            if (alert) alert.remove();
+          });
+        });
+
+        document.querySelectorAll('[data-file-preview-input]').forEach(function (input) {
+          input.addEventListener('change', function () {
+            var key = input.getAttribute('data-file-preview-input');
+            var list = document.querySelector('[data-file-preview-list="' + key + '"]');
+            if (!list) return;
+
+            list.innerHTML = '';
+            var files = Array.from(input.files || []);
+
+            if (!files.length) {
+              list.hidden = true;
+              return;
+            }
+
+            list.hidden = false;
+
+            files.forEach(function (file) {
+              var item = document.createElement('div');
+              item.className = 'selected-file-item';
+
+              var preview = document.createElement('div');
+              preview.className = 'selected-file-preview';
+
+              if ((file.type || '').indexOf('image/') === 0) {
+                var img = document.createElement('img');
+                img.className = 'attachment-thumb';
+                img.alt = file.name;
+                img.src = URL.createObjectURL(file);
+                img.onload = function () { URL.revokeObjectURL(img.src); };
+                preview.appendChild(img);
+              } else if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+                var pdf = document.createElement('div');
+                pdf.className = 'attachment-pdf-tile';
+                pdf.innerHTML = '<span>PDF</span>';
+                preview.appendChild(pdf);
+              } else {
+                preview.innerHTML = '<div class="attachment-icon">📎</div>';
+              }
+
+              var meta = document.createElement('div');
+              meta.className = 'attachment-body';
+
+              var strong = document.createElement('strong');
+              strong.textContent = file.name;
+
+              var small = document.createElement('span');
+              small.className = 'muted small';
+              small.textContent = (file.type || 'unknown') + ' • ' + formatSize(file.size);
+
+              meta.appendChild(strong);
+              meta.appendChild(small);
+              item.appendChild(preview);
+              item.appendChild(meta);
+              list.appendChild(item);
+            });
+          });
+        });
+      })();
+    </script>
+
+
+    <script>
+      (function () {
+        var form = document.querySelector('[data-assistant-form]');
+        if (!form) return;
+
+        var input = form.querySelector('input[name="message"]');
+        var button = form.querySelector('button[type="submit"]');
+        var messages = document.querySelector('[data-assistant-messages]');
+        var emptyState = document.querySelector('[data-assistant-empty]');
+        var basePath = form.getAttribute('data-base-path') || '';
+        var draft = null;
+
+        function hydrateMessage(kind, text) {
+          addMessage(kind, text, true);
+        }
+
+        function loadHistory() {
+          fetch('/api/v1' + basePath + '/assistant/history', {
+            method: 'GET',
+            credentials: 'same-origin'
+          })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (payload) {
+              if (!payload) return;
+              draft = payload.draft || null;
+              (payload.messages || []).forEach(function (item) {
+                hydrateMessage(item.role === 'user' ? 'user' : 'bot', item.text || '');
+              });
+            })
+            .catch(function () {});
+        }
+
+        function addMessage(kind, text, fromHistory) {
+          if (emptyState) emptyState.hidden = true;
+          var bubble = document.createElement('div');
+          bubble.className = 'assistant-message assistant-message-' + kind;
+
+          if (kind !== 'user') {
+            var avatar = document.createElement('img');
+            avatar.className = 'assistant-message-avatar';
+            avatar.src = '/images/service-desk-ai-robot.png';
+            avatar.alt = 'Service Desk AI';
+            bubble.appendChild(avatar);
+          }
+
+          var messageText = String(text || '');
+          var content = document.createElement('div');
+          content.className = 'assistant-message-content';
+          messageText.split('\n').forEach(function (line, index) {
+            if (index) content.appendChild(document.createElement('br'));
+            content.appendChild(document.createTextNode(line));
+          });
+          bubble.appendChild(content);
+
+          if (kind === 'bot') {
+            var copyButton = document.createElement('button');
+            copyButton.type = 'button';
+            copyButton.className = 'assistant-copy-button';
+            copyButton.setAttribute('aria-label', 'Copy response');
+            copyButton.title = 'Copy response';
+            copyButton.innerHTML = '<span aria-hidden="true">⧉</span>';
+            copyButton.addEventListener('click', function () {
+              var done = function () {
+                copyButton.classList.add('copied');
+                copyButton.innerHTML = '<span aria-hidden="true">✓</span>';
+                setTimeout(function () {
+                  copyButton.classList.remove('copied');
+                  copyButton.innerHTML = '<span aria-hidden="true">⧉</span>';
+                }, 1200);
+              };
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(messageText).then(done).catch(function () {});
+              } else {
+                var temp = document.createElement('textarea');
+                temp.value = messageText;
+                temp.setAttribute('readonly', 'readonly');
+                temp.style.position = 'fixed';
+                temp.style.opacity = '0';
+                document.body.appendChild(temp);
+                temp.select();
+                try { document.execCommand('copy'); done(); } catch (error) {}
+                document.body.removeChild(temp);
+              }
+            });
+            bubble.appendChild(copyButton);
+          }
+
+          messages.appendChild(bubble);
+          messages.scrollTop = messages.scrollHeight;
+        }
+
+        function setBusy(isBusy) {
+          if (button) button.disabled = isBusy;
+          if (input) input.disabled = isBusy;
+          if (button) button.textContent = isBusy ? '...' : 'Send';
+        }
+
+        loadHistory();
+
+        form.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          var text = String(input.value || '').trim();
+          if (!text) return;
+          addMessage('user', text);
+          input.value = '';
+          setBusy(true);
+
+          try {
+            var response = await fetch('/api/v1' + basePath + '/assistant/message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ message: text, draft: draft })
+            });
+            var payload = await response.json().catch(function () { return {}; });
+            if (!response.ok) {
+              addMessage('bot', payload.error || 'Assistant request failed.');
+              return;
+            }
+            draft = payload.draft || null;
+            addMessage('bot', payload.reply || 'Done.');
+          } catch (error) {
+            addMessage('bot', 'Assistant request failed. Please try again.');
+          } finally {
+            setBusy(false);
+            input.focus();
+          }
+        });
+      })();
+    </script>
+
+    <script>
+      const dpr = window.devicePixelRatio || 1;
+      document.documentElement.style.fontSize = '12px';
+    </script>
+
+    <script>
+      function randomDeactivateCode(length = 6) {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let out = '';
+        for (let i = 0; i < length; i += 1) {
+          out += chars[Math.floor(Math.random() * chars.length)];
+        }
+        return out;
+      }
+
+      function handleEntityStatusSubmit(form, entityName, isCurrentlyActive) {
+        if (!isCurrentlyActive) {
+          return true;
+        }
+
+        const code = randomDeactivateCode(6);
+        const typed = window.prompt(
+          `Type this 6-letter code to deactivate "${entityName}": ${code}`
+        );
+
+        if (!typed) {
+          return false;
+        }
+
+        const expectedInput = form.querySelector('input[name="confirmationExpected"]');
+        const typedInput = form.querySelector('input[name="confirmationCode"]');
+
+        if (expectedInput) expectedInput.value = code;
+        if (typedInput) typedInput.value = typed.trim().toUpperCase();
+
+        return true;
+      }
+    </script>
+  </body>
+</html>

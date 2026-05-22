@@ -1,0 +1,20 @@
+Service Desk v30.97.1 — SharePoint Storage Connection
+
+Added
+- Microsoft Graph client-credentials based SharePoint integration.
+- New STORAGE_PROVIDER=sharepoint mode while preserving STORAGE_PROVIDER=local.
+- SharePoint upload provider that writes issue attachments to SHAREPOINT_ROOT_FOLDER/{tenantId}/{issueId}/.
+- SharePoint download/preview support through existing secure app routes.
+- Superadmin diagnostic APIs:
+  - GET  /api/v1/{tenantSlug}/admin/integrations/sharepoint/config
+  - POST /api/v1/{tenantSlug}/admin/integrations/sharepoint/test
+- FileAsset metadata fields for SharePoint item id and web URL.
+
+Configuration
+- Added MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET.
+- Added SHAREPOINT_SITE_ID, SHAREPOINT_DRIVE_ID, SHAREPOINT_ROOT_FOLDER.
+
+Notes
+- For first testing, use Microsoft Graph application permission Sites.ReadWrite.All or Files.ReadWrite.All.
+- For production, prefer Sites.Selected with explicit site grant.
+- Local HTTPS keeps COOKIE_SECURE=false to avoid self-signed localhost cookie issues.

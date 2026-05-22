@@ -1,0 +1,4 @@
+ESOP v30.15.03.1
+- Corrected dashboard 12-column grid for the distribution row so each of the four charts spans exactly 3 columns.
+- Added missing dashboard-span-3 utility class.
+- Added dashboard-fixed-height-shell-sm for the 3-column chart cards.

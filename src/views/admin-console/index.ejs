@@ -1,0 +1,117 @@
+<section class="page-header">
+  <div>
+    <div class="section-kicker">v30 productization layer</div>
+    <h1>Admin Console</h1>
+    <p class="muted">Centralize governance for entities, users, Jira execution, routing, SLAs, status abstraction, and tenant-level settings.</p>
+  </div>
+  <div class="header-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/admin/audit">Audit & Operations</a>
+    <a class="button-link" href="<%= basePath %>/admin/integrations/jira">Jira Configuration</a>
+  </div>
+</section>
+
+<section class="entity-overview-grid">
+  <article class="stat-card entity-stat-card"><span class="summary-label">Total Entities</span><p class="big-number"><%= summary.totalEntities %></p></article>
+  <article class="stat-card entity-stat-card"><span class="summary-label">Client Users</span><p class="big-number"><%= summary.totalClientUsers %></p></article>
+  <article class="stat-card entity-stat-card"><span class="summary-label">Agents</span><p class="big-number"><%= summary.totalAgents %></p></article>
+  <article class="stat-card entity-stat-card"><span class="summary-label">Open Issues</span><p class="big-number"><%= summary.openIssues %></p></article>
+  <article class="stat-card entity-stat-card"><span class="summary-label">Jira Pending</span><p class="big-number"><%= summary.jiraPending %></p></article>
+  <article class="stat-card entity-stat-card"><span class="summary-label">Breached SLA</span><p class="big-number"><%= summary.breachedSla %></p></article>
+  <article class="stat-card entity-stat-card"><span class="summary-label">Internal-only</span><p class="big-number"><%= summary.internalOnlyIssues %></p></article>
+  <article class="stat-card entity-stat-card"><span class="summary-label">Jira Failures</span><p class="big-number"><%= summary.recentFailedJiraPushes %></p></article>
+</section>
+
+<section class="grid-two">
+  <article class="card stack admin-settings-card">
+    <div class="page-header" style="margin-bottom:0">
+      <div><h2>Governance shortcuts</h2><p class="muted">Jump into the areas admins need the most.</p></div>
+    </div>
+    <div class="entity-subclient-list">
+      <div class="entity-subclient-card"><strong><a href="<%= basePath %>/entities">Entities</a></strong><div class="muted small">Hierarchy, entity-level Jira mapping, active/inactive state.</div></div>
+      <div class="entity-subclient-card"><strong><a href="<%= basePath %>/admin/users">Client Users</a></strong><div class="muted small">Roles, memberships, activation, scope edits.</div></div>
+      <div class="entity-subclient-card"><strong><a href="<%= basePath %>/admin/routing-rules">Routing Rules</a></strong><div class="muted small">Priority-ordered matching, support groups, execution mode.</div></div>
+      <div class="entity-subclient-card"><strong><a href="<%= basePath %>/admin/sla-policies">SLA Policies</a></strong><div class="muted small">Response and resolution commitments by scope.</div></div>
+      <div class="entity-subclient-card"><strong><a href="<%= basePath %>/admin/status-mappings">Status Mapping</a></strong><div class="muted small">Customer-facing labels separated from internal/Jira statuses.</div></div>
+      <div class="entity-subclient-card"><strong><a href="<%= basePath %>/admin/console/request-taxonomy">Request Taxonomy</a></strong><div class="muted small">Enable Issue, CR, Query, Service Request and define optional second-level classification.</div></div>
+      <div class="entity-subclient-card"><strong><a href="<%= basePath %>/admin/integrations/jira">Jira Configuration</a></strong><div class="muted small">Connection, validation, defaults, mock/live readiness.</div></div>
+    </div>
+  </article>
+
+  <article class="card stack">
+    <div class="page-header" style="margin-bottom:0">
+      <div><h2>Tenant settings</h2><p class="muted">Basic productization controls for branding and support contact.</p></div>
+    </div>
+    <form method="post" action="<%= basePath %>/admin/console/settings" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="grid-two">
+        <label><span>Display name</span><input type="text" name="name" value="<%= tenantSettings.name %>" required /></label>
+        <label><span>Support email</span><input type="email" name="supportEmail" value="<%= tenantSettings.branding?.supportEmail || '' %>" /></label>
+      </div>
+      <label><span>Accent color</span><input type="text" name="accentColor" value="<%= tenantSettings.branding?.accentColor || '#7C3AED' %>" /></label>
+      <label><span>User provisioning tracking email</span><input type="email" name="userProvisioningTrackingEmail" value="<%= tenantSettings.notificationConfig?.userProvisioningTrackingEmail || '' %>" /><span class="muted small">This address receives a separate tracking email on every new-user provisioning event. No password is included.</span></label>
+      <div class="grid-two">
+        <label><span>Priority master list</span><textarea name="issuePriorities" rows="4"><%= (issueConfig.priorities || []).join(', ') %></textarea></label>
+        <label><span>Category master list</span><textarea name="issueCategories" rows="4"><%= (issueConfig.categories || []).join(', ') %></textarea></label>
+      </div>
+      <div class="grid-two">
+        <label><span>Source master list</span><textarea name="issueSources" rows="3"><%= (issueConfig.sources || []).join(', ') %></textarea></label>
+        <label><span>Region master list</span><textarea name="issueRegions" rows="3"><%= (issueConfig.regions || []).join(', ') %></textarea><span class="muted small">Regions become dropdown values in entity forms.</span></label>
+      </div>
+      <div class="grid-three">
+        <label><span>Jira issue type for BUG</span><input type="text" name="jiraIssueTypeBug" value="<%= issueConfig.jiraIssueTypeByRequestType?.bug || 'Bug' %>" /></label>
+        <label><span>Jira issue type for CR</span><input type="text" name="jiraIssueTypeCr" value="<%= issueConfig.jiraIssueTypeByRequestType?.cr || 'Change Request' %>" /></label>
+        <label><span>Jira issue type for QUERY</span><input type="text" name="jiraIssueTypeQuery" value="<%= issueConfig.jiraIssueTypeByRequestType?.query || 'Task' %>" /></label>
+        <label><span>Jira issue type for SERVICE REQUEST</span><input type="text" name="jiraIssueTypeServiceRequest" value="<%= issueConfig.jiraIssueTypeByRequestType?.serviceRequest || 'Service Request' %>" /></label>
+      </div>
+      <div class="muted small">Issue types are configured here. Workflow status/transition rules are configured in <a href="<%= basePath %>/admin/workflows">Workflow Governance</a>.</div>
+      <div class="form-actions right"><button type="submit">Save Settings</button></div>
+    </form>
+    <section class="card stack email-experience-console-card" style="margin-top:1rem">
+  <div class="page-header" style="margin-bottom:0">
+    <div><h2>Email Experience Console</h2><p class="muted">Preview and validate branded notification delivery.</p></div>
+  </div>
+  <form method="post" action="<%= basePath %>/admin/console/email/test" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="grid-two">
+      <label><span>Send test email to</span><input type="email" name="recipientEmail" value="<%= currentUser?.email || '' %>" required /></label>
+      <div class="entity-subclient-card">
+        <strong>Theme</strong>
+        <div class="muted small">Clean mint, purple and soft-yellow notification styling with CTA buttons.</div>
+      </div>
+    </div>
+    <div class="form-actions right">
+      <button type="submit">Send Test Email</button>
+    </div>
+  </form>
+</section>
+
+<div class="muted small">Jira validation: <strong><%= jiraConnection ? jiraConnection.lastValidationStatus : 'NOT_CONFIGURED' %></strong><% if (jiraConnection?.lastValidatedAt) { %> · <%= new Date(jiraConnection.lastValidatedAt).toLocaleString() %><% } %></div>
+  </article>
+</section>
+
+<section class="card stack admin-console-ops-note">
+  <div class="page-header compact-header" style="margin-bottom:0">
+    <div>
+      <h2>Ops Console</h2>
+      <p class="muted">Use Ops Console for live operational visibility like queues, failed notifications, recent audit movement, and issues that were touched recently. Use Admin Console for configuration and master data.</p>
+    </div>
+    <a class="button-link secondary" href="<%= basePath %>/admin/ops">Open Ops Console</a>
+  </div>
+</section>
+
+<section class="grid-two admin-console-live-sections">
+  <article class="card admin-section">
+    <div class="page-header" style="margin-bottom:0"><div><h2>Recent operations</h2><p class="muted">Latest auditable changes in the tenant.</p></div></div>
+    <% if (!recentAudit.length) { %><p class="muted">No audit events yet.</p><% } else { %>
+    <div class="table-wrap"><table><thead><tr><th>When</th><th>Action</th><th>Actor</th></tr></thead><tbody>
+      <% recentAudit.forEach((item) => { %><tr><td><%= new Date(item.createdAt).toLocaleString() %></td><td><%= item.action %></td><td><%= item.actorUserId?.name || 'System' %></td></tr><% }) %>
+    </tbody></table></div><% } %>
+  </article>
+  <article class="card admin-section">
+    <div class="page-header" style="margin-bottom:0"><div><h2>Recently touched issues</h2><p class="muted">Quick visibility into operational heat.</p></div></div>
+    <% if (!recentIssues.length) { %><p class="muted">No issues yet.</p><% } else { %>
+    <div class="table-wrap"><table><thead><tr><th>Issue</th><th>Entity</th><th>Status</th><th>Visibility</th></tr></thead><tbody>
+      <% recentIssues.forEach((item) => { %><tr><td><a href="<%= basePath %>/tickets/<%= item._id %>"><%= item.issueNumber %></a></td><td><%= item.entityId?.name || '—' %></td><td><span class="pill"><%= item.status %></span></td><td><span class="pill <%= item.customerVisibility === 'INTERNAL_ONLY' ? 'warning-soft' : 'success-soft' %>"><%= item.customerVisibility === 'INTERNAL_ONLY' ? 'Internal only' : 'Customer visible' %></span></td></tr><% }) %>
+    </tbody></table></div><% } %>
+  </article>
+</section>

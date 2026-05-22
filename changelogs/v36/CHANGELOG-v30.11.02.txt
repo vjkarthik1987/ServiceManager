@@ -1,0 +1,5 @@
+v30.11.02
+- Agent Manager can create issues explicitly
+- Expanded seed data for test readiness
+- SunTec seeded with 1000 issues across dates, statuses, request types, and severities
+- Added seeded agent managers, agent users, engagement managers, and client users

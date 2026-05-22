@@ -1,0 +1,81 @@
+<section class="page-header">
+  <div>
+    <h1>Audit Explorer</h1>
+    <p class="muted">Immutable system trail across tickets, entities, workflows, and operational changes.</p>
+  </div>
+</section>
+
+<section class="card stack section-card entity-filter-panel">
+  <form method="get" action="<%= basePath %>/admin/audit" class="grid-three">
+    <label>
+      <span>Action</span>
+      <input type="text" name="action" value="<%= filters.action || '' %>" placeholder="issue.status.updated" />
+    </label>
+    <label>
+      <span>Entity type</span>
+      <input type="text" name="entityType" value="<%= filters.entityType || '' %>" placeholder="issue / entity / workflow" />
+    </label>
+    <label>
+      <span>Actor</span>
+      <select name="actorUserId">
+        <option value="">All users</option>
+        <% actors.forEach((actor) => { %>
+          <option value="<%= actor._id %>" <%= String(filters.actorUserId || '') === String(actor._id) ? 'selected' : '' %>><%= actor.name %> · <%= actor.role %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>
+      <span>Entity id</span>
+      <input type="text" name="entityId" value="<%= filters.entityId || '' %>" />
+    </label>
+    <label>
+      <span>From</span>
+      <input type="date" name="from" value="<%= filters.from || '' %>" />
+    </label>
+    <label>
+      <span>To</span>
+      <input type="date" name="to" value="<%= filters.to || '' %>" />
+    </label>
+    <div class="form-actions right wrap-actions" style="grid-column: 1 / -1;">
+      <a class="button-link secondary" href="<%= basePath %>/admin/audit">Reset</a>
+      <button type="submit">Apply filters</button>
+    </div>
+  </form>
+</section>
+
+<section class="card stack section-card">
+  <div class="section-title-row">
+    <h2>Events</h2>
+    <span class="pill brand-soft"><%= items.length %> records</span>
+  </div>
+  <% if (!items.length) { %>
+    <div class="entity-empty-row">No audit records matched the current filters.</div>
+  <% } else { %>
+    <div class="timeline-list audit-list">
+      <% items.forEach((item) => { %>
+        <article class="timeline-item audit-item">
+          <div class="timeline-meta-row">
+            <div>
+              <strong><%= item.action %></strong>
+              <div class="muted small"><%= item.entityType %> · <%= item.entityId %></div>
+            </div>
+            <div class="timeline-badges">
+              <span class="pill subtle"><%= item.actorUserId?.name || item.actorUserId?.email || 'System' %></span>
+              <span class="pill subtle"><%= new Date(item.createdAt).toLocaleString() %></span>
+            </div>
+          </div>
+          <div class="audit-diff-grid">
+            <div>
+              <div class="summary-label">Before</div>
+              <pre class="code-block"><%= JSON.stringify(item.before, null, 2) || '—' %></pre>
+            </div>
+            <div>
+              <div class="summary-label">After</div>
+              <pre class="code-block"><%= JSON.stringify(item.after, null, 2) || '—' %></pre>
+            </div>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</section>

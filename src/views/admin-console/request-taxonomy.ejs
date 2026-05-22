@@ -1,0 +1,42 @@
+<section class="page-header">
+  <div>
+    <div class="section-kicker">v38 intake governance</div>
+    <h1>Request Taxonomy</h1>
+    <p class="muted">Control which platform-native request types are available and which second-level classifications customers can choose. This is intentionally not a form builder.</p>
+  </div>
+  <div class="header-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/admin/console">Back to Admin Console</a>
+  </div>
+</section>
+
+<form method="post" action="<%= basePath %>/admin/console/request-taxonomy" class="stack">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+  <section class="grid-two taxonomy-grid">
+    <% taxonomy.forEach((item) => { %>
+      <article class="card stack taxonomy-card">
+        <div class="section-title-row">
+          <div>
+            <h2><%= item.label %></h2>
+            <p class="muted small"><%= item.key %> · platform-defined flow, configurable visibility</p>
+          </div>
+          <span class="pill <%= item.enabled ? 'success-soft' : 'subtle' %>"><%= item.enabled ? 'Enabled' : 'Hidden' %></span>
+        </div>
+        <div class="grid-two">
+          <label><span>Display label</span><input type="text" name="label_<%= item.key %>" value="<%= item.label %>" /></label>
+          <label class="checkbox-label"><input type="checkbox" name="enabled_<%= item.key %>" <%= item.enabled ? 'checked' : '' %> /> <span>Show this request type</span></label>
+        </div>
+        <label class="checkbox-label"><input type="checkbox" name="classificationRequired_<%= item.key %>" <%= item.classificationRequired ? 'checked' : '' %> /> <span>Make second-level classification mandatory</span></label>
+        <label>
+          <span>Second-level classifications</span>
+          <textarea name="classifications_<%= item.key %>" rows="5"><%= (item.classifications || []).join(', ') %></textarea>
+          <span class="muted small">Comma-separated. Leave blank if this type should only ask for the request type.</span>
+        </label>
+      </article>
+    <% }) %>
+  </section>
+  <section class="card subtle-card stack">
+    <strong>Design guardrail</strong>
+    <p class="muted">v38 supports request type + optional classification. It does not add client-specific custom forms, custom fields, or drag-and-drop schema builders.</p>
+  </section>
+  <div class="form-actions right"><button type="submit">Save Request Taxonomy</button></div>
+</form>

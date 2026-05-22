@@ -1,0 +1,4 @@
+v30.20
+- Fixed scoped dashboard data for client and agent views by aligning access resolution and adding assigned/created issue fallback for agent dashboards.
+- Added remove-assignment action on Agent Assignment page.
+- Added spacing improvements between Agent Assignment cards.

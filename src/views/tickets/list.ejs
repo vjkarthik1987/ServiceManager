@@ -1,0 +1,333 @@
+<%
+  function dateValue(value) {
+    if (!value) return '-';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString();
+  }
+  function sortHref(column) {
+    const nextDir = (sort && sort.sortBy === column && sort.sortDir === 'asc') ? 'desc' : 'asc';
+    return `${basePath}/tickets${buildQueryString(filters, { sortBy: column, sortDir: nextDir, page: 1 })}`;
+  }
+  function sortIndicator(column) {
+    if (!sort || sort.sortBy !== column) return '↕';
+    return sort.sortDir === 'asc' ? '↑' : '↓';
+  }
+  function filterValues(name) {
+    const value = filters && filters[name];
+    if (Array.isArray(value)) return value.map(String);
+    return value ? [String(value)] : [];
+  }
+  function isSelected(name, value) {
+    return filterValues(name).includes(String(value));
+  }
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+  function optionLabel(item) {
+    if (typeof item === 'string') return item;
+    return item && item.label ? item.label : String(item && item.value ? item.value : '');
+  }
+  function optionValue(item) {
+    if (typeof item === 'string') return item;
+    return item && item.value ? item.value : '';
+  }
+  function renderCheckboxDropdown(name, label, options, hint) {
+    const selected = filterValues(name);
+    const list = (options || []).map((item) => ({ value: String(optionValue(item)), label: String(optionLabel(item)) })).filter((item) => item.value);
+    const caption = selected.length ? `${selected.length} selected` : 'All';
+    return `
+      <div class="filter-field filter-dropdown" data-filter-dropdown>
+        <span>${esc(label)}</span>
+        <button type="button" class="filter-dropdown-toggle" data-filter-toggle>
+          <span data-filter-caption>${esc(caption)}</span><span class="dropdown-caret">▾</span>
+        </button>
+        <div class="filter-dropdown-menu" data-filter-menu>
+          <div class="filter-dropdown-menu-head">
+            <strong>${esc(label)}</strong>
+            <button type="button" class="text-button" data-filter-clear>Clear</button>
+          </div>
+          <div class="filter-check-list">
+            ${list.map((item) => `
+              <label class="filter-check-row">
+                <input type="checkbox" name="${esc(name)}" value="${esc(item.value)}" ${selected.includes(item.value) ? 'checked' : ''} />
+                <span class="filter-check-tick">✓</span>
+                <span>${esc(item.label)}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+        ${hint ? `<small class="muted">${esc(hint)}</small>` : ''}
+      </div>`;
+  }
+  function selectedLookup(list, id, fallbackPrefix) {
+    const found = (list || []).find((item) => String(item._id) === String(id));
+    if (!found) return `${fallbackPrefix} ${String(id).slice(-6)}`;
+    return found.path || found.name || found.email || String(found._id);
+  }
+  const anyAdvancedFilters = ['source', 'requestType', 'executionMode', 'routingStatus', 'slaStatus', 'customerVisibility', 'triageStatus', 'product', 'jiraLinked'].some((name) => filterValues(name).length || (filters && filters[name]));
+  const entitySelectorItems = (entities || []).map((entity) => ({
+    id: String(entity._id),
+    label: entity.path || entity.name || entity.acronym || String(entity._id),
+    search: [entity.path, entity.name, entity.acronym, entity.type].filter(Boolean).join(' ')
+  }));
+  const assignedSelectorItems = (users || []).map((user) => ({
+    id: String(user._id),
+    label: `${user.name || user.email || user._id}${user.role ? ' (' + user.role + ')' : ''}`,
+    search: [user.name, user.email, user.role].filter(Boolean).join(' ')
+  }));
+  const selectedEntityIds = filterValues('entityId');
+  const selectedAssignedIds = filterValues('assignedToUserId');
+%>
+<section class="page-header compact-header">
+  <div><h1>Issues</h1></div>
+  <div class="header-actions wrap-actions">
+    <a class="button-link secondary" href="<%= basePath %>/tickets/export<%= buildQueryString(filters, { format: 'csv' }) %>">Download CSV</a>
+    <a class="button-link secondary" href="<%= basePath %>/tickets/export<%= buildQueryString(filters, { format: 'xls' }) %>">Download Excel</a>
+    <a class="button-link secondary" href="<%= basePath %>/tickets/bulk-upload">Bulk Upload</a>
+    <a class="button-link" href="<%= basePath %>/tickets/new">Create Issue</a>
+  </div>
+</section>
+
+<form method="get" action="<%= basePath %>/tickets" class="card filters-form stack better-filters-card enhanced-ticket-filters" data-ticket-filter-form>
+  <div class="grid-auto-fit better-filter-grid">
+    <% if (savedViews && savedViews.length) { %>
+      <label><span>Saved view</span><select name="savedViewId"><option value="">Custom</option><% savedViews.forEach((view) => { %><option value="<%= view._id %>"><%= view.name %><%= view.isDefault ? " (default)" : "" %></option><% }) %></select></label>
+    <% } %>
+    <label><span>Search</span><input type="text" name="q" value="<%= filters.q %>" placeholder="SD-1001, title, description or tag" /></label>
+    <%- renderCheckboxDropdown('status', 'Status', statuses, 'Tick one or more; none = all statuses') %>
+    <%- renderCheckboxDropdown('priority', 'Severity', severities, 'Tick one or more; none = all severities') %>
+    <%- renderCheckboxDropdown('category', 'Category', categoryOptions || [], 'Tick one or more; none = all categories') %>
+    <label class="filter-field sla-breached-quick"><span>SLA breached</span><select name="slaStatus"><option value="">All</option><option value="BREACHED" <%= isSelected('slaStatus', 'BREACHED') ? 'selected' : '' %>>Breached only</option><option value="AT_RISK" <%= isSelected('slaStatus', 'AT_RISK') ? 'selected' : '' %>>At risk only</option><option value="ON_TRACK" <%= isSelected('slaStatus', 'ON_TRACK') ? 'selected' : '' %>>On track only</option></select></label>
+
+    <div class="filter-field smart-selector" data-smart-selector data-name="entityId" data-min-chars="3" data-items='<%- JSON.stringify(entitySelectorItems).replace(/'/g, '&#39;') %>'>
+      <span>Entity</span>
+      <div class="smart-selector-box" data-smart-box>
+        <div class="smart-selected-chips" data-smart-chips>
+          <% selectedEntityIds.forEach((id) => { %>
+            <span class="smart-chip" data-id="<%= id %>"><%= selectedLookup(entities, id, 'Entity') %><button type="button" aria-label="Remove">×</button><input type="hidden" name="entityId" value="<%= id %>" /></span>
+          <% }) %>
+        </div>
+        <input type="text" data-smart-input placeholder="Type 3+ letters, e.g. SPR" autocomplete="off" />
+      </div>
+      <div class="smart-results" data-smart-results></div>
+      <small class="muted">Search and select multiple entities; use × to remove.</small>
+    </div>
+
+    <div class="filter-field smart-selector" data-smart-selector data-name="assignedToUserId" data-min-chars="3" data-items='<%- JSON.stringify(assignedSelectorItems).replace(/'/g, '&#39;') %>'>
+      <span>Assigned to</span>
+      <div class="smart-selector-box" data-smart-box>
+        <div class="smart-selected-chips" data-smart-chips>
+          <% selectedAssignedIds.forEach((id) => { %>
+            <span class="smart-chip" data-id="<%= id %>"><%= selectedLookup(users, id, 'User') %><button type="button" aria-label="Remove">×</button><input type="hidden" name="assignedToUserId" value="<%= id %>" /></span>
+          <% }) %>
+        </div>
+        <input type="text" data-smart-input placeholder="Type 3+ letters, e.g. agent" autocomplete="off" />
+      </div>
+      <div class="smart-results" data-smart-results></div>
+      <small class="muted">Search and select multiple users; use × to remove.</small>
+    </div>
+
+    <label><span>Created from</span><input type="date" name="createdFrom" value="<%= filters.createdFrom || '' %>" /></label>
+    <label><span>Created to</span><input type="date" name="createdTo" value="<%= filters.createdTo || '' %>" /></label>
+  </div>
+  <details class="advanced-filter-panel">
+    <summary>More filters</summary>
+    <div class="grid-auto-fit better-filter-grid advanced-grid">
+      <%- renderCheckboxDropdown('source', 'Source', sourceOptions || [], '') %>
+      <%- renderCheckboxDropdown('requestType', 'Request type', requestTypes || [], '') %>
+      <%- renderCheckboxDropdown('jiraLinked', 'Jira linked', [{ value: 'YES', label: 'Linked' }, { value: 'NO', label: 'Not linked' }], '') %>
+      <%- renderCheckboxDropdown('product', 'Product', productOptions || [], '') %>
+      <%- renderCheckboxDropdown('executionMode', 'Execution', ['NATIVE', 'JIRA'], '') %>
+      <%- renderCheckboxDropdown('routingStatus', 'Routing', ['ROUTED', 'NO_MATCH', 'NOT_ROUTED'], '') %>
+      <% if (currentUser.role !== 'client') { %><%- renderCheckboxDropdown('customerVisibility', 'Customer visibility', [{ value: 'VISIBLE_TO_CUSTOMER', label: 'Visible to customer' }, { value: 'INTERNAL_ONLY', label: 'Internal only' }], '') %><% } %>
+      <%- renderCheckboxDropdown('triageStatus', 'Triage', triageStatuses || [], '') %>
+    </div>
+  </details>
+  <div class="form-actions right wrap-actions"><a class="button-link secondary" href="<%= basePath %>/tickets">Reset</a><button type="submit">Apply Filters</button></div>
+</form>
+
+<script>
+(function () {
+  function updateDropdownCaption(dropdown) {
+    var checked = dropdown.querySelectorAll('input[type="checkbox"]:checked').length;
+    var caption = dropdown.querySelector('[data-filter-caption]');
+    if (caption) caption.textContent = checked ? checked + ' selected' : 'All';
+  }
+  document.querySelectorAll('[data-filter-dropdown]').forEach(function (dropdown) {
+    updateDropdownCaption(dropdown);
+    var toggle = dropdown.querySelector('[data-filter-toggle]');
+    var clear = dropdown.querySelector('[data-filter-clear]');
+    if (toggle) toggle.addEventListener('click', function (event) {
+      event.preventDefault();
+      document.querySelectorAll('[data-filter-dropdown].open').forEach(function (other) {
+        if (other !== dropdown) other.classList.remove('open');
+      });
+      dropdown.classList.toggle('open');
+    });
+    if (clear) clear.addEventListener('click', function () {
+      dropdown.querySelectorAll('input[type="checkbox"]').forEach(function (input) { input.checked = false; });
+      updateDropdownCaption(dropdown);
+    });
+    dropdown.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+      input.addEventListener('change', function () { updateDropdownCaption(dropdown); });
+    });
+  });
+  document.addEventListener('click', function (event) {
+    if (!event.target.closest('[data-filter-dropdown]')) {
+      document.querySelectorAll('[data-filter-dropdown].open').forEach(function (dropdown) { dropdown.classList.remove('open'); });
+    }
+  });
+
+  document.querySelectorAll('[data-smart-selector]').forEach(function (selector) {
+    var input = selector.querySelector('[data-smart-input]');
+    var results = selector.querySelector('[data-smart-results]');
+    var chips = selector.querySelector('[data-smart-chips]');
+    var name = selector.getAttribute('data-name');
+    var minChars = Number(selector.getAttribute('data-min-chars') || 3);
+    var items = [];
+    try { items = JSON.parse(selector.getAttribute('data-items') || '[]'); } catch (error) { items = []; }
+    function selectedIds() {
+      return Array.prototype.map.call(chips.querySelectorAll('.smart-chip'), function (chip) { return chip.getAttribute('data-id'); });
+    }
+    function addChip(item) {
+      if (!item || selectedIds().indexOf(String(item.id)) !== -1) return;
+      var chip = document.createElement('span');
+      chip.className = 'smart-chip';
+      chip.setAttribute('data-id', item.id);
+      chip.appendChild(document.createTextNode(item.label));
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', 'Remove');
+      remove.textContent = '×';
+      chip.appendChild(remove);
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = name;
+      hidden.value = item.id;
+      chip.appendChild(hidden);
+      chips.appendChild(chip);
+      input.value = '';
+      results.innerHTML = '';
+      results.classList.remove('open');
+    }
+    function renderResults() {
+      var q = String(input.value || '').trim().toLowerCase();
+      results.innerHTML = '';
+      if (q.length < minChars) {
+        results.classList.remove('open');
+        return;
+      }
+      var selected = selectedIds();
+      var matches = items.filter(function (item) {
+        return selected.indexOf(String(item.id)) === -1 && String(item.search || item.label || '').toLowerCase().indexOf(q) !== -1;
+      }).slice(0, 12);
+      if (!matches.length) {
+        results.innerHTML = '<div class="smart-result-empty">No matching result</div>';
+        results.classList.add('open');
+        return;
+      }
+      matches.forEach(function (item) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'smart-result-item';
+        button.textContent = item.label;
+        button.addEventListener('click', function () { addChip(item); });
+        results.appendChild(button);
+      });
+      results.classList.add('open');
+    }
+    input.addEventListener('input', renderResults);
+    chips.addEventListener('click', function (event) {
+      if (event.target && event.target.tagName === 'BUTTON') {
+        event.target.closest('.smart-chip').remove();
+        renderResults();
+      }
+    });
+    document.addEventListener('click', function (event) {
+      if (!selector.contains(event.target)) results.classList.remove('open');
+    });
+  });
+})();
+</script>
+
+<section class="card issues-list-card">
+  <div class="issues-list-head muted small">Showing <strong><%= issues.length %></strong> of <strong><%= pager.totalItems %></strong> matching issues · 15 per page</div>
+  <% if (!issues.length) { %>
+    <p class="muted">No issues found for the selected filters.</p>
+  <% } else { %>
+  <div class="table-wrap no-horizontal-scroll">
+    <table class="issues-table issues-table-compact">
+      <thead>
+        <tr>
+          <th><a class="sort-link" href="<%= sortHref('issueNumber') %>">Issue <span><%= sortIndicator('issueNumber') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('title') %>">Issue details <span><%= sortIndicator('title') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('createdAt') %>">Dates <span><%= sortIndicator('createdAt') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('status') %>">Status <span><%= sortIndicator('status') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('priority') %>">Severity <span><%= sortIndicator('priority') %></span></a></th>
+          <th><a class="sort-link" href="<%= sortHref('jiraStatus') %>">Jira <span><%= sortIndicator('jiraStatus') %></span></a></th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% issues.forEach((issue) => { %>
+          <tr>
+            <td class="issue-number-cell">
+              <strong><%= issue.issueNumber %></strong>
+            </td>
+            <td class="issue-details-cell">
+              <div class="row-title"><%= issue.title %></div>
+              <div class="issue-meta-grid">
+                <span class="pill subtle"><strong>Entity:</strong>&nbsp;<%= issue.entityId ? issue.entityId.path || issue.entityId.name : '-' %></span>
+                <span class="pill subtle"><strong>Product:</strong>&nbsp;<%= issue.product || issue.entityId?.metadata?.product || '-' %></span>
+                <span class="pill subtle"><strong>Triage:</strong>&nbsp;<%= issue.triageStatus || 'NOT_TRIAGED' %></span>
+                <span class="pill subtle"><strong>Assigned:</strong>&nbsp;<%= issue.assignedToUserId ? issue.assignedToUserId.name : 'Unassigned' %></span>
+                <% if (currentUser.role !== 'client') { %>
+                  <span class="pill <%= issue.customerVisibility === 'INTERNAL_ONLY' ? 'warning-soft' : 'brand-soft' %>"><strong>Visibility:</strong>&nbsp;<%= issue.customerVisibility || 'VISIBLE_TO_CUSTOMER' %></span>
+                <% } %>
+              </div>
+            </td>
+            <td class="issue-dates-cell">
+              <div><strong>Created:</strong> <%= dateValue(issue.createdAt) %></div>
+              <div class="muted small"><strong>Resolved:</strong> <%= dateValue(issue.sla?.resolvedAt || issue.closure?.closedAt) %></div>
+            </td>
+            <td class="issue-status-cell">
+              <div class="stack gap-8 align-start">
+                <span class="badge status-<%= issue.status.toLowerCase() %>"><%= issue.status %></span>
+              </div>
+            </td>
+            <td class="issue-severity-cell">
+              <span class="pill severity-pill priority-<%= String(issue.priority || '').toLowerCase() %>"><%= issue.priority %></span>
+            </td>
+            <td class="issue-jira-cell">
+              <% if (issue.jira?.issueKey) { %>
+                <div class="stack gap-8 align-start">
+                  <span class="pill jira-tag"><%= issue.jira.issueKey %></span>
+                  <span class="pill jira-status-pill <%= issue.jira.currentStatusName ? 'brand-soft' : 'subtle' %>"><%= issue.jira.currentStatusName || issue.jira.pushStatus || 'Linked' %></span>
+                </div>
+              <% } else { %>
+                <span class="pill subtle">Not pushed</span>
+              <% } %>
+            </td>
+            <td class="issue-actions-cell">
+              <div class="issue-actions-stack">
+                <a href="<%= basePath %>/tickets/<%= issue._id %>">Open</a>
+                <% if (currentUser.role !== 'client' && !issue.jira?.issueKey) { %>
+                  <form method="post" action="<%= basePath %>/tickets/<%= issue._id %>/push-to-jira" class="dashboard-jira-form">
+                    <% if (csrfToken) { %><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><% } %>
+                    <button type="submit" class="mini-button minimal-push-button">Push</button>
+                  </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <%- include('../partials/pagination', { pager, baseUrl: `${basePath}/tickets`, filters, buildQueryString }) %>
+  <% } %>
+</section>
