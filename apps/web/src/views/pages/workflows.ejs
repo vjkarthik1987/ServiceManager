@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title %> · <%= appName %></title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <%- include('../partials/sidebar', { portal: 'admin' }) %>
+    <main class="main">
+      <%- include('../partials/topbar', { organization }) %>
+
+      <section class="page-head unified-page-head thin-head">
+        <div><p class="eyebrow">Reusable workflow library</p><h2>Workflow Studio</h2><p>Search, inspect and maintain workflows without leaving the library.</p></div>
+        <div class="actions"><button class="btn primary" type="button" data-open-modal="workflowModal">Create workflow</button><a class="btn secondary" href="/admin/issue-types">Issue Type Studio</a></div>
+      </section>
+
+      <section class="card client-table-card workflow-library-card">
+        <div class="table-toolbar better-toolbar">
+          <label class="search-line table-search"><input type="search" placeholder="Search workflow, status, task or support path..." data-filter-input="workflowLibrary" /></label>
+          <div class="tab-pills" data-tab-group="workflow-status"><button class="active" type="button" data-workflow-status-filter="all">All</button><button type="button" data-workflow-status-filter="active">Active</button><button type="button" data-workflow-status-filter="inactive">Inactive</button></div>
+        </div>
+        <% if (!workflows.length) { %>
+          <div class="empty-box roomy"><strong>No workflows yet.</strong><p>Create a reusable workflow to begin.</p><button class="btn primary" type="button" data-open-modal="workflowModal">Create workflow</button></div>
+        <% } else { %>
+          <div class="table-wrap">
+            <table class="clean-table compact-table workflow-library-table">
+              <thead><tr><th>Workflow</th><th>Statuses</th><th>Transitions</th><th>Tasks</th><th>Used in paths</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead>
+              <tbody data-filter-list="workflowLibrary">
+                <% workflows.forEach((workflow) => { const activeStatuses=(workflow.statuses||[]).filter((s)=>s.isActive!==false); const taskCount=(workflow.statuses||[]).reduce((sum,s)=>sum+(s.taskTemplates||[]).length,0); const filterText=`${workflow.name} ${workflow.description||''} ${(workflow.statuses||[]).map((s)=>s.name).join(' ')} ${(workflow.usedBySupportLevels||[]).map((u)=>u.supportPathName).join(' ')}`.toLowerCase(); %>
+                  <tr data-filter-item="<%= filterText %>" data-workflow-status="<%= workflow.status %>">
+                    <td><button class="workflow-name-button" type="button" data-workflow-launch data-workflow-name="<%= workflow.name %>" data-workflow-url="/admin/workflows/<%= workflow._id %>?embed=1"><strong><%= workflow.name %></strong><small><%= workflow.description %></small></button></td>
+                    <td><strong><%= activeStatuses.length %></strong><small><%= (workflow.statuses || []).length - activeStatuses.length %> inactive</small></td>
+                    <td><strong><%= (workflow.transitions || []).length %></strong></td>
+                    <td><strong><%= taskCount %></strong></td>
+                    <td><strong><%= (workflow.usedBySupportLevels || []).length %></strong><small><%= workflow.usageCount || 0 %> total uses</small></td>
+                    <td><span class="status-pill"><%= workflow.status %></span></td>
+                    <td><%= workflow.updatedAt ? new Date(workflow.updatedAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—' %></td>
+                    <td><div class="table-actions nowrap-actions"><button class="table-link-button" type="button" data-workflow-launch data-workflow-name="<%= workflow.name %>" data-workflow-url="/admin/workflows/<%= workflow._id %>?embed=1">Open</button><button class="table-link-button" type="button" data-open-modal="workflowBulkAssign_<%= workflow._id %>">Assign</button></div></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+      <%- include('../partials/footer', { organization }) %>
+    </main>
+  </div>
+
+  <dialog class="modal wide" id="workflowModal">
+    <form method="post" action="/admin/workflows" class="modal-card form compact-form">
+      <div class="modal-head"><div><p class="eyebrow">Create workflow</p><h3>Reusable status path</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+      <label><span>Workflow name</span><input name="name" required placeholder="Normal Workflow" /></label>
+      <label><span>Description</span><textarea name="description" required rows="3" placeholder="When should this workflow be used?"></textarea></label>
+      <label><span>Statuses <em>Internal | Client sees | type</em></span><textarea name="statusesText" rows="8">New | New | start
+Assigned | Under Review | normal
+In Progress | In Progress | normal
+Waiting | Waiting for Update | waiting
+Resolved | Resolved | resolved
+Closed | Closed | final</textarea></label>
+      <p class="field-hint">Initial transitions are linear. Open the workflow after creation to edit statuses, tasks and movement.</p>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Create workflow</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal workflow-builder-modal" id="workflowBuilderModal">
+    <div class="workflow-builder-modal-shell">
+      <div class="workflow-builder-modal-head">
+        <div><p class="eyebrow">Workflow Studio</p><strong data-workflow-modal-title>Workflow</strong></div>
+        <div class="actions"><a class="btn secondary small" data-workflow-full-page href="/admin/workflows">Open full page</a><button class="btn secondary small" type="button" data-workflow-reload>Reload</button><button class="icon-btn" type="button" data-close-modal>×</button></div>
+      </div>
+      <div class="workflow-frame-shell">
+        <div class="workflow-frame-loading" data-workflow-loading><span class="inline-spinner"></span><strong>Opening workflow…</strong><small>Status, transition and task configuration is loading.</small></div>
+        <iframe title="Edit workflow" data-workflow-frame></iframe>
+      </div>
+    </div>
+  </dialog>
+
+  <% workflows.forEach((workflow) => { %>
+    <dialog class="modal wide" id="workflowBulkAssign_<%= workflow._id %>">
+      <form method="post" action="/admin/workflows/<%= workflow._id %>/issue-types" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Assign workflow</p><h3><%= workflow.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Search Level 2 issue types</span><input type="search" placeholder="Search issue type..." data-filter-input="bulk_<%= workflow._id %>" /></label>
+        <div class="pick-list" data-filter-list="bulk_<%= workflow._id %>">
+          <% issueTypeTree.forEach((parent) => { if ((parent.children || []).length) { %><div class="pick-group"><div class="pick-group-title"><%= parent.name %></div><% parent.children.forEach((child) => { %><label class="pick-row" data-filter-item="<%= `${parent.name} ${child.name} ${child.description || ''}`.toLowerCase() %>"><input type="checkbox" name="issueTypeIds" value="<%= child._id %>" <%= String(child.workflowId || '') === String(workflow._id) ? 'checked' : '' %> /><span><strong><%= child.name %></strong><small><%= child.description %></small></span></label><% }) %></div><% } }) %>
+        </div>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save assignments</button></div>
+      </form>
+    </dialog>
+  <% }) %>
+  <script src="/js/app.js"></script>
+</body>
+</html>

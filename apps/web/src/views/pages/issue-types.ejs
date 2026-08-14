@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal: 'admin' }) %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+
+        <section class="page-head unified-page-head thin-head">
+          <div>
+            <p class="eyebrow">Global library</p>
+            <h2>Issue Type Studio</h2>
+            <p>Define request families and subtypes. Subtypes decide workflow, support path, and which fields appear while raising a request.</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="button" data-open-modal="level1Modal">Add family</button>
+            <button class="btn secondary" type="button" data-open-modal="level2Modal">Add subtype</button>
+          </div>
+        </section>
+
+        <section class="card client-table-card issue-type-studio-card">
+          <div class="table-toolbar better-toolbar">
+            <label class="search-line table-search"><input type="search" placeholder="Search families, subtypes, workflow or support path..." data-issue-type-search /></label>
+            <div class="tab-pills"><button type="button" data-issue-expand="all">Expand all</button><button type="button" data-issue-expand="none" class="active">Collapse families</button></div>
+          </div>
+          <% if (!tree.length) { %>
+            <div class="empty-box roomy">
+              <strong>No issue types yet.</strong>
+              <p>Add a family or apply a sample catalog.</p>
+              <form method="post" action="/admin/issue-types/preset/xelerate_saas">
+                <button class="btn primary">Seed Xelerate SaaS</button>
+              </form>
+            </div>
+          <% } else { %>
+            <div class="table-wrap">
+              <table class="clean-table compact-table issue-type-table" id="issue-type-table">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Kind</th>
+                    <th>Workflow</th>
+                    <th>Support path</th>
+                    <th>Fields</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% tree.forEach((parent) => { %>
+                    <tr class="family-row" data-family-row="<%= parent._id %>" data-search-text="<%= `${parent.name} ${parent.description || ''}`.toLowerCase() %>">
+                      <td>
+                        <button class="family-toggle" type="button" data-family-toggle="<%= parent._id %>" aria-label="Toggle family">▸</button><strong><a class="table-primary-link" href="/admin/issue-types/families/<%= parent._id %>"><%= parent.icon || '◌' %> <%= parent.name %></a></strong>
+                        <small><%= parent.description %></small>
+                      </td>
+                      <td>Family · <%= (parent.children || []).length %> subtype<%= (parent.children || []).length === 1 ? '' : 's' %></td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td><span class="status-pill"><%= parent.status %></span></td>
+                      <td><div class="table-actions nowrap-actions"><a class="table-link-button" href="/admin/issue-types/families/<%= parent._id %>">Open</a><button class="table-link-button" data-open-modal="editType<%= parent._id %>" type="button">Edit</button></div></td>
+                    </tr>
+                    <% (parent.children || []).forEach((child) => { const f = Object.assign({severity:true,priority:true,product:true,module:true,region:true,environment:true}, child.fieldsConfig || {}); %>
+                      <tr class="subtype-row" hidden data-collapsed="true" data-family-child="<%= parent._id %>" data-search-text="<%= `${parent.name} ${child.name} ${child.description || ''} ${child.workflow?.name || ''} ${child.supportPath?.name || ''}`.toLowerCase() %>">
+                        <td class="indent-cell">
+                          <span class="tree-hook">↳</span>
+                          <strong><%= child.name %></strong>
+                          <small><%= child.description %></small>
+                        </td>
+                        <td>Subtype</td>
+                        <td>
+                          <% if (child.workflow?.name) { %><span class="compact-chip ok"><%= child.workflow.name %></span><% } else { %><span class="compact-chip warning">Not assigned</span><% } %>
+                        </td>
+                        <td>
+                          <% if (child.supportPath?.name) { %><span class="compact-chip ok"><%= child.supportPath.name %></span><% } else { %><span class="compact-chip warning">Not assigned</span><% } %>
+                        </td>
+                        <td><span class="muted"><%= Object.entries(f).filter(([,v]) => v).map(([k]) => k).join(', ') || 'Basics only' %><% if ((child.customFields || []).length) { %><br><strong><%= (child.customFields || []).filter((field) => (field.status || 'active') === 'active').length %> custom</strong><% } %></span></td>
+                        <td><span class="status-pill"><%= child.status %></span></td>
+                        <td>
+                          <div class="table-actions nowrap-actions">
+                            <button class="table-link-button" data-open-modal="assignWorkflow<%= child._id %>" type="button">Workflow</button>
+                            <button class="table-link-button" data-open-modal="assignSupportPath<%= child._id %>" type="button">Support path</button>
+                            <a class="table-link-button" href="/admin/issue-types/level2/<%= child._id %>/fields">Fields</a>
+                            <button class="table-link-button" data-open-modal="editType<%= child._id %>" type="button">Edit</button>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <dialog class="modal" id="level1Modal">
+      <form method="post" action="/admin/issue-types/level1" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">New family</p><h3>Add issue family</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Name</span><input name="name" required /></label>
+        <label><span>Description</span><textarea name="description" rows="3" required></textarea></label>
+        <label><span>Icon</span><input name="icon" value="◌" /></label><p class="field-hint">New families appear at the top automatically.</p>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Create</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="level2Modal">
+      <form method="post" action="/admin/issue-types/level2" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">New subtype</p><h3>Add issue subtype</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Family</span><select name="parentTypeId" required><option value="">Select family</option><% tree.forEach((parent) => { %><option value="<%= parent._id %>"><%= parent.name %></option><% }) %></select></label>
+        <label><span>Name</span><input name="name" required /></label>
+        <label><span>Description</span><textarea name="description" rows="3" required></textarea></label>
+        <%- include('../partials/issue-type-fields', { fieldsConfig: {} }) %>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Create</button></div>
+      </form>
+    </dialog>
+
+    <% tree.forEach((parent) => { %>
+      <dialog class="modal" id="editType<%= parent._id %>">
+        <form method="post" action="/admin/issue-types/<%= parent._id %>/edit" class="modal-card form compact-form">
+          <div class="modal-head"><div><p class="eyebrow">Edit family</p><h3><%= parent.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+          <label><span>Name</span><input name="name" value="<%= parent.name %>" required /></label>
+          <label><span>Description</span><textarea name="description" rows="3" required><%= parent.description %></textarea></label>
+          <div class="two-col"><label><span>Icon</span><input name="icon" value="<%= parent.icon || '◌' %>" /></label><label><span>Status</span><select name="status"><option value="active" <%= parent.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= parent.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label></div>
+          <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save</button></div>
+        </form>
+      </dialog>
+
+      <% (parent.children || []).forEach((child) => { %>
+        <dialog class="modal" id="assignWorkflow<%= child._id %>">
+          <form method="post" action="/admin/issue-types/level2/<%= child._id %>/workflow" class="modal-card form compact-form">
+            <div class="modal-head"><div><p class="eyebrow">Assign workflow</p><h3><%= child.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+            <label><span>Workflow</span><select name="workflowId"><option value="">Not assigned</option><% workflows.forEach((wf) => { %><option value="<%= wf._id %>" <%= String(child.workflowId || '') === String(wf._id) ? 'selected' : '' %>><%= wf.name %></option><% }) %></select></label>
+            <% if (!workflows.length) { %><p class="field-hint">No workflows yet. Create one under Workflows first.</p><% } %>
+            <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save workflow</button></div>
+          </form>
+        </dialog>
+
+        <dialog class="modal" id="assignSupportPath<%= child._id %>">
+          <form method="post" action="/admin/issue-types/level2/<%= child._id %>/support-path" class="modal-card form compact-form">
+            <div class="modal-head"><div><p class="eyebrow">Assign support path</p><h3><%= child.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+            <label><span>Support path</span><select name="supportPathId"><option value="">Not assigned</option><% supportPaths.forEach((sp) => { %><option value="<%= sp._id %>" <%= String(child.supportPathId || '') === String(sp._id) ? 'selected' : '' %>><%= sp.name %></option><% }) %></select></label>
+            <% if (!supportPaths.length) { %><p class="field-hint">No support paths yet. Create or seed one under Support Paths first.</p><% } else { %><p class="field-hint">This controls Push to L2 / Push to L3 actions on request detail.</p><% } %>
+            <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save support path</button></div>
+          </form>
+        </dialog>
+
+        <dialog class="modal" id="editType<%= child._id %>">
+          <form method="post" action="/admin/issue-types/<%= child._id %>/edit" class="modal-card form compact-form">
+            <div class="modal-head"><div><p class="eyebrow">Edit subtype</p><h3><%= child.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+            <label><span>Name</span><input name="name" value="<%= child.name %>" required /></label>
+            <label><span>Description</span><textarea name="description" rows="3" required><%= child.description %></textarea></label>
+            <%- include('../partials/issue-type-fields', { fieldsConfig: child.fieldsConfig || {} }) %>
+            <label><span>Status</span><select name="status"><option value="active" <%= child.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= child.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label>
+            <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save subtype</button></div>
+          </form>
+        </dialog>
+      <% }) %>
+    <% }) %>
+    <script src="/js/app.js"></script>
+  </body>
+</html>

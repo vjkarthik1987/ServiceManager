@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title %> · <%= appName %></title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <div class="app-shell <%= portal !== 'admin' ? 'slim-shell' : '' %>">
+    <%- include('../partials/sidebar', { portal }) %>
+    <main class="main task-detail-page">
+      <% if (portal === 'admin') { %><%- include('../partials/topbar', { organization, portal }) %><% } else { %><header class="topbar simple-topbar page-brand-header compact-brand-header"><div><p class="eyebrow"><%= portal === 'client' ? 'Client Portal' : 'Agent Portal' %></p><h1><%= organization.name %></h1></div></header><% } %>
+
+      <section class="page-head compact-page-head task-detail-head refined-task-head">
+        <div class="task-title-block"><p class="eyebrow">Task · <a class="request-id-link" href="<%= requestPath %>"><%= request.requestNumber %></a> · <%= task.sourceStageId || 'Task' %></p><h2><%= task.taskId %></h2><h3><%= task.title %></h3><div class="task-inline-tags"><span class="task-status-pill status-<%= task.status %>"><%= task.statusLabel %></span><% if (task.isBlocking) { %><span class="compact-tag warn">Blocking</span><% } %><span class="compact-tag neutral"><%= task.queue || 'Unassigned queue' %></span></div></div>
+        <div class="actions"><a class="btn secondary" href="<%= taskListPath %>">Back to tasks</a><a class="btn primary" href="<%= requestPath %>">Open request</a></div>
+      </section>
+      <% if (notice) { %><div class="alert success"><strong>Done.</strong><span><%= notice %></span></div><% } %>
+      <% if (errorMessage) { %><div class="alert error"><strong>Task not changed.</strong><span><%= errorMessage %></span></div><% } %>
+
+      <section class="task-detail-grid">
+        <div class="task-detail-main">
+          <article class="card pad task-overview-card refined-task-overview">
+            <div class="task-overview-hero"><div><p class="eyebrow">Task overview</p><h3>What needs to be done</h3><p class="task-description"><%= task.description || 'No task description was provided.' %></p></div><div class="task-ownership-panel"><span>Assigned person</span><strong><%= task.assignedTo?.name || task.assignedTo?.email || 'Unassigned' %></strong><small><%= task.queue || 'No queue selected' %></small></div></div>
+            <div class="task-context-strip"><a href="<%= requestPath %>"><span>Parent request</span><strong><%= request.requestNumber %></strong></a><div><span>Client</span><strong><%= request.client?.name || '—' %></strong></div><div><span>Support stage</span><strong><%= task.sourceStageId || '—' %></strong></div><div><span>Created from</span><strong><%= task.sourceStatusName || '—' %></strong></div></div>
+            <dl class="task-fact-grid"><div><dt>Visibility</dt><dd><%= String(task.visibility || 'internal_only').replaceAll('_',' ') %></dd></div><div><dt>Created</dt><dd><%= task.createdLabel || '—' %></dd></div><div><dt>Due</dt><dd><%= task.dueLabel || 'Not set' %></dd></div><div><dt>Completed</dt><dd><%= task.completedLabel || '—' %></dd></div></dl>
+            <% if (task.completionNote) { %><div class="task-completion-note"><strong>Completion note</strong><p><%= task.completionNote %></p></div><% } %>
+          </article>
+
+          <article class="card pad task-comments-card">
+            <div class="section-head"><div><p class="eyebrow">Task conversation</p><h3>Comments</h3></div><span class="pill"><%= (task.comments || []).length %></span></div>
+            <div class="task-comment-list">
+              <% if (!(task.comments || []).length) { %><div class="task-empty-state"><strong>No task comments yet.</strong><span>Use this conversation for execution details that do not need to appear on the parent request.</span></div><% } %>
+              <% (task.comments || []).forEach((comment) => { %><article class="task-comment"><div class="task-comment-head"><strong><%= comment.author?.name || comment.author?.email || 'User' %></strong><span><%= comment.createdAt ? new Date(comment.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '' %></span></div><p><%= comment.body %></p><% if ((comment.attachments || []).length) { %><div class="task-comment-attachments"><% comment.attachments.forEach((file) => { %><% if (file.fileUrl) { %><a href="<%= file.fileUrl %>" target="_blank" rel="noopener"><%= file.fileName %></a><% } else { %><span><%= file.fileName %></span><% } %><% }) %></div><% } %><small><%= String(comment.visibility || '').replaceAll('_',' ') %></small></article><% }) %>
+            </div>
+            <form method="post" action="<%= taskActionPath %>/comments" enctype="multipart/form-data" class="form compact-form task-comment-form" data-submit-lock>
+              <label><span>Add comment</span><textarea name="body" minlength="3" required rows="4" placeholder="Record progress, evidence, dependency or decision..."></textarea></label>
+              <% if (portal !== 'client') { %><label><span>Visibility</span><select name="visibility"><option value="internal_only">Internal only</option><option value="partner_visible">Partner + SunTec</option><option value="client_visible">Client visible</option></select></label><% } %>
+              <label><span>Attachments</span><input type="file" name="attachments" multiple /><small>Up to 5 files. Local environments store metadata when Cloudinary is not configured.</small></label>
+              <% if (portal !== 'client') { %><label class="check-line"><input type="checkbox" name="alsoPostToRequest" /><span>Also post this update to the parent request conversation</span></label><% } %>
+              <div class="actions"><button class="btn primary" type="submit">Add comment</button></div>
+            </form>
+          </article>
+
+          <article class="card pad task-attachments-card">
+            <div class="section-head"><div><p class="eyebrow">Evidence & files</p><h3>Attachments</h3></div><span class="pill"><%= (taskAttachments || []).length %></span></div>
+            <% if (!(taskAttachments || []).length) { %><div class="task-empty-state"><strong>No task attachments yet.</strong><span>Add files through a task comment so the evidence keeps its author, visibility and discussion context.</span></div><% } else { %>
+              <div class="task-file-grid"><% (taskAttachments || []).forEach((file) => { %><article class="task-file-card"><div><strong><%= file.fileName || 'Attachment' %></strong><small><%= file.uploadedBy?.name || file.uploadedBy?.email || 'User' %> · <%= file.createdAt ? new Date(file.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '' %></small></div><% if (file.fileUrl) { %><a class="btn tiny secondary" href="<%= file.fileUrl %>" target="_blank" rel="noopener">Open</a><% } else { %><span class="compact-tag neutral">Metadata only</span><% } %></article><% }) %></div>
+            <% } %>
+          </article>
+
+          <article class="card pad task-activity-card">
+            <div class="section-head"><div><p class="eyebrow">Immutable trail</p><h3>Activity</h3></div></div>
+            <div class="activity-list task-activity-list">
+              <% if (!(task.activity || []).length) { %><div class="task-empty-state"><strong>No activity recorded.</strong></div><% } %>
+              <% [...(task.activity || [])].reverse().forEach((event) => { %><div class="activity-row"><span class="activity-dot"></span><div><strong><%= event.message || String(event.eventType || 'updated').replaceAll('_',' ') %></strong><small><%= event.actor?.name || event.actor?.email || 'System' %> · <%= event.createdAt ? new Date(event.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '' %></small></div></div><% }) %>
+            </div>
+          </article>
+        </div>
+
+        <aside class="task-detail-side">
+          <article class="card pad sticky-task-action-card">
+            <p class="eyebrow">Task action</p><h3><%= canAct ? 'Update this task' : 'Read-only task' %></h3>
+            <% if (canAct) { %><form method="post" action="<%= taskActionPath %>/status" class="form compact-form" data-submit-lock data-task-update-form><label><span>Status</span><select name="status" data-task-status-select><option value="open" <%= task.status === 'open' ? 'selected' : '' %>>To Do</option><option value="in_progress" <%= task.status === 'in_progress' ? 'selected' : '' %>>In Progress</option><option value="blocked" <%= task.status === 'blocked' ? 'selected' : '' %>>Waiting</option><option value="done" <%= task.status === 'done' ? 'selected' : '' %>>Completed</option><option value="cancelled" <%= task.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option></select></label><% if (portal !== 'client') { %><label><span>Priority</span><select name="priority"><% ['low','normal','high','critical'].forEach((priority) => { %><option value="<%= priority %>" <%= task.priority === priority ? 'selected' : '' %>><%= priority %></option><% }) %></select></label><label><span>Queue / team</span><input name="queue" value="<%= task.queue || '' %>" placeholder="Partner Application Support" /></label><label><span>Due date and time</span><input type="datetime-local" name="dueAt" value="<%= task.dueAt ? new Date(new Date(task.dueAt).getTime() - new Date(task.dueAt).getTimezoneOffset()*60000).toISOString().slice(0,16) : '' %>" /></label><label><span>Assigned person</span><select name="assignedToId"><option value="">Unassigned</option><% (taskUsers || []).forEach((user) => { %><option value="<%= user._id %>" <%= String(task.assignedTo?.actorId || '') === String(user._id) ? 'selected' : '' %>><%= user.name %> · <%= user.email %></option><% }) %></select></label><% } %><label><span>Update / completion note</span><textarea name="note" rows="4" maxlength="1200" data-task-note placeholder="Required when completing or cancelling a task"></textarea><small class="field-hint" data-task-note-hint>Completion and cancellation require a note of at least 3 characters.</small></label><button class="btn primary" type="submit">Save task</button></form><% } else { %><p>Your current portal assignment can view this task but cannot update its support stage.</p><% } %>
+          </article>
+          <article class="card pad task-parent-card"><p class="eyebrow">Parent context</p><h3><a class="text-link" href="<%= requestPath %>"><%= request.requestNumber %></a></h3><p><%= request.subject %></p><dl class="mini-detail-list"><div><dt>Status</dt><dd><%= request.statusLabel %></dd></div><div><dt>Support</dt><dd><%= request.supportLevelLabel %></dd></div><div><dt>Workflow</dt><dd><%= request.workflow?.name || '—' %></dd></div></dl></article>
+        </aside>
+      </section>
+      <%- include('../partials/footer', { organization }) %>
+    </main>
+  </div>
+  <script src="/js/app.js"></script>
+  <script>
+    document.querySelectorAll('[data-task-update-form]').forEach((form) => {
+      const status = form.querySelector('[data-task-status-select]');
+      const note = form.querySelector('[data-task-note]');
+      const hint = form.querySelector('[data-task-note-hint]');
+      const sync = () => {
+        const required = ['done','cancelled'].includes(status?.value || '');
+        if (note) { note.required = required; note.minLength = required ? 3 : 0; }
+        if (hint) hint.classList.toggle('required-note', required);
+      };
+      status?.addEventListener('change', sync);
+      sync();
+    });
+  </script>
+</body>
+</html>

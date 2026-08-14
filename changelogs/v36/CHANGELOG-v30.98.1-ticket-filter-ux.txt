@@ -1,9 +1,0 @@
-v30.98.1 — Ticket filter UX refinement
-
-- Reworked /:tenant/tickets filter UI.
-- Status, Severity, Category and other bounded fields now use compact dropdown multi-selects with tick/no-tick behavior.
-- Entity filter is now a text-based searchable multi-select chip selector. Type at least 3 characters, select multiple entities, and remove with ×.
-- Assigned To filter is now a text-based searchable multi-select chip selector. Type at least 3 characters, select multiple users, and remove with ×.
-- Preserves OR-within-filter and AND-across-filters behavior.
-- Export/API filter builder updated to support the same multi-select logic.
-- Keeps v30.98 assistant response copy-button behavior.

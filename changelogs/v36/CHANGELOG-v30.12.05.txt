@@ -1,5 +1,0 @@
-v30.12.05
-- reduced hot-path work in issue/comment create by deferring audit/activity/notifications
-- removed extra file metadata lookup on download/preview and use attachment entityId directly for auth
-- cached accessible entity ids on the current user object to avoid repeated hierarchy expansion in one request
-- returned API payloads without extra hydration query after create/comment

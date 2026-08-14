@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main home-landing-page">
+        <%- include('../partials/topbar', { organization }) %>
+        <section class="page-head unified-page-head thin-head clean-landing-head">
+          <div>
+            <p class="eyebrow"><%= portalTitle %></p>
+            <h2>Home</h2>
+            <p>Choose where you want to go next.</p>
+          </div>
+        </section>
+        <section class="home-action-grid">
+          <a class="home-action-card primary-card" href="<%= portalBase %>/dashboard"><span>Dashboard</span><strong>See workload and SLA attention</strong></a>
+          <a class="home-action-card" href="<%= portalBase %>/requests"><span>Requests</span><strong>See requests</strong></a>
+          <a class="home-action-card" href="<%= portalBase %>/requests/new"><span>Raise</span><strong>Create a new request</strong></a>
+          <a class="home-action-card" href="<%= portalBase %>/filters"><span>Sun Query</span><strong>Search and save filters</strong></a>
+          <% if (portal === 'admin') { %>
+            <a class="home-action-card" href="/admin/clients"><span>Clients</span><strong>Manage client hierarchy</strong></a>
+            <a class="home-action-card" href="/admin/issue-types"><span>Catalog</span><strong>Issue types and fields</strong></a>
+            <a class="home-action-card" href="/admin/users"><span>Users</span><strong>Roles and client access</strong></a>
+            <a class="home-action-card" href="/admin/workflows"><span>Workflows</span><strong>Status paths</strong></a>
+          <% } %>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+  </body>
+</html>

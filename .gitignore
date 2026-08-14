@@ -1,7 +1,9 @@
+node_modules/
 .env
-.env.example
-/node_modules
-test-v28.js
-test-v29.js
-test-v30.js
-test.js
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+coverage/
+dist/
+backups/

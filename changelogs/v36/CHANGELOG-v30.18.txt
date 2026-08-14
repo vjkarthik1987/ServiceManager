@@ -1,6 +1,0 @@
-ESOP v30.18
-
-- Made SLA/OLA policy severity rows dynamic from tenant-defined priority master list
-- Removed hardcoded severity assumptions from SLA policy create/update flow
-- Support presets (Silver/Gold/Platinum/OLA) now map by configured severity order
-- Relaxed SLA policy schema enums so tenant-defined severities can be stored cleanly

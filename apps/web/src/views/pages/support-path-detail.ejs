@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <% const levels = [...(supportPath.levels || [])].sort((a,b) => Number(a.displayOrder||0)-Number(b.displayOrder||0)); const levelRank = (value) => Number(String(value || '').replace(/\D/g,'')) || 0; %>
+    <div class="app-shell">
+      <%- include('../partials/sidebar') %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+        <section class="page-head unified-page-head">
+          <div><p class="eyebrow">Support path</p><h2><%= supportPath.name %></h2><p><%= supportPath.description %></p></div>
+          <div class="actions"><a class="btn secondary" href="/admin/support-paths">All support paths</a><button class="btn secondary" type="button" data-open-modal="editSupportPathModal">Edit path</button><button class="btn secondary" type="button" data-open-modal="levelModal">Add stage</button><button class="btn primary" type="button" data-open-modal="ruleModal" <%= levels.length < 2 ? 'disabled' : '' %>>Add movement</button></div>
+        </section>
+
+        <section class="grid two-one">
+          <div class="card pad">
+            <div class="section-head"><div><p class="eyebrow">Support stages</p><h3>Each stage has its own workflow</h3><p class="section-help">L2 and L3 can progress independently. A parallel movement starts both workflows while one stage remains primary for the overall request.</p></div><span class="pill"><%= levels.length %> stages</span></div>
+            <div class="support-config-list">
+              <% levels.forEach((level) => { %>
+                <article class="support-config-row">
+                  <div class="support-config-stage"><span class="level-badge"><%= level.localId %></span><div><strong><%= level.label %></strong><small><%= level.ownerSide === 'suntec' ? 'SunTec' : level.ownerSide === 'partner' ? 'Partner / Operations' : 'Client / Bank' %></small></div></div>
+                  <div class="support-config-workflow"><span>Workflow</span><strong><%= level.workflow?.name || level.workflowName || 'No workflow assigned' %></strong></div>
+                  <div class="support-config-sla"><span>SLA</span><strong class="status-text <%= level.slaApplicable ? 'good-text' : '' %>"><%= level.slaApplicable ? 'Applicable' : 'Not applicable' %></strong></div>
+                  <div class="support-config-actions"><button class="btn tiny secondary" type="button" data-open-modal="workflowFor_<%= level.localId %>">Workflow</button><button class="btn tiny secondary" type="button" data-open-modal="editLevel_<%= level.localId %>">Edit</button></div>
+                </article>
+              <% }) %>
+              <% if (!levels.length) { %><div class="empty-config-state">No support stages yet. Add L1, L2, and/or L3.</div><% } %>
+            </div>
+            <div class="section-divider"></div>
+            <div class="section-head"><div><p class="eyebrow">Movement & return rules</p><h3>Forward, return and parallel support</h3><p class="section-help">Movement is configurable in both directions. Examples: L1 → L2, L2 → L1 for more information, L2 → L3, L3 → L2 for deployment/validation, or L3 → L1 when that stage exists.</p></div></div>
+            <div class="movement-rule-list">
+              <% [...(supportPath.movementRules || [])].sort((a,b) => Number(a.displayOrder||0)-Number(b.displayOrder||0)).forEach((rule) => { %>
+                <% const targets = rule.toLevelIds && rule.toLevelIds.length ? rule.toLevelIds : [rule.toLevelId]; const isReturnRule = targets.some((target) => levelRank(target) < levelRank(rule.fromLevelId)); %>
+                <article class="movement-rule-card">
+                  <div class="movement-rule-copy"><strong><%= rule.actionLabel %></strong><small><%= rule.reasonRequired ? 'Reason required' : 'Reason optional' %> · <%= rule.commentRequired ? 'Comment required' : 'Comment optional' %></small></div>
+                  <div class="movement-rule-flow"><span><%= rule.fromLevelId %></span><b>→</b><span><%= targets.join(rule.movementType === 'parallel' ? ' + ' : ', ') %></span></div>
+                  <div class="movement-rule-meta"><span class="compact-tag <%= rule.movementType === 'parallel' ? 'warn' : isReturnRule ? 'info' : '' %>"><%= rule.movementType === 'parallel' ? 'Parallel' : isReturnRule ? 'Return' : 'Forward' %></span><small><%= rule.targetStatusBehavior === 'start' ? 'Starts target workflow' : 'Keeps compatible status' %><% if (rule.movementType === 'parallel' && rule.primaryLevelId) { %> · Primary <%= rule.primaryLevelId %><% } %></small></div>
+                </article>
+              <% }) %>
+              <% if (!(supportPath.movementRules || []).length) { %><div class="empty-config-state">No movement rules yet.</div><% } %>
+            </div>
+          </div>
+
+          <aside class="card pad sticky-card">
+            <p class="eyebrow">Usage</p>
+            <h3><%= supportPath.usageCount || 0 %> default subtype assignment<%= (supportPath.usageCount || 0) === 1 ? '' : 's' %></h3>
+            <div class="plain-list">
+              <% (supportPath.usedBy || []).forEach((item) => { %><span><%= item.name %></span><% }) %>
+              <% if (!(supportPath.usedBy || []).length) { %><span class="muted">Not assigned as a subtype default. It can still be selected through a client operational rule.</span><% } %>
+            </div>
+            <a class="btn secondary full" href="/admin/clients">Configure client rules</a>
+          </aside>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <dialog class="modal" id="editSupportPathModal">
+      <form method="post" action="/admin/support-paths/<%= supportPath._id %>/edit" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Edit support path</p><h3><%= supportPath.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Name</span><input name="name" value="<%= supportPath.name %>" required /></label>
+        <label><span>Description</span><textarea name="description" rows="3" required><%= supportPath.description %></textarea></label>
+        <label><span>Status</span><select name="status"><option value="active" <%= supportPath.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= supportPath.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save path</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="levelModal">
+      <form method="post" action="/admin/support-paths/<%= supportPath._id %>/levels" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Add support stage</p><h3>Ownership + workflow</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Stage</span><select name="localId" required><option value="">Choose stage</option><option>L1</option><option>L2</option><option>L3</option></select></label>
+        <label><span>Label</span><input name="label" required placeholder="L2 · Partner / Operations" /></label>
+        <label><span>Owner side</span><select name="ownerSide"><option value="client">Client / Bank</option><option value="partner">Partner / Operations</option><option value="suntec">SunTec</option></select></label>
+        <label><span>Workflow</span><select name="workflowId"><option value="">No workflow yet</option><% (workflows || []).forEach((workflow) => { %><option value="<%= workflow._id %>"><%= workflow.name %></option><% }) %></select></label>
+        <div class="two-col"><label class="check-line"><input type="checkbox" name="slaApplicable" /><span>SLA is applicable at this stage</span></label><label><span>Display order</span><input type="number" name="displayOrder" min="1" value="<%= (levels.length + 1) * 10 %>" /></label></div>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Add stage</button></div>
+      </form>
+    </dialog>
+
+    <% levels.forEach((level) => { %>
+      <dialog class="modal" id="workflowFor_<%= level.localId %>">
+        <form method="post" action="/admin/support-paths/<%= supportPath._id %>/levels/<%= level.localId %>/workflow" class="modal-card form compact-form">
+          <div class="modal-head"><div><p class="eyebrow"><%= level.localId %> workflow</p><h3><%= level.label %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+          <p class="muted">This workflow runs independently when <%= level.localId %> becomes active.</p>
+          <label><span>Workflow</span><select name="workflowId"><option value="">No workflow</option><% (workflows || []).forEach((workflow) => { %><option value="<%= workflow._id %>" <%= String(workflow._id) === String(level.workflowId || level.workflow?.id || '') ? 'selected' : '' %>><%= workflow.name %></option><% }) %></select></label>
+          <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save workflow</button></div>
+        </form>
+      </dialog>
+
+      <dialog class="modal" id="editLevel_<%= level.localId %>">
+        <form method="post" action="/admin/support-paths/<%= supportPath._id %>/levels/<%= level.localId %>" class="modal-card form compact-form">
+          <div class="modal-head"><div><p class="eyebrow">Edit support stage</p><h3><%= level.localId %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+          <label><span>Label</span><input name="label" value="<%= level.label %>" required /></label>
+          <label><span>Owner side</span><select name="ownerSide"><option value="client" <%= level.ownerSide === 'client' ? 'selected' : '' %>>Client / Bank</option><option value="partner" <%= level.ownerSide === 'partner' ? 'selected' : '' %>>Partner / Operations</option><option value="suntec" <%= level.ownerSide === 'suntec' ? 'selected' : '' %>>SunTec</option></select></label>
+          <label class="check-line"><input type="checkbox" name="slaApplicable" <%= level.slaApplicable ? 'checked' : '' %> /><span>SLA starts or continues at this stage</span></label>
+          <label><span>Display order</span><input type="number" name="displayOrder" value="<%= level.displayOrder || 100 %>" /></label>
+          <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save stage</button></div>
+        </form>
+      </dialog>
+    <% }) %>
+
+    <dialog class="modal wide" id="ruleModal">
+      <form method="post" action="/admin/support-paths/<%= supportPath._id %>/rules" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Add movement rule</p><h3>Forward, return or parallel</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Button label</span><input name="actionLabel" required placeholder="Send to L2 and L3" /></label>
+        <div class="two-col"><label><span>Movement type</span><select name="movementType"><option value="sequential">Sequential</option><option value="parallel">Parallel</option></select></label><label><span>From stage</span><select name="fromLevelId" required><option value="">Choose</option><% levels.forEach((level) => { %><option value="<%= level.localId %>"><%= level.label %></option><% }) %></select></label></div>
+        <label><span>Target stage(s)</span><select name="toLevelIds" multiple required size="<%= Math.max(2, levels.length) %>"><% levels.forEach((level) => { %><option value="<%= level.localId %>"><%= level.label %></option><% }) %></select><small>The target can be above or below the source stage. Choose one stage for a normal forward/return movement, or multiple stages for parallel support.</small></label>
+        <label><span>Primary stage after movement</span><select name="primaryLevelId"><option value="">First selected stage</option><% levels.forEach((level) => { %><option value="<%= level.localId %>"><%= level.label %></option><% }) %></select><small>The primary stage supplies the overall request status while every active stage keeps its own workflow status.</small></label>
+        <label><span>Status after movement</span><select name="targetStatusBehavior"><option value="start">Start each target workflow</option><option value="keep">Keep current status when compatible</option></select></label>
+        <div class="two-col"><label class="check-line"><input type="checkbox" name="commentRequired" checked /><span>Comment required</span></label><label class="check-line"><input type="checkbox" name="reasonRequired" checked /><span>Reason required</span></label></div>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Add movement</button></div>
+      </form>
+    </dialog>
+    <script src="/js/app.js"></script>
+  </body>
+</html>

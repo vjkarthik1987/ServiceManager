@@ -1,46 +1,26 @@
 {
-  "name": "service-desk-v38.3-ai-robot-regional-polish",
-  "version": "38.3.0",
-  "description": "Service Desk v38.3 UI polish, regional head scoping, product/entity fixes, and AI robot identity",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "seed": "node src/seed/bootstrap.js",
-    "test": "cross-env NODE_ENV=test JIRA_MOCK_MODE=true ALLOW_JIRA_MOCK_OUTSIDE_TEST=true node test.js",
-    "seed:v9": "node src/seed/bootstrap.js",
-    "worker": "node worker.js",
-    "test:unit": "node tests/unit/run.js",
-    "test:integration": "node tests/integration/run.js",
-    "test:api": "node tests/api/run.js",
-    "test:contract": "node tests/contract/run.js",
-    "test:regression": "node tests/regression/run.js",
-    "test:v28": "cross-env NODE_ENV=test JIRA_MOCK_MODE=true ALLOW_JIRA_MOCK_OUTSIDE_TEST=true node test-v28.js",
-    "test:v29": "cross-env NODE_ENV=test JIRA_MOCK_MODE=true ALLOW_JIRA_MOCK_OUTSIDE_TEST=true node test-v29.js",
-    "test:v30": "cross-env NODE_ENV=test JIRA_MOCK_MODE=true ALLOW_JIRA_MOCK_OUTSIDE_TEST=true node test-v30.js"
-  },
+  "name": "service-desk-v21",
+  "version": "21.0.0",
+  "private": true,
+  "description": "Service Desk v21 cloud UAT baseline with family-specific SLA assignments, Standard Bank direct-to-L3 support, Danske SaaS flows, engagement-manager portfolios, 180 historical requests, redesigned Filters, richer FAQ, request-context banners, and calendar-pulse dashboards.",
+  "type": "module",
   "engines": {
-    "node": ">=16"
+    "node": ">=22.0.0"
   },
-  "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "compression": "^1.7.4",
-    "connect-mongo": "^5.1.0",
-    "csurf": "^1.11.0",
-    "dotenv": "^16.4.5",
-    "ejs": "^3.1.10",
-    "express": "^4.19.2",
-    "express-ejs-layouts": "^2.5.1",
-    "express-session": "^1.18.0",
-    "helmet": "^7.1.0",
-    "method-override": "^3.0.0",
-    "mongoose": "^8.6.1",
-    "morgan": "^1.10.0",
-    "multer": "1.4.5-lts.1",
-    "nodemailer": "^6.9.15"
+  "workspaces": [
+    "apps/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n web,org,identity,request -c white,green,yellow,cyan \"npm run dev -w @service-desk/web\" \"npm run dev -w @service-desk/organization-service\" \"npm run dev -w @service-desk/identity-service\" \"npm run dev -w @service-desk/request-service\"",
+    "start": "concurrently -k -n web,org,identity,request -c white,green,yellow,cyan \"npm run start -w @service-desk/web\" \"npm run start -w @service-desk/organization-service\" \"npm run start -w @service-desk/identity-service\" \"npm run start -w @service-desk/request-service\"",
+    "health": "node scripts/check-services.mjs",
+    "seed:demo": "node scripts/seed-demo-data.mjs",
+    "configure:xelerate-tasks": "node scripts/configure-xelerate-workflow-tasks.mjs",
+    "provision:suntecsds-service-model": "node scripts/provision-suntecsds-service-model.mjs",
+    "bootstrap:suntec": "node scripts/bootstrap-suntec-cloud.mjs"
   },
   "devDependencies": {
-    "cross-env": "^10.1.0",
-    "nodemon": "^3.1.4"
+    "concurrently": "^9.1.2"
   }
 }

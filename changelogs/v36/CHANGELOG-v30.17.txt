@@ -1,4 +1,0 @@
-ESOP v30.17
-- Fixed client-facing dashboard and portal queries to include legacy issues with missing customerVisibility.
-- Simplified SLA / OLA policy creation with guided templates and a simple severity matrix.
-- Added support model presets inspired by Silver / Gold / Platinum service commitments.

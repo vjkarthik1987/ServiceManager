@@ -1,9 +1,0 @@
-ESOP v30.9.04
-
-- Fixed client issue detail spacing between major cards/sections
-- Made CLOSED status green in client views
-- Removed client dashboard "What to do next" block
-- Fixed nested subclient visibility in entities list for client, superadmin, and agent
-- Exposed Entities navigation to agents
-- Improved notification card spacing
-- Upgraded issues page filters with category, source, request type, Jira linked, and advanced filter grouping

@@ -1,6 +1,0 @@
-v30.99.6 — Minimal Login Refresh
-
-- Simplified the tenant login page into a cleaner, premium two-panel experience.
-- Removed verbose feature cards and long marketing copy from the login screen.
-- Added a subtle quirky brand mark and compact workspace context.
-- Kept secure sign-in, forgot password, and create workspace flows intact.

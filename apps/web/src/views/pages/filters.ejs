@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main filters-page filters-page-v21">
+        <%- include('../partials/topbar', { organization, portal }) %>
+
+        <section class="page-head unified-page-head thin-head compact-only-head">
+          <div>
+            <p class="eyebrow">Request discovery</p>
+            <h2>Filters</h2>
+            <p>Search quickly with plain field filters, then save the view when it is useful.</p>
+          </div>
+          <div class="actions"><a class="btn secondary" href="<%= portalBase %>/saved-filters">Saved filters</a></div>
+        </section>
+
+        <section class="card filter-builder-v21">
+          <form method="get" action="<%= portalBase %>/filters" class="filter-query-row-v21">
+            <label class="filter-target-v21"><span>Search in</span><select name="target"><option value="requests" <%= target === 'requests' ? 'selected' : '' %>>Requests</option><option value="clients" <%= target === 'clients' ? 'selected' : '' %>>Clients</option></select></label>
+            <label class="filter-query-v21"><span>Query</span><input name="q" value="<%= query %>" placeholder='client:"Danske Bank" status:open severity:S1' /></label>
+            <div class="filter-query-actions-v21"><button class="btn primary" type="submit">Run query</button><a class="btn secondary" href="<%= portalBase %>/filters">Clear</a></div>
+          </form>
+
+          <% if (target === 'requests') { %>
+            <div class="filter-quick-v21" aria-label="Common request filters">
+              <span>Quick</span>
+              <a href="<%= portalBase %>/requests?mine=1">Assigned to me</a>
+              <a href="<%= portalBase %>/requests?status=open">Open</a>
+              <a href="<%= portalBase %>/requests?supportLevel=L2">L2</a>
+              <a href="<%= portalBase %>/requests?supportLevel=L3">L3</a>
+              <a href="<%= portalBase %>/requests?sla=amber">At risk</a>
+              <a href="<%= portalBase %>/requests?sla=red">Breached</a>
+            </div>
+          <% } %>
+
+          <p class="filter-syntax-help-v21">Try <code>status:new</code>, <code>client:"Standard Bank"</code>, <code>level:L3</code>, <code>sla:red</code>, <code>owner:me</code>, or combine them in one query.</p>
+
+          <% if (target === 'requests' && query) { %>
+            <div class="filter-open-results-v21"><div><strong>Use this filter in the request workspace</strong><span>The request table will show the active filter above the results until you clear it.</span></div><a class="btn primary small" href="<%= requestsLink %>">See filtered requests</a></div>
+          <% } %>
+
+          <details class="save-filter-disclosure-v21" <%= query ? '' : 'data-empty-query' %>>
+            <summary><span>Save this filter</span><small>Give this query a name and choose who can see it.</small></summary>
+            <form method="post" action="<%= portalBase %>/filters/save" class="save-filter-form-v21">
+              <input type="hidden" name="target" value="<%= target %>" />
+              <input type="hidden" name="query" value="<%= query %>" />
+              <label class="filter-name-v21"><span>Filter name</span><input name="name" placeholder="My open L2 requests" required /></label>
+              <fieldset class="filter-visibility-v21">
+                <legend>Visible to</legend>
+                <label><input type="radio" name="visibilityScope" value="private" checked /><span>Only me</span></label>
+                <label><input type="radio" name="visibilityScope" value="team" /><span>My team</span></label>
+                <label><input type="radio" name="visibilityScope" value="tenant" /><span>Everyone</span></label>
+              </fieldset>
+              <button class="btn primary small" type="submit" <%= query ? '' : 'disabled' %>>Save filter</button>
+            </form>
+          </details>
+        </section>
+
+        <section class="card client-table-card filter-results-card filter-results-v21">
+          <div class="section-head table-section-head">
+            <div><p class="eyebrow">Results</p><h3><%= target === 'clients' ? clientRows.length : requestRows.length %> <%= target %> found</h3></div>
+            <% if (target === 'requests' && query) { %><a class="text-link" href="<%= requestsLink %>">See in Requests →</a><% } %>
+          </div>
+          <div class="table-wrap no-wide-scroll">
+            <% if (target === 'clients') { %>
+              <table class="clean-table compact-table">
+                <thead><tr><th>Code</th><th>Client</th><th>Parent</th><th>Status</th><th>Issue Families</th><th>SLA</th><th></th></tr></thead>
+                <tbody>
+                  <% clientRows.forEach((client) => { const parent = client.parentClientId ? clientsById.get(String(client.parentClientId)) : null; %>
+                    <tr>
+                      <td><a class="table-primary-link" href="/admin/clients/<%= client._id %>"><%= client.shortCode %></a></td>
+                      <td><a class="table-primary-link" href="/admin/clients/<%= client._id %>"><strong><%= client.name %></strong></a><small><%= client.primaryDomain || '' %></small></td>
+                      <td><%= parent?.name || '—' %></td>
+                      <td><span class="status-dot <%= client.status === 'active' ? 'active' : '' %>"></span><%= client.status %></td>
+                      <td><span class="table-pill"><%= client.issueTypeMode === 'inherit' ? 'Inherited' : 'Custom' %></span></td>
+                      <td><span class="table-pill"><%= client.slaMode === 'inherit' ? 'Inherited' : 'Configured' %></span></td>
+                      <td><a class="table-action" href="/admin/clients/<%= client._id %>">Open</a></td>
+                    </tr>
+                  <% }) %>
+                  <% if (!clientRows.length) { %><tr><td colspan="7"><div class="empty-box">No clients match this filter.</div></td></tr><% } %>
+                </tbody>
+              </table>
+            <% } else { %>
+              <table class="clean-table compact-table request-table filter-request-results-v21">
+                <thead><tr><th>Request</th><th>Summary</th><th>Client</th><th>Status</th><th>SLA</th><th>Support</th></tr></thead>
+                <tbody>
+                  <% requestRows.forEach((item) => { %>
+                    <tr class="clickable-row" data-href="<%= portalBase %>/requests/<%= item._id %>">
+                      <td><a class="request-id-link" href="<%= portalBase %>/requests/<%= item._id %>"><%= item.requestNumber %></a></td>
+                      <td><strong><%= item.subject %></strong><small><%= item.level1Type?.name || '' %> / <%= item.level2Type?.name || '' %></small></td>
+                      <td><%= item.client?.name || '—' %><small><%= item.client?.code || '' %></small></td>
+                      <td><span class="status-compact"><%= item.statusLabel %></span></td>
+                      <td><span class="rag-pill rag-<%= item.slaView?.rag || 'grey' %>"><%= (item.slaView?.rag || 'grey').toUpperCase() %></span><small><%= item.slaView?.nextAction || '' %></small></td>
+                      <td><%= item.supportLevelLabel %></td>
+                    </tr>
+                  <% }) %>
+                  <% if (!requestRows.length) { %><tr><td colspan="6"><div class="empty-box">No requests match this filter.</div></td></tr><% } %>
+                </tbody>
+              </table>
+            <% } %>
+          </div>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+    <script>
+      document.querySelectorAll('[data-href]').forEach((row) => row.addEventListener('click', (event) => {
+        if (event.target.closest('a,button,input,select')) return;
+        window.location.href = row.dataset.href;
+      }));
+    </script>
+  </body>
+</html>

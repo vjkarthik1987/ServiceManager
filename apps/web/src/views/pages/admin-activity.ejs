@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization, portal }) %>
+        <section class="page-head unified-page-head thin-head compact-only-head no-masthead">
+          <div>
+            <p class="eyebrow">Admin activity</p>
+            <h2>Activity</h2>
+            <p>User, mail, request, and configuration activity in one operational log.</p>
+          </div>
+          <div class="actions"><a class="btn secondary" href="/admin/health">Health</a></div>
+        </section>
+        <section class="card table-card-smooth">
+          <div class="table-wrap no-wide-scroll">
+            <table class="clean-table compact-table activity-table">
+              <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+              <tbody>
+                <% if (!activity.length) { %><tr><td colspan="5" class="muted">No activity yet.</td></tr><% } %>
+                <% activity.forEach((item) => { %>
+                  <tr>
+                    <td><%= item.createdAt ? new Date(item.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></td>
+                    <td><strong><%= item.actor?.name || item.actor?.email || 'System' %></strong><small><%= item.actor?.role || item.actor?.portal || '' %></small></td>
+                    <td><span class="table-pill"><%= item.eventType || 'activity' %></span></td>
+                    <td><%= item.targetLabel || item.targetType || '—' %></td>
+                    <td><%= item.message %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+  </body>
+</html>

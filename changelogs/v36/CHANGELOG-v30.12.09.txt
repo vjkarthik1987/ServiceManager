@@ -1,6 +1,0 @@
-v30.12.09
-- Added in-memory FileAsset metadata cache to reduce repeated DB lookups for recently uploaded files.
-- Reused cached metadata in file streaming path.
-- Removed explicit fs.access precheck from local file reads.
-- Switched local file download/preview to Express sendFile fast path when absolute path is available.
-- Kept 30.12.08 routing and functional behavior unchanged.

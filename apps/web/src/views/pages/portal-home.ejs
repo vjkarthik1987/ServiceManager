@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css">
+  </head>
+  <body>
+    <div class="app-shell slim-shell">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main portal-home-clean">
+        <section class="page-head unified-page-head compact-brand-head">
+          <div>
+            <p class="eyebrow"><%= portalTitle %></p>
+            <h2><%= dashboard?.title || `Hello, ${actor.name}` %></h2>
+            <p><%= dashboard?.subtitle || 'Raise requests and track your work.' %></p>
+          </div>
+          <div class="actions"><a class="btn primary" href="<%= portalBase %>/requests/new">Raise request</a><a class="btn secondary" href="<%= portalBase %>/requests">See requests</a></div>
+        </section>
+
+        <section class="metrics elegant-metrics portal-metrics role-dashboard-grid">
+          <% (dashboard?.cards || []).forEach((card) => { %>
+            <a class="card metric mini-metric metric-link" href="<%= card.href || `${portalBase}/requests` %>">
+              <span><%= card.label %></span>
+              <strong><%= card.value %></strong>
+              <p><%= card.hint %></p>
+            </a>
+          <% }) %>
+        </section>
+
+        <%- include('../partials/dashboard-analytics', { analytics, calendarPulse, range, periodHref, requestBase: `${portalBase}/requests` }) %>
+
+        <section class="card client-table-card">
+          <div class="section-head table-section-head">
+            <div><p class="eyebrow">Recent activity</p><h3>Requests in your scope</h3></div>
+            <a class="text-link" href="<%= portalBase %>/requests">View all</a>
+          </div>
+          <% if (recentRequests && recentRequests.length) { %>
+            <div class="table-wrap no-wide-scroll">
+              <table class="clean-table compact-table dashboard-request-table">
+                <thead><tr><th>Request</th><th>Summary</th><th>Client</th><th>Status</th><th>SLA next</th><th>Support</th></tr></thead>
+                <tbody>
+                  <% recentRequests.forEach((item) => { %>
+                    <tr class="clickable-row" data-href="<%= portalBase %>/requests/<%= item._id %>">
+                      <td><a class="request-id-link" href="<%= portalBase %>/requests/<%= item._id %>"><%= item.requestNumber %></a></td>
+                      <td><strong><%= item.subject %></strong><small><%= item.level1Type?.name || '' %> / <%= item.level2Type?.name || '' %></small></td>
+                      <td><%= item.client?.name || '—' %><small><%= item.client?.code || '' %></small></td>
+                      <td><span class="pill good"><%= item.statusLabel %></span></td>
+                      <td><span class="rag-pill rag-<%= item.slaView?.rag || 'grey' %>"><%= (item.slaView?.rag || 'grey').toUpperCase() %></span><small><%= item.slaView?.nextAction || item.slaView?.label || 'SLA' %><% if (item.slaView?.nextDueLabel) { %> · <%= item.slaView.nextDueLabel %><% } %></small></td>
+                      <td><%= item.supportLevelLabel %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %><div class="empty-box roomy"><strong>No requests yet.</strong><p>Raise your first request when you are ready.</p></div><% } %>
+        </section>
+
+        <section class="card client-table-card scope-compact-card">
+          <div class="section-head table-section-head"><div><p class="eyebrow">Your scope</p><h3>Client assignments</h3></div></div>
+          <% if (scopedClients.length) { %>
+            <div class="table-wrap no-wide-scroll">
+              <table class="clean-table scope-table compact-table">
+                <thead><tr><th>Code</th><th>Client</th><th>Issues</th><th>Role</th><th>Support levels</th><th>Children</th></tr></thead>
+                <tbody>
+                  <% scopedClients.forEach((item) => { const assignments = clientAssignments.get(String(item._id)) || []; %>
+                    <tr>
+                      <td><span class="code-inline"><%= item.shortCode %></span></td>
+                      <td><strong><%= item.name %></strong></td>
+                      <td><a class="client-issue-count" href="<%= portalBase %>/requests"><%= requestCountsByClient.get(String(item._id)) || 0 %></a></td>
+                      <td><%= assignments.map((a) => roleLabels[a.role] || a.role).join(', ') || '—' %></td>
+                      <td><%= [...new Set(assignments.flatMap((a) => a.supportLevels || []))].join(', ') || '—' %></td>
+                      <td><%= assignments.some((a) => a.includeChildren) ? 'Included' : 'Direct only' %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %><div class="empty-box roomy"><strong>No client assignment.</strong><p>Ask an administrator to assign a client and role.</p></div><% } %>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+    <script>
+      document.querySelectorAll('[data-href]').forEach((row) => row.addEventListener('click', (event) => {
+        if (event.target.closest('a,button,input,select')) return;
+        window.location.href = row.dataset.href;
+      }));
+    </script>
+  </body>
+</html>

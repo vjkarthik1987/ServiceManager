@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar') %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+
+        <section class="page-head unified-page-head">
+          <div>
+            <p class="eyebrow">Reusable ownership paths</p>
+            <h2>Support Paths</h2>
+            <p>Configure L1, L2, and L3 ownership, assign a workflow to each stage, and decide whether stages run sequentially or in parallel.</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="button" data-open-modal="supportPathModal">Create support path</button>
+            <form method="post" action="/admin/support-paths/preset/three_level"><button class="btn secondary" type="submit">Add L1 → L2 → L3</button></form>
+            <form method="post" action="/admin/support-paths/preset/two_level"><button class="btn secondary" type="submit">Add L2 → L3</button></form>
+            <form method="post" action="/admin/support-paths/preset/parallel_incident"><button class="btn secondary" type="submit">Add L1 → L2 + L3</button></form>
+          </div>
+        </section>
+
+        <section class="card pad">
+          <div class="section-head"><div><p class="eyebrow">Library</p><h3>Reusable support ownership paths</h3></div><span class="pill"><%= supportPaths.length %> paths</span></div>
+          <% if (!supportPaths.length) { %>
+            <div class="empty-box"><strong>No support paths yet.</strong><p>Create one or load a preset, then assign it to Level 2 issue types.</p></div>
+          <% } %>
+          <div class="compact-list">
+            <% supportPaths.forEach((item) => { %>
+              <a class="compact-row-link" href="/admin/support-paths/<%= item._id %>">
+                <div>
+                  <strong><%= item.name %></strong>
+                  <p><%= item.description %></p>
+                </div>
+                <div class="compact-row-meta">
+                  <span><%= (item.levels || []).map((level) => `${level.localId}${level.workflowName ? ` · ${level.workflowName}` : ''}`).join(' → ') || 'No stages' %></span>
+                  <span><%= (item.movementRules || []).length %> push rules</span>
+                  <span><%= item.usageCount || 0 %> issue types</span>
+                </div>
+              </a>
+            <% }) %>
+          </div>
+        </section>
+              <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <dialog class="modal" id="supportPathModal">
+      <form method="post" action="/admin/support-paths" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Create support path</p><h3>New reusable path</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Name</span><input name="name" required placeholder="Client → Partner → SunTec" /></label>
+        <label><span>Description</span><textarea name="description" required rows="3" placeholder="When should this support path be used?"></textarea></label>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Create path</button></div>
+      </form>
+    </dialog>
+    <script src="/js/app.js"></script>
+  </body>
+</html>

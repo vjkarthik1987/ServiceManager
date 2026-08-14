@@ -1,9 +1,0 @@
-ESOP v30.16
-
-- Made /dashboards role-specific across admin, manager, agent, and client audiences.
-- Kept dashboard data scope-intelligent by reusing the existing reports visibility model.
-- Admin view keeps the full analytics layout.
-- Manager view focuses on scoped operational analytics.
-- Agent view trims distribution/governance noise and keeps queue/risk-oriented analytics.
-- Client users can now access dashboards with a simplified, customer-safe view.
-- Updated navigation and app version to v30.16.

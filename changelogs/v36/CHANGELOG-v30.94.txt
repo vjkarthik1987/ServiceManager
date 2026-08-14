@@ -1,6 +1,0 @@
-v30.94 — Assistant stale-draft hardening
-
-- Treats fresh issue commands as hard interrupts even when an old issue confirmation draft exists.
-- Recognizes polite and typo-heavy variants like "can we reaise a new issue".
-- Starts a clean issue creation flow instead of reusing the previous title/description/severity/category.
-- Keeps yes/no confirmation behavior unchanged for actual confirmation prompts.

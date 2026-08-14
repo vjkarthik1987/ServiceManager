@@ -1,7 +1,0 @@
-<section class='page-header taxonomy-form-shell'><div><h1><%= typeof title !== 'undefined' ? title : 'New Product' %></h1><p class='muted'>Create a reusable product option for entities and tickets.</p></div></section>
-<section class='card narrow form-card taxonomy-form-card taxonomy-form-shell'><form method='post' action='<%= (typeof formAction !== 'undefined' && formAction) ? formAction : (basePath + "/admin/products") %>' class='stack'><input type='hidden' name='_csrf' value='<%= csrfToken %>' />
-<label><span>Code</span><input type='text' name='code' required value='<%= defaults.code %>' /></label>
-<label><span>Name</span><input type='text' name='name' required value='<%= defaults.name %>' /></label>
-<label><span>Description</span><textarea name='description' rows='4'><%= defaults.description %></textarea></label>
-<label class='checkbox-row'><input type='checkbox' name='isActive' value='true' <%= defaults.isActive !== false ? 'checked' : '' %> /><span>Active</span></label>
-<div class='form-actions right wrap-actions'><a class='button-link secondary' href='<%= basePath %>/admin/products'>Back to list</a><button type='submit'><%= (typeof submitLabel !== 'undefined' && submitLabel) ? submitLabel : 'Create Product' %></button></div></form></section>

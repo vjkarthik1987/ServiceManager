@@ -1,5 +1,0 @@
-ESOP v30.9.03
-- Redesigned dashboard operational snapshot with clearer metric tiles
-- Replaced Suggested Focus with Recent Activity on dashboard
-- Moved Admin Console to the bottom of sidebar navigation
-- Simplified Jira push area on issue detail into a more minimal card

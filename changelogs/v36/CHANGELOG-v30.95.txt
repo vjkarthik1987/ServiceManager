@@ -1,8 +1,0 @@
-v30.95 — Deterministic Operational Assistant Corrections
-
-- Added OPERATIONAL_QUERY handling before OpenAI intent completion.
-- Entity count questions now query scoped active entities directly.
-- Updated-today questions now use updatedAt plus activity/comment counts.
-- Jira not-pushed questions now use jira.issueKey, jira.pushStatus, jira.outboundState, and executionState.
-- Count-style report questions no longer use OpenAI generated/inferred answers.
-- Report answer fallback remains deterministic for operational counts; OpenAI remains only for narrative/report wording when safe.
