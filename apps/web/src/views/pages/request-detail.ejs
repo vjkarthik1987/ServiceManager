@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <%
+      const allStagesForView = allStageViews || stageViews || [];
+      const primaryStageView = allStagesForView.find((stage) => stage.isPrimary) || allStagesForView[0] || null;
+      const isTerminalRequest = ['closed','cancelled','returned'].includes(String(request.lifecycleState || '')) || request.currentStatus?.statusType === 'final';
+      const canClientClose = !isTerminalRequest && portal === 'client' && request.lifecycleState === 'resolved';
+      const responseRow = request.slaMilestoneView?.rows?.find((row) => row.key === 'response') || {};
+      const updateRow = request.slaMilestoneView?.rows?.find((row) => row.key === 'update') || {};
+      const resolutionRow = request.slaMilestoneView?.rows?.find((row) => row.key === 'resolution') || {};
+      const canReturn = !isTerminalRequest && portal !== 'client' && ['L2','L3'].includes(String(request.currentSupportLevel || '')) && canAct;
+      const requestFamilyText = `${request.level1Type?.code || ''} ${request.level1Type?.name || ''} ${request.level2Type?.code || ''} ${request.level2Type?.name || ''} ${request.level3Type?.code || ''} ${request.level3Type?.name || ''}`.toLowerCase();
+      const v23MarkerField = (request.customFields || []).find((field) => {
+        const key = String(field.fieldKey || field.key || field.code || field.name || field.label || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+        return key === '__v23_service_model_key' || key === 'service_model_key';
+      });
+      const v23ServiceModelKey = String(request.serviceModelKey || request.level3Type?.serviceModelKey || request.level2Type?.serviceModelKey || request.level1Type?.serviceModelKey || v23MarkerField?.value || '');
+      const level2IncidentCode = String(request.level2Type?.code || '').trim().toUpperCase() === 'INCIDENT';
+      const seededIncidentPath = String(request.supportPath?.code || '').trim().toUpperCase().startsWith('PATH_INC_') || /\bincident\b/i.test(String(request.supportPath?.name || ''));
+      const seededV23Incident = level2IncidentCode && (String(request.taxonomyVersion || '').startsWith('23.1') || seededIncidentPath);
+      const isV23Saas = v23ServiceModelKey === 'SUNTEC_SAAS_V23' || seededV23Incident;
+      const isSaasIncident = seededV23Incident || (isV23Saas && /\bincident\b/i.test(requestFamilyText));
+      const allVisibleTasks = (stageViews || []).flatMap((stage) => stage.tasks || []);
+      const showWorkflowTasks = portal !== 'client' && !isSaasIncident && allVisibleTasks.length > 0;
+      const slaVisible = Boolean(request.sla?.policyName || request.slaView?.policyName)
+        && ['running','at_risk','breached','met','stopped'].includes(String(request.sla?.state || ''));
+      const clientStatusText = `${primaryStageView?.currentStatus?.name || ''} ${primaryStageView?.currentStatus?.customerLabel || ''}`;
+      const clientNeedsInfo = portal === 'client' && /need\s*(info|information)/i.test(clientStatusText);
+      const clientResolved = portal === 'client' && (request.lifecycleState === 'resolved' || /resolved|resolution/i.test(clientStatusText));
+      const familyLabel = request.level1Type?.name || 'Request';
+      const issueTypeLabel = request.level2Type?.name || 'Request';
+      const subtypeLabel = request.level3Type?.name || '';
+      const profileName = typeof uiProfileLabel !== 'undefined' ? uiProfileLabel : (portal === 'admin' ? 'Tenant Admin' : portal === 'client' ? 'Client User' : 'Support User');
+      const stageStatusLabel = (stage) => portal === 'client' ? (stage?.currentStatus?.customerLabel || stage?.currentStatus?.name || 'New') : (stage?.currentStatus?.name || 'New');
+      const stageCustomerLabel = (stage) => stage?.currentStatus?.customerLabel || stage?.currentStatus?.name || 'New';
+      const completedTaskCount = allVisibleTasks.filter((task) => ['done','cancelled'].includes(task.status)).length;
+      const blockingTaskCount = allVisibleTasks.filter((task) => task.isBlocking && !['done','cancelled'].includes(task.status)).length;
+      const displayedModules = (request.modules || []).length ? request.modules : (request.module?.name ? [request.module] : []);
+      const customerHiddenLifecycleKeys = new Set(['SEVERITY','PRIORITY','S3_BUCKET_URL','TEST_RELEASE','RELEASE_ID','RELEASE_TYPE','RCA_CATEGORY','ROOT_CAUSE','CORRECTIVE_ACTION','PREVENTIVE_ACTION','RCA_STATUS','APPROVER','EXCEPTION_APPROVER','TEST_CASE_LINK']);
+      const visibleCustomFieldValues = (request.customFieldValues || []).filter((field) => !(portal === 'client' && isSaasIncident && customerHiddenLifecycleKeys.has(String(field.fieldKey || '').toUpperCase())));
+      const actorCanWorkAnyStage = (stageViews || []).some((stage) => stage.canAct);
+      const responsePending = portal !== 'client' && !isTerminalRequest && actorCanWorkAnyStage && responseRow.actualLabel === '—' && ['running','at_risk','breached'].includes(String(responseRow.state || ''));
+      const responseUrgent = ['S1','S2','CRITICAL','SERIOUS'].some((token) => `${request.severity?.code || ''} ${request.severity?.name || ''}`.toUpperCase().includes(token));
+      const levelNumber = (level) => Number(String(level || '').replace(/\D/g,'')) || 0;
+      const currentLevelNumber = levelNumber(request.currentSupportLevel || 'L1');
+      const slaMetricValue = (row) => row.actualLabel && row.actualLabel !== '—' ? (row.stateLabel || row.actualLabel) : (row.timeLeft || row.stateLabel || 'N/A');
+      const slaMetricDetail = (row) => row.actualLabel && row.actualLabel !== '—' ? `Completed ${row.actualLabel}` : (row.dueLabel && row.dueLabel !== '—' ? `Due ${row.dueLabel}` : (row.reason || 'Not applicable'));
+      const slaMeterWidth = (row) => row?.state === 'met' ? 100 : row?.rag === 'red' ? 100 : row?.rag === 'amber' ? 82 : row?.rag === 'green' ? 58 : 18;
+      const hasBackwardSupportAction = (supportActions || []).some((action) => {
+        const targets = action.toLevelIds && action.toLevelIds.length ? action.toLevelIds : [action.toLevelId];
+        return targets.some((target) => levelNumber(target) < levelNumber(action.fromLevelId));
+      });
+      const assigneeLabel = (user = {}) => `${user.isCurrentActor ? 'Me · ' : ''}${user.name || user.email || 'User'}${user.name && user.email ? ` · ${user.email}` : ''}`;
+    %>
+    <div class="app-shell <%= portal !== 'admin' ? 'slim-shell' : '' %>">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main request-workbench-page jira-workbench-v2">
+        <% if (portal === 'admin') { %><%- include('../partials/topbar', { organization, portal }) %><% } %>
+
+        <% if (actionNotice) { %><div class="alert success request-action-message" role="status"><strong>Done.</strong><span><%= actionNotice %></span></div><% } %>
+        <% if (actionError) { %><div class="alert error request-action-message" role="alert"><strong>Request not changed.</strong><span><%= actionError %></span><a class="text-link" href="<%= actionBase %>">Refresh request</a></div><% } %>
+
+        <div class="request-workbench-grid jira-workbench-grid-v2">
+          <article class="request-workbench-main jira-issue-main">
+            <header class="issue-hero-header jira-issue-hero-v2">
+              <div class="issue-key-line">
+                <a class="issue-key-prominent" href="<%= actionBase %>" title="Open this request"><%= request.requestNumber %></a>
+                <span class="issue-support-chip"><%= request.currentSupportLevel || 'L1' %> · <%= request.ownerSide === 'suntec' ? 'SunTec' : request.ownerSide === 'partner' ? 'Partner' : 'Client' %></span>
+                <% if (request.severity?.name) { %><span class="severity-chip"><%= request.severity.name %></span><% } %>
+              </div>
+              <h1 class="issue-title-prominent"><%= request.subject %></h1>
+              <div class="issue-context-row">
+                <span><strong><%= request.client?.name || 'Client' %></strong><%= request.client?.code ? ` · ${request.client.code}` : '' %></span>
+                <span><%= familyLabel %> / <%= issueTypeLabel %><%= subtypeLabel ? ` / ${subtypeLabel}` : '' %></span>
+                <% if (request.environment?.name) { %><span><%= request.environment.name %></span><% } %>
+              </div>
+              <div class="issue-hero-links"><a href="<%= listPath %>">← Back to requests</a><a href="<%= newPath %>">＋ Raise another</a></div>
+
+              <div class="hero-support-context">
+                <% if (portal === 'client') { %>
+                  <div class="customer-status-simple">
+                    <span class="section-kicker">Current status</span>
+                    <strong><%= stageCustomerLabel(primaryStageView) %></strong>
+                    <small>We'll show you only the customer-facing status and actions that need your attention.</small>
+                  </div>
+                <% } else { %>
+                <div class="hero-support-head">
+                  <div><span class="section-kicker">Support journey</span><strong>Where this issue is now</strong></div>
+                  <% if (portal !== 'client' && primaryStageView) { %><span class="customer-status-inline"><small>Customer sees</small><strong><%= stageCustomerLabel(primaryStageView) %></strong></span><% } %>
+                </div>
+                <% if ((supportPathDefinition?.levels || []).length) { %>
+                  <div class="support-journey-track hero-journey-track" aria-label="Support journey">
+                    <% (supportPathDefinition.levels || []).forEach((level, index) => { const active = allStagesForView.some((stage) => stage.localId === level.localId); const completed = !active && levelNumber(level.localId) < currentLevelNumber; %>
+                      <div class="support-journey-node <%= active ? 'active' : completed ? 'complete' : 'future' %>">
+                        <span class="journey-dot"><%= completed ? '✓' : level.localId %></span>
+                        <div><strong><%= level.localId %></strong><small><%= level.label || '' %></small></div>
+                      </div>
+                      <% if (index < supportPathDefinition.levels.length - 1) { %><div class="journey-connector <%= completed ? 'complete' : '' %>"></div><% } %>
+                    <% }) %>
+                  </div>
+                <% } %>
+
+                <div class="active-stage-progress-list hero-stage-progress-list">
+                  <% (stageViews || []).forEach((stage) => { const statuses = stage.workflowDefinition?.statuses || []; const currentId = stage.currentStatus?.localId; const currentIndex = Math.max(0, statuses.findIndex((status) => status.localId === currentId)); %>
+                    <div class="active-stage-progress <%= stage.isPrimary ? 'is-primary' : '' %>">
+                      <div class="active-stage-progress-head">
+                        <div><span class="level-badge"><%= stage.localId %></span><strong><%= stage.workflow?.name || stage.label || `${stage.localId} workflow` %></strong></div>
+                        <span><%= stageStatusLabel(stage) %></span>
+                      </div>
+                      <div class="workflow-color-track" role="list" aria-label="<%= stage.localId %> workflow progress">
+                        <% statuses.forEach((status, index) => { %>
+                          <div class="workflow-color-step <%= index < currentIndex ? 'done' : index === currentIndex ? 'current' : 'future' %>" role="listitem" title="<%= status.name %>">
+                            <i></i><span><%= status.name %></span>
+                          </div>
+                        <% }) %>
+                      </div>
+                    </div>
+                  <% }) %>
+                </div>
+                <% } %>
+              </div>
+            </header>
+
+            <section class="jira-main-section issue-description-section">
+              <div class="minimal-section-head"><div><span class="section-kicker">Description</span><h2>Issue details</h2></div></div>
+              <div class="jira-description"><%= request.description %></div>
+              <% if ((request.attachments || []).length) { %><div class="attachment-list compact-attachments"><% request.attachments.forEach((attachment) => { %><% if (attachment.fileUrl) { %><a href="<%= attachment.fileUrl %>" target="_blank" rel="noreferrer">📎 <%= attachment.fileName %></a><% } else { %><span>📎 <%= attachment.fileName %></span><% } %><% }) %></div><% } %>
+            </section>
+
+            <% if (showWorkflowTasks) { %>
+            <section class="jira-task-launch-strip" aria-label="Workflow tasks">
+              <div><span class="section-kicker">Workflow tasks</span><strong><%= completedTaskCount %> / <%= allVisibleTasks.length %> complete</strong><% if (blockingTaskCount) { %><small><%= blockingTaskCount %> blocking task<%= blockingTaskCount === 1 ? '' : 's' %></small><% } else { %><small>No blockers</small><% } %></div>
+              <button class="btn secondary small" type="button" data-open-modal="tasksDrawer">Open tasks</button>
+            </section>
+            <% } %>
+
+            <section class="jira-main-section activity-section" data-activity-tabs>
+              <% const partnerView = portal === 'agent' && activeAssignment?.role === 'partnerUser'; %>
+              <% const visibleComments = (request.comments || []).filter((comment) => portal === 'client' ? comment.visibility === 'client_visible' : partnerView ? ['client_visible','partner_visible'].includes(comment.visibility || 'client_visible') : true); %>
+              <% const visibleTimeline = (request.timeline || []).filter((event) => { const visibility = String(event.visibility || ''); const message = String(event.message || ''); if (portal === 'client') return visibility !== 'internal_only' && visibility !== 'partner_visible' && event.eventType !== 'task_comment_added' && !/internal note|partner note|internal_only|partner_visible/i.test(message); if (partnerView) return visibility !== 'internal_only' && !/internal note|internal_only/i.test(message); return true; }); %>
+              <div class="activity-tabs" role="tablist" aria-label="Request activity">
+                <button class="activity-tab active" type="button" role="tab" aria-selected="true" data-activity-tab="comments"><span>Comments & updates</span><em><%= visibleComments.length %></em></button>
+                <button class="activity-tab" type="button" role="tab" aria-selected="false" data-activity-tab="audit"><span>Audit trail</span><em><%= visibleTimeline.length %></em></button>
+              </div>
+
+              <div class="activity-panel" data-activity-panel="comments">
+                <form method="post" action="<%= actionBase %>/comments" class="comment-form comment-composer jira-comment-composer" enctype="multipart/form-data" data-ajax-comment>
+                  <% if (portal !== 'client') { %>
+                    <div class="comment-visibility-row pill-toggle-row">
+                      <label><input type="radio" name="visibility" value="client_visible" checked /> Reply to customer</label>
+                      <% if (partnerView) { %>
+                        <label><input type="radio" name="visibility" value="partner_visible" /> Internal note</label>
+                      <% } else { %>
+                        <label><input type="radio" name="visibility" value="internal_only" /> Internal note</label>
+                      <% } %>
+                    </div>
+                  <% } else { %><input type="hidden" name="visibility" value="client_visible" /><% } %>
+                  <textarea name="body" rows="4" required placeholder="<%= portal === 'client' ? 'Add your reply' : 'Write an update, note, or reply' %>"></textarea>
+                  <div class="comment-form-actions composer-actions">
+                    <label class="attach-button">📎 Attach<input type="file" name="attachments" multiple /></label>
+                    <label class="url-reference-field"><span>Link</span><input class="input small-input" name="commentAttachmentNames" placeholder="Paste file URL or reference" /></label>
+                    <button class="btn primary small activity-post-button" type="submit">Post update</button>
+                  </div>
+                </form>
+                <div class="comment-list jira-comment-list" data-comment-list>
+                  <% if (!visibleComments.length) { %><p class="muted" data-empty-comments>No comments yet.</p><% } %>
+                  <% visibleComments.slice().reverse().forEach((comment) => { %>
+                    <article class="comment-item visibility-<%= comment.visibility %>">
+                      <div class="comment-avatar"><%= String(comment.author?.name || comment.author?.email || 'U').trim().slice(0,1).toUpperCase() %></div>
+                      <div class="comment-content"><div class="comment-meta"><strong><%= comment.author?.name || comment.author?.email || 'User' %></strong><span><%= comment.createdAt ? new Date(comment.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '' %></span><em><%= comment.visibility === 'client_visible' ? 'Public' : comment.visibility === 'partner_visible' ? 'Internal · Partner + SunTec' : 'Internal · SunTec' %></em></div><p><%= comment.body %></p><% if ((comment.attachments || []).length) { %><div class="attachment-list"><% comment.attachments.forEach((attachment) => { %><% if (attachment.fileUrl) { %><a href="<%= attachment.fileUrl %>" target="_blank" rel="noreferrer">📎 <%= attachment.fileName %></a><% } else { %><span>📎 <%= attachment.fileName %></span><% } %><% }) %></div><% } %></div>
+                    </article>
+                  <% }) %>
+                </div>
+              </div>
+
+              <div class="activity-panel" data-activity-panel="audit" hidden>
+                <div class="timeline jira-timeline activity-audit-timeline">
+                  <% ;[...visibleTimeline].reverse().forEach((event) => { %>
+                    <div class="timeline-item"><span></span><div><strong><%= event.message %></strong><small><%= event.actor?.name || event.actor?.email || 'System' %> · <%= event.createdAt ? new Date(event.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '' %></small></div></div>
+                  <% }) %>
+                  <% if (!visibleTimeline.length) { %><p class="muted">No audit events yet.</p><% } %>
+                </div>
+              </div>
+            </section>
+          </article>
+          <aside class="request-action-rail jira-action-rail-v2">
+            <% if (responsePending) { %>
+              <div class="action-rail-card acknowledge-priority-card <%= responseUrgent ? 'is-urgent' : '' %>">
+                <div class="acknowledge-priority-head"><span class="rail-eyebrow">Response required</span><strong><%= request.severity?.code || request.severity?.name || 'Incident' %></strong></div>
+                <p><%= responseRow.timeLeft || responseRow.stateLabel || 'Response SLA is running' %></p>
+                <% if (responseRow.dueLabel && responseRow.dueLabel !== '—') { %><small>Due <%= responseRow.dueLabel %></small><% } %>
+                <button class="rail-primary-action acknowledge-now-button" type="button" data-open-modal="ackModal">✓ Acknowledge incident</button>
+              </div>
+            <% } %>
+            <div class="action-rail-card jira-status-control-card">
+              <span class="rail-eyebrow">Current workflow</span>
+              <% (stageViews || []).forEach((stage) => { %>
+                <div class="jira-stage-status-control">
+                  <div class="jira-status-heading"><span class="level-badge"><%= stage.localId %></span><div><strong><%= portal === 'client' ? stageCustomerLabel(stage) : (stage.currentStatus?.name || 'New') %></strong><small><%= stage.label || stage.workflow?.name || 'Support stage' %></small></div></div>
+                  <% if (portal !== 'client') { %><div class="customer-status-readout"><span>Customer sees</span><strong><%= stageCustomerLabel(stage) %></strong></div><% } %>
+                  <% if (portal === 'client') { %>
+                    <% if (clientNeedsInfo) { %>
+                      <button class="rail-primary-action" type="button" data-open-modal="clientInfoModal">Submit information</button>
+                    <% } else if (clientResolved) { %>
+                      <button class="rail-primary-action" type="button" data-open-modal="closeModal">Accept & close</button>
+                      <button class="rail-text-action warning" type="button" data-open-modal="clientReopenModal">Issue not resolved</button>
+                    <% } else if (!isTerminalRequest) { %>
+                      <span class="rail-muted-note">No action required from you right now.</span>
+                    <% } %>
+                  <% } else if (!isTerminalRequest && stage.canAct && (stage.statusOptions || []).length) { %>
+                    <button class="jira-status-button" type="button" data-open-modal="stageStatus_<%= stage.localId %>"><%= stage.currentStatus?.name || 'Status' %> <span>⌄</span></button>
+                  <% } else if (!isTerminalRequest && isSaasIncident && stage.ownerSide === 'client' && !stage.assignedTo?.actorId && !stage.assignedTo?.email) { %><span class="rail-muted-note">Client / Bank stage</span><% } else if (!isTerminalRequest && !stage.assignedTo?.actorId && !stage.assignedTo?.email) { %><span class="rail-muted-note">Ready for an eligible support user.</span><% } else if (!isTerminalRequest && !stage.canAct) { %><span class="rail-muted-note">Owned by another user.</span><% } else { %><span class="rail-muted-note"><%= isTerminalRequest ? 'Workflow locked' : 'No transition available' %></span><% } %>
+                </div>
+              <% }) %>
+              <% if (!isTerminalRequest && (supportActions || []).length) { %>
+                <div class="status-routing-inline">
+                  <span class="rail-eyebrow">Support routing</span>
+                  <div class="status-routing-actions">
+                    <% (supportActions || []).forEach((action) => { const targets = action.toLevelIds && action.toLevelIds.length ? action.toLevelIds : [action.toLevelId]; const isReturn = targets.some((target) => levelNumber(target) < levelNumber(action.fromLevelId)); %>
+                      <button class="<%= isReturn ? 'rail-secondary-action return-routing-action' : 'rail-primary-action' %> compact-route-button" type="button" data-open-modal="move_<%= action.localId %>"><small><%= action.sourceStageId || action.fromLevelId %></small><span><%= isReturn ? '↩ ' : '→ ' %><%= action.actionLabel %></span></button>
+                    <% }) %>
+                  </div>
+                </div>
+              <% } %>
+            </div>
+
+            <% if (!isV23Saas) { %>
+            <div class="action-rail-card ownership-card">
+              <span class="rail-eyebrow">Ownership</span>
+              <% (stageViews || []).forEach((stage) => { %>
+                <div class="ownership-stage-row">
+                  <div class="ownership-avatar"><%= String(stage.assignedTo?.name || stage.assignedTo?.email || stage.localId).slice(0,1).toUpperCase() %></div>
+                  <div class="ownership-copy"><small><%= stage.localId %> owner</small><strong><%= stage.actorOwnsStage ? 'Me' : (stage.assignedTo?.name || stage.assignedTo?.email || 'Unassigned') %></strong><% if (stage.actorOwnsStage) { %><em><%= stage.assignedTo?.name || stage.assignedTo?.email || 'You' %> · You own this stage</em><% } else if (stage.staleAssignedTo) { %><em class="ownership-warning">Previous owner <%= stage.staleAssignedTo.name || stage.staleAssignedTo.email %> is no longer eligible for this stage.</em><% } %></div>
+                  <div class="ownership-actions">
+                    <% if (!isTerminalRequest && stage.canTakeOwnership) { %><form method="post" action="<%= actionBase %>/stages/<%= stage.localId %>/assignee"><input type="hidden" name="mode" value="take"/><button type="submit">Take ownership</button></form><% } %>
+                    <% if (!isTerminalRequest && stage.canAssignOthers) { %><button type="button" data-open-modal="assignStage_<%= stage.localId %>"><%= stage.assignedTo?.actorId || stage.assignedTo?.email ? 'Reassign' : 'Assign' %></button><% } %>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+
+            <% } %>
+            <% if (slaVisible) { %>
+            <div class="action-rail-card jira-sla-card rag-border-<%= request.slaRag %>">
+              <div class="jira-sla-head"><div><span class="rail-eyebrow">SLA</span><strong><%= request.slaView?.policyName || request.sla?.policyName || 'SLA tracking' %></strong></div><span class="rag-pill rag-<%= request.slaRag %>"><%= String(request.slaRag || 'grey').toUpperCase() %></span></div>
+              <div class="jira-sla-summary"><strong><%= request.slaView?.nextAction || request.slaLabel || 'Not active' %></strong><small><%= request.slaView?.nextTimeLeft || request.slaReason || '' %></small></div>
+              <div class="jira-sla-metrics">
+                <% [responseRow, updateRow, resolutionRow].forEach((row) => { %><div class="jira-sla-metric rag-<%= row.rag || 'grey' %>"><div><span><%= row.label || 'Milestone' %></span><strong><%= slaMetricValue(row) %></strong></div><div class="sla-health-meter"><i style="width:<%= slaMeterWidth(row) %>%"></i></div><small><%= slaMetricDetail(row) %></small></div><% }) %>
+              </div>
+            </div>
+            <% } %>
+
+            <details class="action-rail-card jira-details-card" open>
+              <summary><span class="rail-eyebrow">Details</span><strong>Issue profile</strong></summary>
+              <dl class="rail-profile-list">
+                <div><dt>Support</dt><dd><%= request.supportLevelLabel %></dd></div>
+                <div><dt>Severity</dt><dd><%= request.severity?.name || 'Not selected' %><% if (portal !== 'client' && !isTerminalRequest) { %> <button class="inline-link-button" type="button" data-open-modal="severityModal">Change</button><% } %></dd></div>
+                <div><dt>Priority</dt><dd><%= request.priority?.name || 'Not selected' %><% if (isV23Saas && portal !== 'client' && !isTerminalRequest) { %> <button class="inline-link-button" type="button" data-open-modal="severityModal">Change</button><% } %></dd></div>
+                <div><dt>Environment</dt><dd><%= request.environment?.name || 'Not selected' %></dd></div>
+                <div><dt>Product</dt><dd><%= request.product?.name || 'Not selected' %></dd></div>
+                <div><dt>Modules</dt><dd><%= displayedModules.length ? displayedModules.map((item) => item.name).join(', ') : 'Not selected' %></dd></div>
+                <div><dt>Region</dt><dd><%= request.region?.name || 'Not selected' %></dd></div>
+                <div><dt>Type</dt><dd><%= familyLabel %> / <%= issueTypeLabel %><%= subtypeLabel ? ` / ${subtypeLabel}` : '' %></dd></div>
+                <div><dt>Created by</dt><dd><%= request.requester?.name || request.requester?.email || '—' %></dd></div>
+                <div><dt>Created</dt><dd><%= request.createdLabel %></dd></div>
+                <% if (portal !== 'client') { %><div><dt>Visibility</dt><dd><%= request.visibilityLabel %></dd></div><div><dt>Support path</dt><dd><%= request.supportPath?.name || 'Not assigned' %></dd></div><% } %>
+              </dl>
+              <% if (visibleCustomFieldValues.length) { %><div class="rail-custom-fields"><span class="rail-eyebrow">Additional</span><% visibleCustomFieldValues.forEach((field) => { %><div class="rail-custom-field-row"><small><%= field.label %></small><strong><%= field.displayValue || '—' %></strong></div><% }) %></div><% } %>
+            </details>
+
+            <% if (!isTerminalRequest && (canClientClose || (canReturn && !isV23Saas && !hasBackwardSupportAction) || (portal !== 'client' && !(supportActions || []).length))) { %>
+              <div class="action-rail-card rail-more-card">
+                <span class="rail-eyebrow">More actions</span>
+                <div class="rail-action-stack">
+                  <% if (canReturn && !isV23Saas && !hasBackwardSupportAction) { %><button class="rail-text-action warning" type="button" data-open-modal="returnModal">Return request</button><% } %>
+                  <% if (canClientClose) { %><button class="rail-text-action danger" type="button" data-open-modal="closeModal">Close request</button><% } %>
+                  <% if (portal !== 'client' && !(supportActions || []).length && !request.supportPath?.name) { %><a class="rail-text-action" href="/admin/issue-types">Assign support path</a><% } %>
+                </div>
+              </div>
+            <% } %>
+            <% if (isTerminalRequest) { %><div class="action-rail-card terminal-rail-card"><span class="rail-eyebrow">Request locked</span><strong><%= request.lifecycleState || 'Closed' %></strong><p>Operational actions are disabled for this request.</p></div><% } %>
+
+            <div class="action-rail-viewer"><span class="profile-dot"></span><div><small>Viewing as</small><strong><%= profileName %></strong></div></div>
+          </aside>
+        </div>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <% if (!isSaasIncident && showWorkflowTasks) { %>
+    <dialog class="workbench-side-dialog" id="tasksDrawer">
+      <div class="side-dialog-shell">
+        <div class="side-dialog-head"><div><p class="eyebrow">Workflow tasks</p><h3><%= completedTaskCount %> of <%= allVisibleTasks.length %> complete</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <% if (blockingTaskCount) { %><div class="drawer-blocker-banner">🔒 <strong><%= blockingTaskCount %> blocking task<%= blockingTaskCount === 1 ? '' : 's' %></strong><span>Complete these before the blocked workflow transition can continue.</span></div><% } %>
+        <div class="drawer-task-list">
+          <% (stageViews || []).forEach((stage) => { const stageTasks = stage.tasks || []; %>
+            <section class="drawer-task-stage"><div class="drawer-task-stage-head"><span class="level-badge"><%= stage.localId %></span><strong><%= stage.label || stage.localId %></strong><small><%= stageTasks.filter((task) => !['done','cancelled'].includes(task.status)).length %> open</small></div>
+              <% if (!stageTasks.length) { %><p class="muted">No tasks for this stage.</p><% } %>
+              <% stageTasks.forEach((task) => { const done = ['done','cancelled'].includes(task.status); %>
+                <div class="drawer-task-row <%= task.isBlocking && !done ? 'is-blocking' : '' %> <%= done ? 'is-complete' : '' %>">
+                  <span class="task-check-indicator"><%= done ? '✓' : task.status === 'in_progress' ? '◐' : task.status === 'blocked' ? '!' : '○' %></span>
+                  <div><a href="<%= taskBase %>/<%= encodeURIComponent(task.taskId) %>"><strong><%= task.title %></strong></a><small><%= task.taskId %> · <%= String(task.status || 'open').replaceAll('_',' ') %><%= task.assignedTo?.name ? ` · ${task.assignedTo.name}` : '' %></small><% if (task.completionNote) { %><em><%= task.completionNote %></em><% } %></div>
+                  <% if (task.isBlocking && !done) { %><span class="compact-tag warn">Blocking</span><% } %>
+                  <% if (!isTerminalRequest && stage.canAct) { %><button class="task-row-action" type="button" data-open-modal="taskUpdate_<%= task.localId %>"><%= done ? 'Reopen' : 'Update' %></button><% } %>
+                </div>
+              <% }) %>
+            </section>
+          <% }) %>
+        </div>
+      </div>
+    </dialog>
+    <% } %>
+
+    <dialog class="modal" id="closeModal">
+      <% if (portal === 'client') { %>
+        <form method="post" action="<%= actionBase %>/client-action" class="modal-card form compact-form">
+          <input type="hidden" name="action" value="accept_resolution" />
+          <div class="modal-head"><div><p class="eyebrow">Resolution</p><h3>Accept and close?</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+          <p class="muted">Confirm that the resolution works for you. This will close the request.</p>
+          <label><span>Closure comment</span><textarea name="comment" rows="3" required minlength="2" maxlength="1200" placeholder="Resolution verified and accepted."></textarea></label>
+          <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Accept & close</button></div>
+        </form>
+      <% } else { %>
+        <form method="post" action="<%= actionBase %>/close" class="modal-card form compact-form"><div class="modal-head"><div><p class="eyebrow">Close request</p><h3>Close request?</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><label><span>Closure comment</span><textarea name="comment" rows="3" required minlength="3" maxlength="1200" placeholder="Explain how it was resolved"></textarea></label><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Close request</button></div></form>
+      <% } %>
+    </dialog>
+
+    <dialog class="modal" id="clientInfoModal">
+      <form method="post" action="<%= actionBase %>/client-action" class="modal-card form compact-form" enctype="multipart/form-data">
+        <input type="hidden" name="action" value="submit_information" />
+        <div class="modal-head"><div><p class="eyebrow">Information required</p><h3>Send the requested information</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <p class="muted">Your response is added as a public update and the request returns to the support team.</p>
+        <label><span>Your response</span><textarea name="comment" rows="5" required minlength="2" maxlength="5000" placeholder="Provide the requested details"></textarea></label>
+        <label class="attach-button">📎 Attach supporting files<input type="file" name="attachments" multiple /></label>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Submit information</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="clientReopenModal">
+      <form method="post" action="<%= actionBase %>/client-action" class="modal-card form compact-form">
+        <input type="hidden" name="action" value="not_resolved" />
+        <div class="modal-head"><div><p class="eyebrow">Resolution</p><h3>Issue not resolved?</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <p class="muted">Tell the support team what is still wrong. The request will reopen without resetting the SLA start time.</p>
+        <label><span>What is still not working?</span><textarea name="comment" rows="5" required minlength="2" maxlength="5000" placeholder="Describe what still needs attention"></textarea></label>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Reopen request</button></div>
+      </form>
+    </dialog>
+
+    <% if (portal !== 'client' && !isTerminalRequest) { %>
+    <dialog class="modal" id="severityModal">
+      <form method="post" action="<%= actionBase %>/classification" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Classification</p><h3><%= isV23Saas ? 'Change severity / priority' : 'Change severity' %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Severity</span><select name="severityId" required><% for (const severity of severities || []) { %><option value="<%= severity._id || severity.id %>" <%= String(severity._id || severity.id) === String(request.severity?.id || '') ? 'selected' : '' %>><%= severity.code || severity.name %> · <%= severity.name || severity.code %></option><% } %></select></label>
+        <% if (isV23Saas) { %><label><span>Priority</span><select name="priorityId"><option value="">Not selected</option><% for (const priority of priorities || []) { %><option value="<%= priority._id || priority.id %>" <%= String(priority._id || priority.id) === String(request.priority?.id || '') ? 'selected' : '' %>><%= priority.code || priority.name %> · <%= priority.name || priority.code %></option><% } %></select></label><% } %>
+        <p class="muted"><%= isV23Saas ? 'Changes are audited. SLA targets are recalculated without resetting the original SLA start.' : 'Severity changes use the existing classification behavior.' %></p>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save</button></div>
+      </form>
+    </dialog>
+    <% } %>
+
+    <dialog class="modal" id="returnModal"><form method="post" action="<%= actionBase %>/return" class="modal-card form compact-form"><div class="modal-head"><div><p class="eyebrow">Legacy return</p><h3>Return this request</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><p class="muted">Prefer a configured support-path return movement when one is available.</p><label><span>Reason</span><select name="reason" required><option value="">Choose reason</option><option>Not a valid request</option><option>Duplicate</option><option>Insufficient information</option><option>Wrong request type</option><option>Should be handled at previous level</option><option>Not reproducible</option><option>Other</option></select></label><label><span>Visibility</span><select name="visibility"><option value="client_visible">Client visible</option><option value="partner_visible">Partner visible</option><option value="internal_only">Internal only</option></select></label><label><span>Comment</span><textarea name="comment" rows="3" required minlength="3" maxlength="1200" placeholder="Explain what needs to happen next"></textarea></label><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Return request</button></div></form></dialog>
+
+    <dialog class="workbench-side-dialog" id="ackModal"><form method="post" action="<%= actionBase %>/acknowledge" class="side-dialog-shell form compact-form"><div class="side-dialog-head"><div><p class="eyebrow">Response SLA</p><h3>Acknowledge request</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><p class="muted">This records the actual response time for the response SLA milestone.</p><label><span>Optional comment</span><textarea name="comment" rows="3" placeholder="We have acknowledged this and started triage."></textarea></label><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Acknowledge</button></div></form></dialog>
+
+    <% (stageViews || []).forEach((stage) => { %>
+      <% if (stage.canAssignOthers) { %>
+        <dialog class="workbench-side-dialog" id="assignStage_<%= stage.localId %>">
+          <form method="post" action="<%= actionBase %>/stages/<%= stage.localId %>/assignee" class="side-dialog-shell form compact-form">
+            <div class="side-dialog-head"><div><p class="eyebrow"><%= stage.localId %> ownership</p><h3>Assign an eligible user</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+            <input type="hidden" name="mode" value="assign" />
+            <p class="muted"><%= stage.ownerSide === 'client' ? 'Only eligible customer users for this client are shown.' : stage.ownerSide === 'partner' ? 'Only eligible Partner users for this client are shown.' : 'Only eligible SunTec agents/managers for this client are shown.' %></p>
+            <label><span>Owner</span><select name="assignedToId"><option value="">Unassigned</option><% (stage.eligibleAssignees || []).forEach((user) => { %><option value="<%= user._id %>" <%= String(stage.assignedTo?.actorId || '') === String(user._id) ? 'selected' : '' %>><%= assigneeLabel(user) %></option><% }) %></select><small class="field-hint">Your own eligible identity is shown first as <strong>Me</strong>.</small></label>
+            <% if (!(stage.eligibleAssignees || []).length) { %><div class="note-box warning-lite"><strong>No eligible users found.</strong><p>Add a matching <%= stage.ownerSide === 'client' ? 'Client User' : stage.ownerSide === 'partner' ? 'Partner User' : 'Agent/Manager' %> assignment for this client and support level.</p></div><% } %>
+            <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit" <%= !(stage.eligibleAssignees || []).length && !(stage.assignedTo?.actorId || stage.assignedTo?.email) ? 'disabled' : '' %>>Save owner</button></div>
+          </form>
+        </dialog>
+      <% } %>
+    <% }) %>
+
+    <% (stageViews || []).forEach((stage) => { (stage.tasks || []).forEach((task) => { %>
+      <% if (!isTerminalRequest && stage.canAct) { %>
+        <dialog class="workbench-side-dialog" id="taskUpdate_<%= task.localId %>">
+          <form method="post" action="<%= actionBase %>/tasks/<%= task.localId %>/status" class="side-dialog-shell form compact-form" data-task-update-form>
+            <div class="side-dialog-head"><div><p class="eyebrow"><%= stage.localId %> task</p><h3><%= task.title %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+            <p class="muted"><%= task.description || 'Update the task status. Completing or cancelling a blocking task will unlock workflow progression.' %></p>
+            <label><span>Task status</span><select name="status" required data-task-status-select data-no-auto-lock="true"><option value="open" <%= task.status === 'open' ? 'selected' : '' %>>Open</option><option value="in_progress" <%= task.status === 'in_progress' ? 'selected' : '' %>>In progress</option><option value="blocked" <%= task.status === 'blocked' ? 'selected' : '' %>>Blocked</option><option value="done" <%= task.status === 'done' ? 'selected' : '' %>>Done</option><option value="cancelled" <%= task.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option></select></label>
+            <label><span>Completion / update note</span><textarea name="note" rows="4" maxlength="1200" data-task-note placeholder="Required when completing or cancelling a task"><%= task.completionNote || '' %></textarea><small class="field-hint" data-task-note-hint>Completion and cancellation require a note of at least 3 characters.</small></label>
+            <% if (task.isBlocking) { %><div class="note-box warning-lite"><strong>This is a blocking task.</strong><p>The <%= stage.localId %> workflow cannot move while it remains open, in progress, or blocked.</p></div><% } %>
+            <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save task</button></div>
+          </form>
+        </dialog>
+      <% } %>
+    <% }) }) %>
+
+    <% (stageViews || []).forEach((stage) => { %>
+      <% if ((stage.statusOptions || []).length && stage.canAct) { %>
+        <dialog class="workbench-side-dialog" id="stageStatus_<%= stage.localId %>">
+          <form method="post" action="<%= actionBase %>/status" class="side-dialog-shell form compact-form stage-status-form">
+            <div class="side-dialog-head"><div><p class="eyebrow"><%= stage.localId %> workflow</p><h3>Change status</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+            <input type="hidden" name="stageId" value="<%= stage.localId %>" />
+            <input type="hidden" name="expectedFromStatusId" value="<%= stage.currentStatus?.localId || '' %>" />
+            <div class="status-change-current"><small><%= portal === 'client' ? 'Current customer status' : 'Current internal status' %></small><strong><%= portal === 'client' ? stageCustomerLabel(stage) : (stage.currentStatus?.name || 'New') %></strong><% if (portal !== 'client') { %><span>Customer sees · <%= stageCustomerLabel(stage) %></span><% } %></div>
+            <label><span>Next status</span><select name="toStatusId" required data-next-status-select><option value="">Choose status</option><% (stage.statusOptions || []).forEach((status) => { %><option value="<%= status.localId %>" data-customer-label="<%= status.customerLabel || status.name %>"><%= status.name %><%= portal === 'admin' && status.isConfiguredTransition === false ? ' · admin override' : '' %></option><% }) %></select><% if (portal === 'admin') { %><small>Configured transitions are preferred; administrator overrides are audited.</small><% } %></label>
+            <% if (portal !== 'client') { %><div class="customer-status-preview"><span>Customer will see</span><strong data-customer-status-preview>Choose the next status</strong></div><% } %>
+            <% if (isSaasIncident && (stage.openBlockingTasks || []).length) { %>
+              <div class="transition-requirements">
+                <div class="transition-requirements-head"><span>Before you move this stage</span><strong><%= stage.openBlockingTasks.length %> required item<%= stage.openBlockingTasks.length === 1 ? '' : 's' %></strong></div>
+                <p>Complete these here as part of the status change. They remain in the audit trail, but are not shown as a separate task queue.</p>
+                <% (stage.openBlockingTasks || []).forEach((task) => { %>
+                  <label class="transition-requirement-item"><span><%= task.title %></span><small><%= task.description || 'Record the required evidence or outcome.' %></small><input type="hidden" name="completeBlockingTaskIds" value="<%= task.localId %>" /><textarea name="blockingTaskNote__<%= task.localId %>" rows="3" minlength="3" required placeholder="Record the outcome / evidence before continuing"></textarea></label>
+                <% }) %>
+              </div>
+            <% } %>
+            <% if (stage.canAssignOthers) { %><label><span>Owner <small>required when moving to Assigned</small></span><select name="assignedToId"><option value=""><%= stage.assignedTo?.name || stage.assignedTo?.email ? `Keep ${stage.actorOwnsStage ? 'Me' : (stage.assignedTo.name || stage.assignedTo.email)}` : 'Choose owner if needed' %></option><% (stage.eligibleAssignees || []).forEach((user) => { %><option value="<%= user._id %>"><%= assigneeLabel(user) %></option><% }) %></select></label><% } %>
+            <label><span>Comment</span><textarea name="comment" rows="4" required minlength="3" maxlength="1200" placeholder="Explain the status change"></textarea><small class="field-hint">Minimum 3 characters. This note is added to the request timeline.</small></label>
+            <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit" data-submitting-label="Updating…">Change <%= stage.localId %> status</button></div>
+          </form>
+        </dialog>
+      <% } %>
+    <% }) %>
+
+    <% (supportActions || []).forEach((action) => { const actionTargets = action.toLevelIds && action.toLevelIds.length ? action.toLevelIds : [action.toLevelId]; const isReturn = actionTargets.some((target) => levelNumber(target) < levelNumber(action.fromLevelId)); %>
+      <dialog class="workbench-side-dialog" id="move_<%= action.localId %>">
+        <form method="post" action="<%= actionBase %>/support-move" class="side-dialog-shell form compact-form">
+          <div class="side-dialog-head"><div><p class="eyebrow"><%= isReturn ? 'Send back' : 'Support routing' %></p><h3><%= action.actionLabel %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+          <input type="hidden" name="ruleId" value="<%= action.localId %>" /><input type="hidden" name="expectedFromLevelId" value="<%= action.sourceStageId || action.fromLevelId %>" />
+          <div class="movement-preview"><span><%= action.fromLevelId %></span><strong><%= isReturn ? '↩' : '→' %></strong><span><%= actionTargets.join(action.movementType === 'parallel' ? ' + ' : ', ') %></span></div>
+          <% if (action.movementType === 'parallel') { %><p class="note-box">Both target stages become active together. <strong><%= action.primaryLevelId || actionTargets[0] %></strong> will be primary.</p><% } %>
+          <label><span>Reason</span><select name="reason" <%= action.reasonRequired ? 'required' : '' %>><option value="">Choose reason</option><option>Unable to resolve at current level</option><option>More information required</option><option>Customer verification required</option><option>Partner deployment / validation required</option><option>Specialist support required</option><option>Product or code investigation required</option><option>Other</option></select></label>
+          <label><span>Comment</span><textarea name="comment" rows="4" minlength="3" maxlength="1200" <%= action.commentRequired ? 'required' : '' %> placeholder="Add the context the receiving team needs"></textarea><small class="field-hint"><%= action.commentRequired ? 'Required · minimum 3 characters.' : 'Optional · if entered, use at least 3 characters.' %></small></label>
+          <p class="field-hint"><%= action.targetStatusBehavior === 'start' ? 'The receiving stage starts its configured workflow and is initially unassigned.' : 'A compatible workflow status is retained when possible.' %></p>
+          <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit" data-submitting-label="Routing…"><%= action.actionLabel %></button></div>
+        </form>
+      </dialog>
+    <% }) %>
+
+    <script src="/js/app.js"></script>
+    <script>
+      document.querySelectorAll('[data-next-status-select]').forEach((select) => {
+        const form = select.closest('form');
+        const preview = form?.querySelector('[data-customer-status-preview]');
+        const updatePreview = () => {
+          if (!preview) return;
+          const option = select.options[select.selectedIndex];
+          preview.textContent = option?.dataset?.customerLabel || 'Choose the next status';
+        };
+        select.addEventListener('change', updatePreview);
+        updatePreview();
+      });
+      document.querySelectorAll('[data-task-update-form]').forEach((form) => {
+        const status = form.querySelector('[data-task-status-select]');
+        const note = form.querySelector('[data-task-note]');
+        const hint = form.querySelector('[data-task-note-hint]');
+        const sync = () => {
+          const required = ['done','cancelled'].includes(status?.value || '');
+          if (note) { note.required = required; note.minLength = required ? 3 : 0; }
+          if (hint) hint.classList.toggle('required-note', required);
+        };
+        status?.addEventListener('change', sync);
+        sync();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= title %> · <%= appName %></title><link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= title %> · <%= appName %></title><link rel="stylesheet" href="/css/app.css"></head>
+<body class="setup-page">
+  <main class="setup-shell single-setup-shell">
+    <section class="card setup-card activation-card">
+      <div class="activation-icon">✉</div>
+      <p class="eyebrow">Activation required</p>
+      <h2>Check your email</h2>
+      <p class="muted"><strong><%= organization.name %></strong> has been created in pending state. It will not be available for login until the first administrator activates it.</p>
+      <div class="activation-summary">
+        <div><span>Workspace</span><strong>/<%= organization.workspaceSlug %></strong></div>
+        <div><span>Administrator</span><strong><%= adminEmail %></strong></div>
+        <div><span>Activation</span><strong>One-time link · 24 hours</strong></div>
+      </div>
+      <% if (mailMode === 'console') { %>
+        <div class="alert warn"><strong>Local mail mode.</strong><span><%= mailMessage || 'The activation email is printed in the Service Desk terminal because MAIL_MODE=console.' %></span></div>
+      <% } else if (mailResult?.ok) { %>
+        <div class="alert success"><strong>Activation email sent.</strong><span><%= mailMessage %></span></div>
+      <% } else { %>
+        <div class="alert error"><strong>Activation email not delivered.</strong><span><%= mailMessage || 'The workspace remains pending. You can retry the activation email without recreating the organization.' %></span></div>
+      <% } %>
+      <div class="actions left-actions">
+        <form method="post" action="/setup/resend-activation"><button class="btn primary" type="submit">Resend activation email</button></form>
+        <a class="btn secondary" href="/setup">Create another organization</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

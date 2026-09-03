@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <% const portalLabel = portal === 'client' ? 'Client Portal' : portal === 'agent' ? 'Agent Portal' : 'Admin Portal'; %>
+    <% const withQuery = (params) => { const entries = Object.entries(params || {}).filter(([, value]) => value !== undefined && value !== null && String(value) !== ''); const query = new URLSearchParams(entries.map(([key, value]) => [key, String(value)])).toString(); return query ? `${newPath}?${query}` : newPath; }; %>
+    <% const steps = []; if (showClientStep) steps.push({ key: 'client', label: 'Client' }); const familyIsAutomatic = Boolean(selectedClient && (activeTree || []).length === 1); if (!familyIsAutomatic) steps.push({ key: 'family', label: 'Family' }); steps.push({ key: 'issueType', label: 'Issue Type' }); if (selectedLevel2 && (selectedLevel2.children || []).length) steps.push({ key: 'subtype', label: 'Subtype' }); steps.push({ key: 'details', label: 'Details' }); %>
+    <% const currentIndex = Math.max(0, steps.findIndex((step) => step.key === currentStep)); %>
+    <% const cfg = fieldConfig || { severity:true, priority:true, product:true, module:true, region:true, environment:true }; %>
+
+    <div class="app-shell <%= portal !== 'admin' ? 'slim-shell' : '' %>">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main request-intake-page progressive-intake-page">
+        <% if (portal === 'admin') { %><%- include('../partials/topbar', { organization }) %><% } else { %><header class="topbar simple-topbar page-brand-header"><div><p class="eyebrow"><%= portalLabel %></p><h1><%= organization.name %></h1></div></header><% } %>
+
+        <section class="page-head compact-page-head clean-request-head">
+          <div>
+            <p class="eyebrow"><%= portalLabel %></p>
+            <h2>Raise request</h2>
+            <p></p>
+          </div>
+          <a class="btn secondary small" href="<%= listPath %>">← Back to requests</a>
+        </section>
+
+        <section class="preview-shell card intake-clean-shell progressive-shell">
+          <div class="stepper clean-steps progressive-steps steps-<%= steps.length %>">
+            <% steps.forEach((step, index) => { %><span class="<%= index === currentIndex ? 'active' : index < currentIndex ? 'done' : '' %>"><%= index + 1 %>. <%= step.label %></span><% }) %>
+          </div>
+
+          <% if (errorMessage) { %><div class="alert"><%= errorMessage %></div><% } %>
+
+          <% if (!accessibleClients.length) { %>
+            <div class="empty-box large-empty"><strong>No client access available.</strong><p><%= portal === 'admin' ? 'Create a client before raising requests.' : 'Ask the admin to assign you to a client.' %></p><% if (portal === 'admin') { %><a class="btn primary" href="/admin/clients">Go to Clients</a><% } %></div>
+          <% } else if (currentStep === 'client') { %>
+            <div class="progressive-panel">
+              <div class="step-heading conversational-heading"><p class="eyebrow">First, choose the client</p><h2>Who is this for?</h2><p>Search and pick the client account. The next choices will change based on that client’s configuration.</p></div>
+              <% if (showClientSearch) { %>
+                <div class="client-search-panel refined-search-panel">
+                  <label for="requestClientSearch">Search clients</label>
+                  <div class="refined-search-control">
+                    <span aria-hidden="true">⌕</span>
+                    <input id="requestClientSearch" type="search" placeholder="Search by client name, short code, or domain" data-filter-input="request_clients" autofocus />
+                  </div>
+                </div>
+              <% } %>
+              <div class="choice-row compact-choice-row clean-choice-row client-choice-grid" data-filter-list="request_clients">
+                <% accessibleClients.forEach((item) => { %>
+                  <a class="choice-card clean-choice-card progressive-choice-card" data-filter-item="<%= `${item.shortCode} ${item.name}`.toLowerCase() %>" href="<%= withQuery({ clientId: item._id }) %>">
+                    <span class="client-code"><%= item.shortCode %></span>
+                    <span><strong><%= item.name %></strong></span>
+                  </a>
+                <% }) %>
+              </div>
+            </div>
+          <% } else if (currentStep === 'family') { %>
+            <div class="progressive-panel">
+              <% if (selectedClient) { %><div class="selected-scope-line compact-scope-line"><span class="client-code mini-code"><%= selectedClient.shortCode %></span><div><strong><%= selectedClient.name %></strong><small>Request will be raised in this client scope.</small></div></div><% } %>
+              <% if (selectedClient && !activeTree.length) { %>
+                <div class="empty-box large-empty"><strong>No request families enabled for <%= selectedClient.name %>.</strong><p>Ask the admin to configure issue type availability for this client.</p></div>
+              <% } else { %>
+                <div class="step-heading conversational-heading"><p class="eyebrow">Choose the family</p><h2>Which request family?</h2><p>Only families enabled for this client are shown.</p></div>
+                <div class="intake-cards progressive-intake-cards compact-intake-cards">
+                  <% activeTree.forEach((parent) => { %>
+                    <a class="intake-card" href="<%= withQuery({ clientId: selectedClient._id, level1TypeId: parent._id }) %>"><span class="intake-icon"><%= parent.icon || '◌' %></span><strong><%= parent.name %></strong><p><%= parent.description %></p></a>
+                  <% }) %>
+                </div>
+              <% } %>
+              <div class="wizard-footer"><% if (showClientStep) { %><a class="btn secondary" href="<%= newPath %>">Back</a><% } %></div>
+            </div>
+          <% } else if (currentStep === 'issueType') { %>
+            <div class="progressive-panel">
+              <div class="selected-scope-line compact-scope-line"><span class="client-code mini-code"><%= selectedClient.shortCode %></span><div><strong><%= selectedClient.name %></strong><small><%= selectedLevel1.name %></small></div></div>
+              <% if (activeTree.length === 1) { %><div class="auto-selection-note"><strong><%= selectedLevel1.name %></strong> was selected automatically because it is the only Issue Family enabled for <%= selectedClient.name %>.</div><% } %>
+              <div class="step-heading conversational-heading"><p class="eyebrow">Choose the issue type</p><h2>What type of issue is this?</h2><p></p></div>
+              <% if (selectedLevel1.children.length) { %>
+                <div class="subtype-grid card-subtype-grid progressive-subtype-grid">
+                  <% selectedLevel1.children.forEach((child) => { %>
+                    <a class="subtype-select" href="<%= withQuery({ clientId: selectedClient._id, level1TypeId: selectedLevel1._id, level2TypeId: child._id }) %>"><strong><%= child.name %></strong><span><%= child.description %></span></a>
+                  <% }) %>
+                </div>
+              <% } else { %><div class="empty-box"><strong>No issue types yet.</strong><p>Ask the admin to add Issue Types under this Family.</p></div><% } %>
+              <div class="wizard-footer"><a class="btn secondary" href="<%= withQuery({ clientId: selectedClient._id }) %>">Back</a></div>
+            </div>
+          <% } else if (currentStep === 'subtype') { %>
+            <div class="progressive-panel">
+              <div class="selected-scope-line compact-scope-line"><span class="client-code mini-code"><%= selectedClient.shortCode %></span><div><strong><%= selectedClient.name %></strong><small><%= selectedLevel1.name %> / <%= selectedLevel2.name %></small></div></div>
+              <div class="step-heading conversational-heading"><p class="eyebrow">Choose the subtype</p><h2>Which subtype fits best?</h2><p></p></div>
+              <% if ((selectedLevel2.children || []).length) { %>
+                <div class="subtype-grid card-subtype-grid progressive-subtype-grid">
+                  <% (selectedLevel2.children || []).forEach((child) => { %>
+                    <a class="subtype-select" href="<%= withQuery({ clientId: selectedClient._id, level1TypeId: selectedLevel1._id, level2TypeId: selectedLevel2._id, level3TypeId: child._id }) %>"><strong><%= child.name %></strong><span><%= child.description %></span></a>
+                  <% }) %>
+                </div>
+              <% } else { %><div class="empty-box"><strong>No subtypes configured.</strong><p>This Issue Type can proceed directly to details.</p></div><% } %>
+              <div class="wizard-footer"><a class="btn secondary" href="<%= withQuery({ clientId: selectedClient._id, level1TypeId: selectedLevel1._id }) %>">Back</a></div>
+            </div>
+          <% } else if (currentStep === 'details') { %>
+            <div class="progressive-panel details-panel">
+              <form class="card pad form request-form-card progressive-form-card" method="post" action="<%= submitPath %>">
+                <input type="hidden" name="clientId" value="<%= selectedClient._id %>" />
+                <input type="hidden" name="level1TypeId" value="<%= selectedLevel1._id %>" />
+                <input type="hidden" name="level2TypeId" value="<%= selectedLevel2._id %>" />
+                <input type="hidden" name="level3TypeId" value="<%= selectedLevel3?._id || '' %>" />
+                <div class="selection-summary compact-selection-summary"><div><span>Client</span><strong><%= selectedClient.shortCode %> · <%= selectedClient.name %></strong></div><div><span>Request</span><strong><%= selectedLevel1.name %> / <%= selectedLevel2.name %><%= selectedLevel3 ? ` / ${selectedLevel3.name}` : '' %></strong></div></div>
+                <div class="section-head clean-form-head"><div><p class="eyebrow">Final step</p><h2>What should we know?</h2></div></div>
+                <% if (portal === 'client') { %>
+                  <input type="hidden" name="source" value="client_portal" />
+                  <input type="hidden" name="visibilityScope" value="client_visible" />
+                  <input type="hidden" name="currentSupportLevel" value="<%= defaultSupportLevel || 'L1' %>" />
+                <% } else { %>
+                  <details class="config-panel origin-panel simple-origin-panel progressive-disclosure origin-visibility-panel refined-origin-card" open>
+                    <summary>Origin, visibility and ownership</summary>
+                    <div class="origin-explainer">Use this when the request is created on behalf of a customer, partner team, or internal support team.</div>
+                    <div class="origin-field-grid">
+                      <% if (isV23SaasIntake) { %><input type="hidden" name="source" value="<%= form.source || defaultSource %>" /><% } else { %><label><span>Trigger <em>*</em></span><select name="source" required data-origin-source><option value="client_asked_agent" <%= (form.source || defaultSource) === 'client_asked_agent' ? 'selected' : '' %>>Customer asked us</option><option value="partner_observed" <%= (form.source || defaultSource) === 'partner_observed' ? 'selected' : '' %>>Partner observed it</option><option value="internal_observed" <%= (form.source || defaultSource) === 'internal_observed' ? 'selected' : '' %>>SunTec observed it</option><option value="system_alert" <%= (form.source || defaultSource) === 'system_alert' ? 'selected' : '' %>>System alert</option></select></label><% } %>
+                      <label><span>Visibility <em>*</em></span><select name="visibilityScope" required data-visibility-scope><option value="client_visible" <%= (form.visibilityScope || defaultVisibilityScope) === 'client_visible' ? 'selected' : '' %>>Client visible</option><option value="partner_visible" <%= (form.visibilityScope || defaultVisibilityScope) === 'partner_visible' ? 'selected' : '' %>>Partner + SunTec only</option><option value="internal_only" <%= (form.visibilityScope || defaultVisibilityScope) === 'internal_only' ? 'selected' : '' %>>SunTec internal only</option></select><small class="field-hint">Hidden requests never appear in the client portal.</small></label>
+                      <label><span>Initial support level</span><select name="currentSupportLevel"><% if ((supportLevels || []).length) { %><% supportLevels.forEach((level) => { %><option value="<%= level.localId %>" <%= (form.currentSupportLevel || defaultSupportLevel) === level.localId ? 'selected' : '' %>><%= level.label %></option><% }) %><% } else { %><option value="L1">L1 · Client / Bank</option><option value="L2">L2 · Partner / Operations</option><option value="L3" selected>L3 · SunTec Support</option><% } %></select></label>
+                    </div>
+                    <div class="origin-contact-grid">
+                      <label><span>Raised on behalf of</span><input name="raisedOnBehalfOfName" value="<%= form.raisedOnBehalfOfName || '' %>" placeholder="Customer/contact name" /></label>
+                      <label><span>Contact email</span><input type="email" name="raisedOnBehalfOfEmail" value="<%= form.raisedOnBehalfOfEmail || '' %>" placeholder="customer@example.com" /></label>
+                    </div>
+                  </details>
+                <% } %>
+                <div class="form-section-block first-block"><p class="eyebrow">Basics</p><label><span>Summary <em>*</em></span><input name="subject" required minlength="3" maxlength="180" value="<%= form.subject || '' %>" placeholder="Short one-line summary" /></label><label><span>Description <em>*</em></span><textarea name="description" required minlength="10" rows="5" placeholder="Describe the request clearly. Include what changed, what is affected, and what help you need."><%= form.description || '' %></textarea></label></div>
+                <% const showSeverity = cfg.severity; const showPriority = portal !== 'client' && cfg.priority; %><% if (showSeverity || showPriority) { %><div class="form-section-block aligned-form-section"><p class="eyebrow">Classification</p><div class="two-col aligned-field-row"><% if (showSeverity) { %><label><span><%= portal === 'client' && isSaasIncidentIntake ? 'Reported severity' : 'Severity' %></span><select name="severityId"><option value="">Not selected</option><% severities.forEach((item) => { %><option value="<%= item._id %>" <%= String(form.severityId || '') === String(item._id) ? 'selected' : '' %>><%= item.code %> - <%= item.name %></option><% }) %></select><% if (portal === 'client' && isSaasIncidentIntake) { %><small class="field-hint">Choose the severity based on the business impact you are experiencing. Support can confirm or reclassify it during triage.</small><% } %></label><% } %><% if (showPriority) { %><label><span>Priority</span><select name="priorityId"><option value="">Not selected</option><% priorities.forEach((item) => { %><option value="<%= item._id %>" <%= String(form.priorityId || '') === String(item._id) ? 'selected' : '' %>><%= item.code %> - <%= item.name %></option><% }) %></select><small class="field-hint">Priority is set by support/partner teams.</small></label><% } %></div></div><% } %>
+                <% if (cfg.product || cfg.module || cfg.region || cfg.environment) { %><div class="form-section-block aligned-form-section"><p class="eyebrow">Context</p><div class="two-col aligned-field-row"><% const autoProductId = !form.productId && (productOptions || []).length === 1 ? String(productOptions[0]._id) : String(form.productId || ''); %><% const selectedModuleIds = Array.isArray(form.moduleIds) ? form.moduleIds.map(String) : [form.moduleIds || form.moduleId].filter(Boolean).map(String); %><% if (cfg.product) { %><label><span>Product</span><select name="productId" id="requestProduct" data-auto-product="<%= (productOptions || []).length === 1 ? 'true' : 'false' %>"><option value="">Not selected</option><% productOptions.forEach((item) => { const selected = autoProductId === String(item._id); %><option value="<%= item._id %>" <%= selected ? 'selected' : '' %>><%= item.name %></option><% }) %></select><% if ((productOptions || []).length === 1) { %><small class="field-hint"></small><% } %></label><% } %><% if (cfg.module) { %><label><span>Modules</span><select name="moduleIds" id="requestModule" multiple size="4" data-auto-module="true"><% moduleOptions.forEach((item) => { %><option value="<%= item._id %>" data-product-id="<%= item.productId %>" <%= selectedModuleIds.includes(String(item._id)) ? 'selected' : '' %>><%= item.name %></option><% }) %></select><small class="field-hint"></small></label><% } %></div><div class="two-col aligned-field-row"><% if (cfg.region) { %><label><span>Region</span><select name="regionId"><option value="">Not selected</option><% (regionOptions || []).forEach((item) => { %><option value="<%= item._id %>" <%= String(form.regionId || selectedClient.regionId || '') === String(item._id) ? 'selected' : '' %>><%= item.name %></option><% }) %></select><small class="field-hint">Only the configured client region is available.</small></label><% } %><% if (cfg.environment) { %><label><span>Environment</span><select name="environmentId"><option value="">Not selected</option><% (environmentOptions || []).forEach((item) => { %><option value="<%= item._id %>" <%= String(form.environmentId || '') === String(item._id) ? 'selected' : '' %>><%= item.name %></option><% }) %></select><small class="field-hint"></small></label><% } %></div></div><% } %>
+                
+                <% if ((customFieldDefinitions || []).length) { %>
+                  <div class="form-section-block custom-field-section"><p class="eyebrow">Additional details</p>
+                    <div class="two-col custom-fields-grid">
+                      <% customFieldDefinitions.forEach((field) => { const fieldName = `custom_${field.fieldKey}`; const optionLines = String(field.optionsText || '').replace(/\r/g, '').split('\n').map((line) => line.trim()).filter(Boolean); %>
+                        <label class="custom-field custom-field-<%= field.fieldType %>"><span><%= field.label %><% if (field.required) { %> <em>*</em><% } %></span>
+                          <% if (field.fieldType === 'long_text') { %>
+                            <textarea name="<%= fieldName %>" rows="4" <%= field.required ? 'required' : '' %> placeholder="<%= field.helpText || '' %>"><%= form[fieldName] || '' %></textarea>
+                          <% } else if (field.fieldType === 'dropdown') { %>
+                            <select name="<%= fieldName %>" <%= field.required ? 'required' : '' %>><option value="">Not selected</option><% optionLines.forEach((option) => { %><option value="<%= option %>" <%= String(form[fieldName] || '') === option ? 'selected' : '' %>><%= option %></option><% }) %></select>
+                          <% } else if (field.fieldType === 'multi_select') { %>
+                            <select name="<%= fieldName %>" multiple <%= field.required ? 'required' : '' %>><% optionLines.forEach((option) => { const selectedValues = Array.isArray(form[fieldName]) ? form[fieldName] : [form[fieldName]].filter(Boolean); %><option value="<%= option %>" <%= selectedValues.includes(option) ? 'selected' : '' %>><%= option %></option><% }) %></select>
+                          <% } else if (field.fieldType === 'checkbox') { %>
+                            <span class="checkbox-field-wrap"><input type="checkbox" name="<%= fieldName %>" <%= form[fieldName] ? 'checked' : '' %> /> Yes</span>
+                          <% } else if (field.fieldType === 'date') { %>
+                            <input type="date" name="<%= fieldName %>" value="<%= form[fieldName] || '' %>" <%= field.required ? 'required' : '' %> />
+                          <% } else if (field.fieldType === 'number') { %>
+                            <input type="number" name="<%= fieldName %>" value="<%= form[fieldName] || '' %>" <%= field.required ? 'required' : '' %> placeholder="<%= field.helpText || '' %>" />
+                          <% } else if (field.fieldType === 'url') { %>
+                            <input type="url" name="<%= fieldName %>" value="<%= form[fieldName] || '' %>" <%= field.required ? 'required' : '' %> placeholder="https://" />
+                          <% } else { %>
+                            <input name="<%= fieldName %>" value="<%= form[fieldName] || '' %>" <%= field.required ? 'required' : '' %> placeholder="<%= field.helpText || '' %>" />
+                          <% } %>
+                          <% if (field.helpText && !['short_text','number','long_text'].includes(field.fieldType)) { %><small class="field-hint"><%= field.helpText %></small><% } %>
+                        </label>
+                      <% }) %>
+                    </div>
+                  </div>
+                <% } %>
+<div class="form-section-block"><p class="eyebrow">Attachments</p><label><span>Attach files</span><input type="file" multiple data-attachment-picker /><input type="hidden" name="attachmentNames" data-attachment-names /><small class="field-hint" data-attachment-list>No files selected.</small></label></div><div class="form-footer wizard-footer details-footer"><a class="btn secondary" href="<%= withQuery({ clientId: selectedClient._id, level1TypeId: selectedLevel1._id, level2TypeId: (selectedLevel2.children || []).length ? selectedLevel2._id : '' }) %>">Back</a><button class="btn primary" type="submit">Submit request</button><a class="btn ghost" href="<%= listPath %>">Cancel</a></div>
+              
+  <%- include('../partials/v23-saas-form-engine') %>
+</form>
+            </div>
+          <% } %>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+    <script src="/js/app.js"></script>
+    <script>
+      const productSelect = document.getElementById('requestProduct');
+      const moduleSelect = document.getElementById('requestModule');
+      if (productSelect && productSelect.dataset.autoProduct === 'true' && !productSelect.value && productSelect.options.length === 2) {
+        productSelect.options[1].selected = true;
+      }
+      if (moduleSelect) {
+        const allModuleOptions = [...moduleSelect.options].map((option) => ({ value: option.value, text: option.text, productId: option.dataset.productId || '', selected: option.selected }));
+        function filterModules() {
+          const productId = productSelect ? productSelect.value : '';
+          const selected = new Set([...moduleSelect.selectedOptions].map((option) => option.value));
+          moduleSelect.innerHTML = '';
+          const visible = allModuleOptions.filter((item) => !productId || item.productId === productId);
+          visible.forEach((item) => {
+            const option = new Option(item.text, item.value);
+            option.dataset.productId = item.productId;
+            option.selected = selected.has(item.value) || item.selected;
+            moduleSelect.add(option);
+          });
+          const selectedCount = [...moduleSelect.options].filter((option) => option.selected).length;
+          if (moduleSelect.dataset.autoModule === 'true' && moduleSelect.options.length === 1 && selectedCount === 0) {
+            moduleSelect.options[0].selected = true;
+          }
+        }
+        if (productSelect) productSelect.addEventListener('change', filterModules);
+        filterModules();
+      }
+    </script>
+  </body>
+</html>

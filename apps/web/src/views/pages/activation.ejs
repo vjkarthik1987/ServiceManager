@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= title %> · <%= appName %></title><link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= title %> · <%= appName %></title><link rel="stylesheet" href="/css/app.css"></head>
+<body class="setup-page">
+  <main class="setup-shell single-setup-shell">
+    <section class="card setup-card activation-card">
+      <p class="eyebrow">Workspace activation</p>
+      <h2><%= organization ? `Activate ${organization.name}` : 'Activation link' %></h2>
+      <% if (errorMessage) { %>
+        <div class="alert error"><strong>Could not activate.</strong><span><%= errorMessage %></span></div>
+        <a class="btn secondary" href="/admin/login">Back to admin login</a>
+      <% } else { %>
+        <p class="muted">Hello <strong><%= admin?.name %></strong>. Choose the password for the first administrator. The organization becomes active only after this step succeeds.</p>
+        <form class="form" method="post" action="/activate/<%= token %>" data-password-form>
+          <label><span>Admin email</span><input value="<%= admin?.email || '' %>" disabled></label>
+          <label><span>New password</span><div class="password-field"><input type="password" name="password" minlength="8" required autocomplete="new-password" data-password-primary><button type="button" class="password-toggle" data-toggle-password aria-label="Show password">👁</button></div><small class="muted">Use at least 8 characters.</small></label>
+          <label><span>Confirm password</span><input type="password" name="confirmPassword" minlength="8" required autocomplete="new-password" data-password-confirm></label>
+          <div class="password-feedback" data-password-feedback aria-live="polite">
+            <span data-password-length>○ At least 8 characters</span>
+            <span data-password-match>○ Passwords must match</span>
+          </div>
+          <button class="btn primary full" type="submit">Activate workspace</button>
+        </form>
+      <% } %>
+    </section>
+  </main>
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <% const client = selectedClient; %>
+    <% const ownLevel1 = new Set((client.enabledFamilyIds || []).map(String)); %>
+    <% const effectiveLevel1 = new Set((effectiveLevel1Ids || []).map(String)); %>
+    <% const ownProducts = new Set((client.enabledProductIds || []).map(String)); %>
+    <% const ownModules = new Set((client.enabledModuleIds || []).map(String)); %>
+    <% const effectiveProducts = new Set((effectiveProductIds || []).map(String)); %>
+    <% const effectiveModules = new Set((effectiveModuleIds || []).map(String)); %>
+    <% const ownEnvironments = new Set((client.enabledEnvironmentIds || []).map(String)); %>
+    <% const effectiveEnvironments = new Set((effectiveEnvironmentIds || []).map(String)); %>
+    <% const businessCalendar = client.businessCalendar || {}; %>
+    <% const businessWorkingDays = new Set((businessCalendar.workingDays || [1,2,3,4,5]).map(Number)); %>
+    <% const businessHolidayText = (businessCalendar.holidays || []).map((item) => `${item.date}${item.name ? ` | ${item.name}` : ''}`).join('\n'); %>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal: 'admin' }) %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+
+        <section class="page-head unified-page-head">
+          <div>
+            <p class="eyebrow">Client</p>
+            <h2><%= client.name %></h2>
+            <p><span class="code-inline"><%= client.shortCode %></span> · <%= parentClient ? `Child of ${parentClient.name}` : 'Root client' %> · <%= client.status %></p>
+          </div>
+          <div class="actions">
+            <a class="btn secondary" href="/admin/clients">All clients</a>
+            <button class="btn secondary" type="button" data-open-modal="editClientModal">Edit</button>
+            <button class="btn secondary" type="button" data-open-modal="childClientModal">Add child</button>
+            <a class="btn primary" href="/admin/clients/<%= client._id %>/preview">Preview intake</a>
+            <button class="btn danger" type="button" data-open-modal="deleteClientModal">Delete client</button>
+          </div>
+        </section>
+
+        <nav class="detail-tabs card" data-client-tabs aria-label="Client detail sections">
+          <button type="button" class="active" data-client-tab="overview">Overview</button>
+          <button type="button" data-client-tab="users">Users <span><%= (clientUsers || []).length %></span></button>
+          <button type="button" data-client-tab="configuration">Configuration</button>
+          <button type="button" data-client-tab="rules">Operational rules</button>
+          <button type="button" data-client-tab="hierarchy">Hierarchy <span><%= childClients.length %></span></button>
+        </nav>
+
+        <div data-client-tab-panel="overview">
+        <section class="client-overview-strip card">
+          <div><span>Domain</span><strong><%= client.primaryDomain || 'Not set' %></strong></div>
+          <div><span>Region</span><strong><%= (regions.find((region) => String(region._id) === String(client.regionId || '')) || {}).name || 'Not set' %></strong></div>
+          <div><span>Subregion</span><strong><%= (subregions.find((item) => String(item._id) === String(client.subregionId || '')) || {}).name || 'Not set' %></strong></div>
+          <div><span>Timezone</span><strong><%= client.timezone || 'Not set' %></strong></div>
+          <div><span>Children</span><strong><%= childClients.length %></strong></div>
+        </section>
+        </div>
+
+        <div data-client-tab-panel="users" hidden>
+          <section class="card client-table-card client-users-card">
+            <div class="section-head"><div><p class="eyebrow">Client access</p><h3>Users with access to <%= client.name %></h3><p class="section-help">Includes direct assignments and inherited access from a parent client.</p></div><a class="btn secondary small" href="/admin/users">Manage all users</a></div>
+            <% if ((clientUsers || []).length) { %><div class="table-wrap"><table class="clean-table compact-table"><thead><tr><th>User</th><th>Email</th><th>Role for this client</th><th>Scope</th><th>Status</th><th></th></tr></thead><tbody><% clientUsers.forEach((user)=>{ %><tr><td><strong><%= user.name %></strong></td><td><%= user.email %><% if (user.pendingEmail) { %><small>Pending: <%= user.pendingEmail %></small><% } %></td><td><%= (user.matchingRoleLabels || []).join(', ') || '—' %></td><td><span class="value-chip"><%= user.inheritedAccess ? 'Inherited from parent scope' : 'Direct access' %></span></td><td><span class="inline-status"><span class="status-dot <%= user.status === 'active' ? 'active' : '' %>"></span><span><%= user.status === 'active' ? 'Active' : 'Inactive' %></span></span></td><td><a class="table-link-button" href="/admin/users?edit=<%= user._id %>">Edit</a></td></tr><% }) %></tbody></table></div><% } else { %><div class="empty-box roomy"><strong>No users have access yet.</strong><p>Assign a user directly to this client or inherit access from a parent client.</p></div><% } %>
+          </section>
+        </div>
+
+        <div data-client-tab-panel="configuration" hidden>
+        <section class="card pad client-config-page">
+          <div class="section-head"><div><p class="eyebrow">Configuration</p><h3>Everything enabled for this client</h3></div></div>
+
+          <div class="config-section-row">
+            <div class="config-section-copy"><span class="config-icon">◇</span><div><strong>Issue Families</strong><p><%= client.issueTypeMode === 'inherit' ? `Inherited from ${parentClient ? parentClient.name : 'parent'}` : 'Client-specific service model' %>. Only these families are available when a request is raised for this client.</p></div></div>
+            <div class="config-values">
+              <% tree.filter((parent) => effectiveLevel1.has(String(parent._id))).forEach((parent) => { %><span class="value-chip"><%= parent.name %></span><% }) %>
+              <% if (!effectiveLevel1.size) { %><span class="muted">None configured</span><% } %>
+            </div>
+            <button class="btn secondary small" type="button" data-open-modal="issueTypeModal">Configure</button>
+          </div>
+
+          <div class="config-section-row">
+            <div class="config-section-copy"><span class="config-icon">▣</span><div><strong>Products & modules</strong><p><%= (client.productModuleMode || 'custom') === 'inherit' ? `Inherited from ${parentClient ? parentClient.name : 'parent'}` : 'Custom selection' %></p></div></div>
+            <div class="config-values">
+              <% (products || []).filter((product) => effectiveProducts.has(String(product._id))).forEach((product) => { %>
+                <% const names = (product.modules || []).filter((module) => effectiveModules.has(String(module._id))).map((module) => module.name); %>
+                <span class="value-chip"><%= product.name %><%= names.length ? ` · ${names.join(', ')}` : '' %></span>
+              <% }) %>
+              <% if (!effectiveProducts.size) { %><span class="muted">None configured</span><% } %>
+            </div>
+            <button class="btn secondary small" type="button" data-open-modal="productModuleModal">Configure</button>
+          </div>
+
+          <div class="config-section-row">
+            <div class="config-section-copy"><span class="config-icon">◷</span><div><strong>Default SLA</strong><p><%= client.slaMode === 'inherit' ? `Inherited from ${parentClient ? parentClient.name : 'parent'}` : 'Custom selection' %></p></div></div>
+            <div class="config-values"><span class="value-chip"><%= defaultSlaPolicy ? defaultSlaPolicy.name : 'Not assigned' %></span></div>
+            <button class="btn secondary small" type="button" data-open-modal="clientSlaModal">Configure</button>
+          </div>
+
+          <div class="config-section-row">
+            <div class="config-section-copy"><span class="config-icon">◴</span><div><strong>Issue Family SLAs</strong><p>Override the default SLA by Issue Family. Child clients can inherit these assignments.</p></div></div>
+            <div class="config-values">
+              <% (client.familySlaAssignments || []).filter((item) => item.isActive !== false).forEach((assignment) => { const family = tree.find((item) => String(item._id) === String(assignment.level1TypeId || '')); const policy = (slaPolicies || []).find((item) => String(item._id) === String(assignment.slaPolicyId || '')); %>
+                <span class="value-chip"><%= family?.name || 'Issue Family' %> → <%= policy?.name || 'SLA' %></span>
+              <% }) %>
+              <% if (!(client.familySlaAssignments || []).filter((item) => item.isActive !== false).length) { %><span class="muted"><%= parentClient ? 'No local override · inherited family SLA may apply' : 'No family-specific SLA' %></span><% } %>
+            </div>
+            <button class="btn secondary small" type="button" data-open-modal="familySlaModal">Configure</button>
+          </div>
+
+          <div class="config-section-row">
+            <div class="config-section-copy"><span class="config-icon">◎</span><div><strong>Location, calendar &amp; environments</strong><p>Region, timezone, contractual working calendar, holidays and available environments for this client.</p></div></div>
+            <div class="config-values"><span class="value-chip"><%= (regions.find((region) => String(region._id) === String(client.regionId || '')) || {}).name || 'No region' %></span><% if (client.subregionId) { %><span class="value-chip"><%= (subregions.find((item) => String(item._id) === String(client.subregionId || '')) || {}).name || 'No subregion' %></span><% } %><span class="value-chip"><%= client.timezone || 'No timezone' %></span><span class="value-chip"><%= (client.businessCalendarMode || 'custom') === 'inherit' ? 'Calendar inherited' : `${businessCalendar.dayStart || '09:00'}–${businessCalendar.dayEnd || '17:00'} · ${(businessCalendar.workingDays || [1,2,3,4,5]).length} working days` %></span><% (environments || []).filter((env) => effectiveEnvironments.has(String(env._id))).forEach((env) => { %><span class="value-chip"><%= env.name %></span><% }) %><% if (!effectiveEnvironments.size) { %><span class="muted">No environments</span><% } %></div>
+            <button class="btn secondary small" type="button" data-open-modal="clientContextModal">Configure</button>
+          </div>
+        </section>
+        </div>
+
+        <div data-client-tab-panel="rules" hidden>
+        <section class="card pad client-ops-section">
+          <div class="section-head client-rule-head"><div><p class="eyebrow">Operational rules</p><h3>Client + request subtype support path</h3><p class="section-help">A matching client rule overrides the subtype default. Use severity and environment only when the path should apply to a narrower situation.</p></div><button class="btn secondary small" type="button" data-open-modal="operationalRuleModal">Add rule</button></div>
+          <% if ((client.operationalRules || []).length) { %>
+            <div class="client-rule-list">
+              <% (client.operationalRules || []).forEach((rule) => { %>
+                <% const level2 = tree.flatMap((parent) => parent.children || []).find((item) => String(item._id) === String(rule.level2TypeId || '')); %>
+                <% const path = (supportPaths || []).find((item) => String(item._id) === String(rule.supportPathId || '')); %>
+                <% const sevNames = (rule.severityIds || []).map((id) => (severities || []).find((item) => String(item._id) === String(id))?.code).filter(Boolean); %>
+                <% const envNames = (rule.environmentIds || []).map((id) => (environments || []).find((item) => String(item._id) === String(id))?.name).filter(Boolean); %>
+                <article class="client-rule-card <%= rule.isActive === false ? 'is-inactive' : '' %>">
+                  <div class="client-rule-main">
+                    <div class="client-rule-title"><span class="rule-icon">↳</span><div><strong><%= level2?.name || 'Unknown subtype' %></strong><small><%= level2?.parentName || 'Request subtype' %></small></div></div>
+                    <span class="compact-tag <%= rule.isActive === false ? 'warn' : '' %>"><%= rule.isActive === false ? 'Inactive' : 'Active' %></span>
+                  </div>
+                  <div class="client-rule-details">
+                    <div><span>Support path</span><strong><%= path?.name || 'Unknown path' %></strong></div>
+                    <div><span>Conditions</span><strong><%= sevNames.length ? sevNames.join(', ') : 'All severities' %></strong><small><%= envNames.length ? envNames.join(', ') : 'All environments' %></small></div>
+                    <div><span>Applies to</span><strong><%= rule.inheritToChildren === false ? 'This client only' : 'This client and child clients' %></strong></div>
+                  </div>
+                </article>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="empty-config-state"><strong>No client-specific rule yet.</strong><p>The request subtype’s default support path will be used until a rule is added.</p></div>
+          <% } %>
+        </section>
+        </div>
+
+        <div data-client-tab-panel="hierarchy" hidden>
+        <section class="card pad client-children-section">
+          <div class="section-head"><div><p class="eyebrow">Hierarchy</p><h3>Child clients</h3></div><button class="btn secondary small" type="button" data-open-modal="childClientModal">+ Add child</button></div>
+          <% if (!childClients.length) { %><p class="muted">No child clients.</p><% } %>
+          <div class="compact-list">
+            <% childClients.forEach((child) => { %><a class="compact-row-link" href="/admin/clients/<%= child._id %>"><div><strong><%= child.name %></strong><p><%= child.shortCode %> · Issue Families <%= child.issueTypeMode %> · SLA <%= child.slaMode %></p></div><span>Open →</span></a><% }) %>
+          </div>
+        </section>
+        </div>
+              <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <dialog class="modal" id="editClientModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/edit" class="modal-card form compact-form">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Edit client</p>
+            <h3><%= client.name %></h3>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+        </div>
+        <input type="hidden" id="editClientId" value="<%= client._id %>" />
+        <label>
+          <span>Client name</span>
+          <input id="editClientName" name="name" required value="<%= client.name %>" data-client-code-name="editClientShortCode" data-code-status="editClientCodeStatus" data-exclude-client-id="<%= client._id %>" />
+        </label>
+        <div class="two-col narrow">
+          <label>
+            <span>Short code</span>
+            <input id="editClientShortCode" name="shortCode" minlength="6" maxlength="6" pattern="[A-Za-z]{6}" required value="<%= client.shortCode %>" data-client-code-input data-code-status="editClientCodeStatus" data-exclude-client-id="<%= client._id %>" />
+          </label>
+          <label>
+            <span>Status</span>
+            <select name="status">
+              <option value="active" <%= client.status === 'active' ? 'selected' : '' %>>Active</option>
+              <option value="inactive" <%= client.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+            </select>
+          </label>
+        </div>
+        <p class="field-hint" id="editClientCodeStatus">Short code must be exactly 6 letters and unique.</p>
+        <label>
+          <span>Description</span>
+          <textarea name="description" rows="2"><%= client.description || '' %></textarea>
+        </label>
+        <label>
+          <span>Domain</span>
+          <input name="primaryDomain" value="<%= client.primaryDomain || '' %>" placeholder="acmebank.com" />
+        </label>
+        <div class="three-col geography-fields" data-client-geography>
+          <label><span>Region</span><select name="regionId" data-geography-region><option value="">No region yet</option><% regions.filter((region) => region.status === 'active').forEach((region) => { %><option value="<%= region._id %>" data-timezone="<%= region.timezone || '' %>" <%= String(region._id) === String(client.regionId || '') ? 'selected' : '' %>><%= region.name %></option><% }) %></select></label>
+          <label><span>Subregion <small>(optional)</small></span><select name="subregionId" data-geography-subregion data-selected-subregion="<%= client.subregionId || '' %>"><option value="">No subregion</option><% subregions.filter((item) => item.status === 'active').forEach((item) => { %><option value="<%= item._id %>" data-region-id="<%= item.regionId %>" data-timezone="<%= item.timezone || '' %>" <%= String(item._id) === String(client.subregionId || '') ? 'selected' : '' %>><%= item.name %></option><% }) %></select></label>
+          <label><span>Timezone</span><select name="timezone" data-context-timezone data-selected-timezone="<%= client.timezone || '' %>"><option value="<%= client.timezone || '' %>"><%= client.timezone || 'Choose region first' %></option></select></label>
+        </div>
+        <label>
+          <span>Notes</span>
+          <input name="notes" value="<%= client.notes || '' %>" placeholder="Optional internal notes" />
+        </label>
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+          <button class="btn primary" type="submit">Save client</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="childClientModal">
+      <form method="post" action="/admin/clients" class="modal-card form compact-form">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Create child client</p>
+            <h3>Under <%= client.name %></h3>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+        </div>
+        <input type="hidden" name="parentClientId" value="<%= client._id %>" />
+        <div class="parent-context">Parent: <strong><%= client.name %></strong></div>
+        <label>
+          <span>Client name</span>
+          <input id="childClientName" name="name" required placeholder="Example: Retail Banking" data-client-code-name="childClientShortCode" data-code-status="childClientCodeStatus" />
+        </label>
+        <div class="two-col narrow">
+          <label>
+            <span>Short code</span>
+            <input id="childClientShortCode" name="shortCode" minlength="6" maxlength="6" pattern="[A-Za-z]{6}" required placeholder="RETBAN" data-client-code-input data-code-status="childClientCodeStatus" />
+          </label>
+          <label>
+            <span>Domain</span>
+            <input name="primaryDomain" placeholder="optional" />
+          </label>
+        </div>
+        <p class="field-hint" id="childClientCodeStatus">Short code must be exactly 6 letters and unique.</p>
+        <label>
+          <span>Description</span>
+          <textarea name="description" rows="2" placeholder="Short child client context"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+          <button class="btn primary" type="submit">Create child</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal wide" id="issueTypeModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/availability" class="modal-card form compact-form">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Configure Issue Families</p>
+            <h3>Issue Families for <%= client.name %></h3>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+        </div>
+        <% if (parentClient) { %>
+          <label class="pick-row mode-row">
+            <input type="radio" name="issueTypeMode" value="inherit" <%= client.issueTypeMode === 'inherit' ? 'checked' : '' %> data-toggle-section="issueTypeCustom" data-toggle-value="custom" />
+            <span><strong>Inherit from <%= parentClient.name %></strong><small>Child client follows the parent client’s Issue Family availability.</small></span>
+          </label>
+        <% } %>
+        <label class="pick-row mode-row">
+          <input type="radio" name="issueTypeMode" value="custom" <%= client.issueTypeMode !== 'inherit' ? 'checked' : '' %> data-toggle-section="issueTypeCustom" data-toggle-value="custom" />
+          <span><strong>Choose Issue Families for this client</strong><small>Only selected families can be raised for this client. Workflows, support paths and routing remain family-specific.</small></span>
+        </label>
+
+        <div id="issueTypeCustom" class="pick-list" <%= client.issueTypeMode === 'inherit' ? 'hidden' : '' %>>
+          <% tree.forEach((parent) => { %>
+            <label class="pick-row" data-filter-item="<%= `${parent.name} ${parent.description || ''}`.toLowerCase() %>">
+              <input type="checkbox" name="familyIds" value="<%= parent._id %>" <%= ownLevel1.has(String(parent._id)) ? 'checked' : '' %> />
+              <span>
+                <strong><%= parent.icon || '◌' %> <%= parent.name %></strong>
+                <small><%= parent.description || 'No description added.' %> · <%= (parent.children || []).length %> subtypes</small>
+              </span>
+            </label>
+          <% }) %>
+          <% if (!tree.length) { %><p class="muted">No Issue Families yet. Create the service model first.</p><% } %>
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+          <button class="btn primary" type="submit">Save Issue Families</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal wide" id="productModuleModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/products" class="modal-card form compact-form">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Configure products</p>
+            <h3>Products & modules for <%= client.name %></h3>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+        </div>
+        <% if (parentClient) { %>
+          <label class="pick-row mode-row">
+            <input type="radio" name="productModuleMode" value="inherit" <%= (client.productModuleMode || 'custom') === 'inherit' ? 'checked' : '' %> data-toggle-section="productModuleCustom" data-toggle-value="custom" />
+            <span><strong>Inherit from <%= parentClient.name %></strong><small>Child client follows the parent client’s product and module availability.</small></span>
+          </label>
+        <% } %>
+        <label class="pick-row mode-row">
+          <input type="radio" name="productModuleMode" value="custom" <%= (client.productModuleMode || 'custom') !== 'inherit' ? 'checked' : '' %> data-toggle-section="productModuleCustom" data-toggle-value="custom" />
+          <span><strong>Use custom products and modules</strong><small>Select products first, then optional modules under each product.</small></span>
+        </label>
+
+        <div id="productModuleCustom" <%= (client.productModuleMode || 'custom') === 'inherit' ? 'hidden' : '' %>>
+          <label>
+            <span>Search products or modules</span>
+            <input type="search" placeholder="Search product/module..." data-filter-input="client_products" />
+          </label>
+          <div class="pick-list" data-filter-list="client_products">
+            <% (products || []).forEach((product) => { %>
+              <div class="pick-group" data-filter-item="<%= `${product.name} ${product.description || ''} ${(product.modules || []).map((module) => module.name).join(' ')}`.toLowerCase() %>">
+                <label class="pick-row">
+                  <input type="checkbox" name="productIds" value="<%= product._id %>" <%= ownProducts.has(String(product._id)) ? 'checked' : '' %> />
+                  <span>
+                    <strong><%= product.name %></strong>
+                    <small><%= product.description || 'No description added.' %> · <%= (product.modules || []).length %> modules</small>
+                  </span>
+                </label>
+                <% if ((product.modules || []).length) { %>
+                  <div class="nested-picks">
+                    <% product.modules.forEach((module) => { %>
+                      <label class="pick-row small-pick">
+                        <input type="checkbox" name="moduleIds" value="<%= module._id %>" <%= ownModules.has(String(module._id)) ? 'checked' : '' %> />
+                        <span><strong><%= module.name %></strong><small><%= module.description || 'No description added.' %></small></span>
+                      </label>
+                    <% }) %>
+                  </div>
+                <% } %>
+              </div>
+            <% }) %>
+            <% if (!(products || []).length) { %><p class="muted">No products yet. Create products and modules first.</p><% } %>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+          <button class="btn primary" type="submit">Save products</button>
+        </div>
+      </form>
+    </dialog>
+
+
+    <dialog class="modal wide" id="clientContextModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/context" class="modal-card form compact-form">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Configure location &amp; environments</p>
+            <h3><%= client.name %></h3>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+        </div>
+        <div class="three-col geography-fields" data-client-geography>
+          <label><span>Region</span><select name="regionId" data-geography-region><option value="">No region yet</option><% regions.filter((region) => region.status === 'active').forEach((region) => { %><option value="<%= region._id %>" data-timezone="<%= region.timezone || '' %>" <%= String(region._id) === String(client.regionId || '') ? 'selected' : '' %>><%= region.name %></option><% }) %></select></label>
+          <label><span>Subregion <small>(optional)</small></span><select name="subregionId" data-geography-subregion data-selected-subregion="<%= client.subregionId || '' %>"><option value="">No subregion</option><% subregions.filter((item) => item.status === 'active').forEach((item) => { %><option value="<%= item._id %>" data-region-id="<%= item.regionId %>" data-timezone="<%= item.timezone || '' %>" <%= String(item._id) === String(client.subregionId || '') ? 'selected' : '' %>><%= item.name %></option><% }) %></select></label>
+          <label><span>Timezone</span><select name="timezone" data-context-timezone data-selected-timezone="<%= client.timezone || '' %>"><option value="<%= client.timezone || '' %>"><%= client.timezone || 'Choose region first' %></option></select><small class="field-hint">Filtered by the region and optional subregion.</small></label>
+        </div>
+        <div class="calendar-config-block">
+          <div class="section-head compact-section-head"><div><p class="eyebrow">SLA business calendar</p><h4>Working time</h4><p class="section-help">Working-hour/day SLA targets consume only this calendar. 24×7 rules ignore it.</p></div></div>
+          <% if (parentClient) { %>
+            <label class="pick-row mode-row">
+              <input type="radio" name="businessCalendarMode" value="inherit" <%= (client.businessCalendarMode || 'custom') === 'inherit' ? 'checked' : '' %> data-toggle-section="businessCalendarCustom" data-toggle-value="custom" />
+              <span><strong>Inherit from <%= parentClient.name %></strong><small>Use the parent client's timezone, working hours and holidays.</small></span>
+            </label>
+          <% } %>
+          <label class="pick-row mode-row">
+            <input type="radio" name="businessCalendarMode" value="custom" <%= (client.businessCalendarMode || 'custom') !== 'inherit' ? 'checked' : '' %> data-toggle-section="businessCalendarCustom" data-toggle-value="custom" />
+            <span><strong>Use a custom business calendar</strong><small>Configure the client's contractual working week and holiday exclusions.</small></span>
+          </label>
+          <div id="businessCalendarCustom" class="business-calendar-custom" <%= (client.businessCalendarMode || 'custom') === 'inherit' ? 'hidden' : '' %>>
+            <div class="calendar-days" aria-label="Working days">
+              <% [['Mon',1],['Tue',2],['Wed',3],['Thu',4],['Fri',5],['Sat',6],['Sun',7]].forEach(([label, day]) => { %>
+                <label class="day-chip"><input type="checkbox" name="workingDays" value="<%= day %>" <%= businessWorkingDays.has(day) ? 'checked' : '' %> /><span><%= label %></span></label>
+              <% }) %>
+            </div>
+            <div class="two-col">
+              <label><span>Business day starts</span><input type="time" name="businessDayStart" value="<%= businessCalendar.dayStart || '09:00' %>" /></label>
+              <label><span>Business day ends</span><input type="time" name="businessDayEnd" value="<%= businessCalendar.dayEnd || '17:00' %>" /></label>
+            </div>
+            <label><span>Holidays <small>(one per line)</small></span><textarea name="businessHolidays" rows="5" placeholder="2026-12-25 | Christmas Day"><%= businessHolidayText %></textarea><small class="field-hint">Format: YYYY-MM-DD | optional name. These dates are skipped by working-hour/day SLA clocks.</small></label>
+          </div>
+        </div>
+        <label>
+          <span>Enabled environments</span>
+          <input type="search" placeholder="Search environments..." data-filter-input="client_environments" class="nice-search-input" />
+        </label>
+        <div class="pick-list" data-filter-list="client_environments">
+          <% (environments || []).forEach((environment) => { %>
+            <label class="pick-row" data-filter-item="<%= `${environment.name} ${environment.code || ''} ${environment.type || ''}`.toLowerCase() %>">
+              <input type="checkbox" name="environmentIds" value="<%= environment._id %>" <%= ownEnvironments.has(String(environment._id)) ? 'checked' : '' %> />
+              <span><strong><%= environment.name %></strong><small><%= environment.code || '' %> · <%= environment.type || 'environment' %></small></span>
+            </label>
+          <% }) %>
+          <% if (!(environments || []).length) { %><p class="muted">No environments yet. Create environments first.</p><% } %>
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+          <button class="btn primary" type="submit">Save context</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal wide" id="clientSlaModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/sla" class="modal-card form compact-form">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Assign client SLA</p>
+            <h3><%= client.name %></h3>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+        </div>
+        <% if (parentClient) { %>
+          <label class="pick-row mode-row">
+            <input type="radio" name="slaMode" value="inherit" <%= client.slaMode === 'inherit' ? 'checked' : '' %> data-toggle-section="slaCustom" data-toggle-value="custom" />
+            <span><strong>Inherit from <%= parentClient.name %></strong><small>Use the parent client’s effective SLA policy.</small></span>
+          </label>
+        <% } %>
+        <label class="pick-row mode-row">
+          <input type="radio" name="slaMode" value="custom" <%= client.slaMode !== 'inherit' ? 'checked' : '' %> data-toggle-section="slaCustom" data-toggle-value="custom" />
+          <span><strong>Use custom SLA policy</strong><small>Set this client’s default SLA policy directly.</small></span>
+        </label>
+
+        <div id="slaCustom" <%= client.slaMode === 'inherit' ? 'hidden' : '' %>>
+          <label>
+            <span>Search SLA policies</span>
+            <input type="search" placeholder="Search SLA..." data-filter-input="client_sla" />
+          </label>
+          <div class="pick-list" data-filter-list="client_sla">
+            <label class="pick-row" data-filter-item="none no sla clear">
+              <input type="radio" name="slaPolicyId" value="" <%= !client.defaultSlaPolicyId ? 'checked' : '' %> />
+              <span><strong>No default SLA</strong><small>Clear the client’s custom default policy.</small></span>
+            </label>
+            <% slaPolicies.forEach((policy) => { %>
+              <label class="pick-row" data-filter-item="<%= `${policy.name} ${policy.description || ''}`.toLowerCase() %>">
+                <input type="radio" name="slaPolicyId" value="<%= policy._id %>" <%= String(client.defaultSlaPolicyId || '') === String(policy._id) ? 'checked' : '' %> />
+                <span>
+                  <strong><%= policy.name %></strong>
+                  <small><%= (policy.rules || []).length %> rules · <%= policy.supportWindow.replace('_', ' ') %></small>
+                </span>
+              </label>
+            <% }) %>
+            <% if (!slaPolicies.length) { %><p class="muted">No SLA policies yet. Create one in SLA Studio first.</p><% } %>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+          <button class="btn primary" type="submit">Save SLA</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="familySlaModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/sla-family" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Issue Family SLA</p><h3><%= client.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <p class="muted">A family-specific assignment wins over the client default. Clear the SLA policy to remove the local family override.</p>
+        <label><span>Issue Family</span><select name="level1TypeId" required><option value="">Choose family</option><% tree.filter((parent) => effectiveLevel1.has(String(parent._id))).forEach((parent) => { %><option value="<%= parent._id %>"><%= parent.name %></option><% }) %></select></label>
+        <label><span>SLA policy</span><select name="slaPolicyId"><option value="">Remove family override</option><% (slaPolicies || []).filter((policy) => policy.status !== 'inactive').forEach((policy) => { %><option value="<%= policy._id %>"><%= policy.name %></option><% }) %></select></label>
+        <label class="check-line"><input type="checkbox" name="inheritToChildren" checked /><span>Child clients inherit this family SLA unless they override it</span></label>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save family SLA</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal wide" id="operationalRuleModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/operational-rules" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Operational rule</p><h3>Subtype support path for <%= client.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <p class="muted">Example: for Production S1/S2 incidents, activate a path that sends the request to L2 and L3 together.</p>
+        <label><span>Request subtype</span><select name="level2TypeId" required><option value="">Choose subtype</option><% tree.filter((parent) => effectiveLevel1.has(String(parent._id))).forEach((parent) => { %><optgroup label="<%= parent.name %>"><% (parent.children || []).forEach((child) => { %><option value="<%= child._id %>"><%= child.name %></option><% }) %></optgroup><% }) %></select><small class="field-hint">Only subtypes from Issue Families enabled for this client are available.</small></label>
+        <label><span>Support path</span><select name="supportPathId" required><option value="">Choose support path</option><% (supportPaths || []).forEach((path) => { %><option value="<%= path._id %>"><%= path.name %></option><% }) %></select></label>
+        <div class="two-col"><label><span>Severity condition</span><select name="severityIds" multiple size="5"><% (severities || []).forEach((severity) => { %><option value="<%= severity._id %>"><%= severity.code %> · <%= severity.name %></option><% }) %></select><small>Leave blank for all severities. Choose S1/S2 for a critical parallel path.</small></label><label><span>Environment condition</span><select name="environmentIds" multiple size="5"><% (environments || []).forEach((environment) => { %><option value="<%= environment._id %>"><%= environment.name %></option><% }) %></select><small>Leave blank for all environments.</small></label></div>
+        <div class="two-col"><label class="check-line"><input type="checkbox" name="inheritToChildren" checked /><span>Apply to child clients unless overridden</span></label><label class="check-line"><input type="checkbox" name="isActive" checked /><span>Rule is active</span></label></div>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save rule</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="deleteClientModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/delete" class="modal-card form compact-form danger-zone">
+        <div class="modal-head"><div><p class="eyebrow">Admin only</p><h3>Delete <%= client.name %>?</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <div class="alert warn"><strong>Permanent action.</strong><span>Deletion is allowed only when the client has no child clients, historical requests, or user assignments. Otherwise deactivate the client instead.</span></div>
+        <label><span>Type the client code to confirm</span><input name="confirmCode" required pattern="<%= client.shortCode %>" placeholder="<%= client.shortCode %>"></label>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn danger" type="submit">Delete client permanently</button></div>
+      </form>
+    </dialog>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>

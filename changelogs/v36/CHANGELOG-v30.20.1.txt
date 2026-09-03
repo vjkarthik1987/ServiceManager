@@ -1,2 +1,0 @@
-v30.20.1
-- Fixed runtime error on client/agent dashboards: imported UserEntityMembership in src/app.js for scoped dashboard resolution.

@@ -1,0 +1,9 @@
+<label><span>Workflow</span><select name="workflowId"><option value="">Not assigned</option><% (workflows || []).forEach((wf) => { %><option value="<%= wf._id %>" <%= String(node.workflowId || '') === String(wf._id) ? 'selected' : '' %>><%= wf.name %></option><% }) %></select></label>
+<label><span>Support path</span><select name="supportPathId"><option value="">Not assigned</option><% (supportPaths || []).forEach((path) => { %><option value="<%= path._id %>" <%= String(node.supportPathId || '') === String(path._id) ? 'selected' : '' %>><%= path.name %></option><% }) %></select></label>
+<div class="two-col">
+  <label><span>SLA policy</span><select name="slaPolicyId"><option value="">Not assigned</option><% (slaPolicies || []).forEach((policy) => { %><option value="<%= policy._id %>" <%= String(node.slaPolicyId || '') === String(policy._id) ? 'selected' : '' %>><%= policy.name %></option><% }) %></select></label>
+  <label><span>SLA applicability</span><select name="slaApplicability"><option value="inherit" <%= node.slaApplicable === null || node.slaApplicable === undefined ? 'selected' : '' %>>Inherit</option><option value="applicable" <%= node.slaApplicable === true ? 'selected' : '' %>>Applicable</option><option value="not_applicable" <%= node.slaApplicable === false ? 'selected' : '' %>>Not applicable</option></select></label>
+</div>
+<label><span>Form definition key</span><input name="formDefinitionKey" value="<%= node.formDefinitionKey || '' %>" placeholder="e.g. INCIDENT_APPLICATION" /></label>
+<label><span>Approval policy key</span><input name="approvalPolicyKey" value="<%= node.approvalPolicyKey || '' %>" placeholder="Optional" /></label>
+<label><span>Notification policy key</span><input name="notificationPolicyKey" value="<%= node.notificationPolicyKey || '' %>" placeholder="Optional" /></label>

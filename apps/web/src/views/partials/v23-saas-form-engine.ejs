@@ -1,0 +1,237 @@
+<section id="v23SaasDynamicFields" class="v23-saas-fields" hidden aria-label="Additional request details"></section>
+<input type="hidden" name="v23ServiceModelKey" id="v23ServiceModelKey" value="" />
+<input type="hidden" name="v23FormKey" id="v23FormKey" value="" />
+<input type="hidden" name="v23AllowRaisedOnBehalfOf" id="v23AllowRaisedOnBehalfOf" value="0" />
+<script>
+(() => {
+  const MODEL = 'SUNTEC_SAAS_V23';
+  const PORTAL = <%- JSON.stringify(typeof portal !== 'undefined' ? portal : '') %>;
+  const target = document.getElementById('v23SaasDynamicFields');
+  if (!target) return;
+
+  // HARD GUARD: this partial never identifies SaaS from labels such as
+  // "Incident" or "Application Incident". It activates only after the server
+  // confirms an exact database type binding to SUNTEC_SAAS_V23.
+  let activeBinding = null;
+  let renderGeneration = 0;
+  const changedHiddenState = new Map();
+  const coreKeys = new Set(['SUMMARY','DESCRIPTION','INCIDENT_LEVEL','SERVICE_REQUEST_LEVEL','SERVICE_REQUEST_SUBTYPE','SEVERITY','PRIORITY','RAISED_ENVIRONMENT']);
+  const narration = [
+    'Only one product is configured, so it is selected automatically.',
+    'Automatically selected — no other option is available.',
+    'Answer a few simple questions. The system will apply the right workflow, support path, and visibility.',
+    'Choose one or more modules. If only one module is available, it is selected automatically.',
+    'Pick the closest family. If there is only one available, we choose it automatically.',
+    'This choice decides the reusable workflow, support path, and configurable fields.',
+    'Only environments enabled for this client are listed.'
+  ];
+  const norm = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+
+  function fieldValue(kind) {
+    const selectors = kind === 'l1'
+      ? ['[name="level1TypeId"]','[name="level1Type"]','[name="l1TypeId"]','[name="issueTypeLevel1Id"]','[name="requestFamilyId"]']
+      : kind === 'l2'
+        ? ['[name="level2TypeId"]','[name="level2Type"]','[name="l2TypeId"]','[name="issueTypeLevel2Id"]']
+        : ['[name="level3TypeId"]','[name="level3Type"]','[name="l3TypeId"]','[name="issueSubtypeId"]','[name="subtypeId"]'];
+    for (const selector of selectors) {
+      const node = document.querySelector(selector);
+      if (!node) continue;
+      if ((node.type === 'radio' || node.type === 'checkbox') && !node.checked) continue;
+      if (String(node.value || '').trim()) return String(node.value).trim();
+    }
+    const words = kind === 'l1' ? ['level1','l1','family'] : kind === 'l2' ? ['level2','l2','issue type'] : ['level3','l3','subtype'];
+    for (const node of document.querySelectorAll('input:checked, select')) {
+      const name = norm(node.name || node.id || '');
+      if (!words.some((word) => name.includes(word))) continue;
+      if (String(node.value || '').trim()) return String(node.value).trim();
+    }
+    return '';
+  }
+
+  function routeCandidates() {
+    const parts = location.pathname.split('/').filter(Boolean);
+    const portalNames = new Set(['admin','client','agent']);
+    const out = [];
+    if (parts.length >= 2 && portalNames.has(parts[1])) out.push(`/${encodeURIComponent(parts[0])}/${parts[1]}/v23/form-definition`);
+    if (parts.length && portalNames.has(parts[0])) out.push(`/${parts[0]}/v23/form-definition`);
+    if (parts.length) out.push(`/${encodeURIComponent(parts[0])}/v23/form-definition`);
+    out.push('/v23/form-definition');
+    return [...new Set(out)];
+  }
+
+  async function fetchExactBinding(level1TypeId, level2TypeId, level3TypeId) {
+    if (!level1TypeId && !level2TypeId && !level3TypeId) return null;
+    const query = new URLSearchParams();
+    if (level1TypeId) query.set('level1TypeId', level1TypeId);
+    if (level2TypeId) query.set('level2TypeId', level2TypeId);
+    if (level3TypeId) query.set('level3TypeId', level3TypeId);
+    for (const route of routeCandidates()) {
+      try {
+        const response = await fetch(`${route}?${query.toString()}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+        if (response.status === 404) continue;
+        if (!response.ok) continue;
+        const payload = await response.json();
+        if (payload?.serviceModelKey === MODEL && payload?.binding?.serviceModelKey === MODEL && payload?.form?.serviceModelKey === MODEL) return payload;
+      } catch (_) {
+        // Try the next route shape. Failure never falls back to label matching.
+      }
+    }
+    return null;
+  }
+
+  function findFieldContainerByLabel(labelText) {
+    const wanted = norm(labelText).replace(/ required$/, '');
+    for (const node of document.querySelectorAll('label, dt, .field-label, .form-label, .config-label, span')) {
+      const own = norm(node.textContent || '').replace(/ required$/, '');
+      if (!own || own.length > 120) continue;
+      if (own === wanted || own.startsWith(wanted + ' ')) {
+        return node.closest('label, .field, .form-field, .config-field, .input-row, .form-row, .details-field, div') || node;
+      }
+    }
+    return null;
+  }
+
+  function hideTemporarily(node) {
+    if (!node) return;
+    if (!changedHiddenState.has(node)) changedHiddenState.set(node, Boolean(node.hidden));
+    node.hidden = true;
+  }
+
+  function restoreBaselineUi() {
+    for (const [node, wasHidden] of changedHiddenState.entries()) {
+      if (node?.isConnected) node.hidden = wasHidden;
+    }
+    changedHiddenState.clear();
+    target.innerHTML = '';
+    target.hidden = true;
+    const model = document.getElementById('v23ServiceModelKey');
+    const formKey = document.getElementById('v23FormKey');
+    const behalf = document.getElementById('v23AllowRaisedOnBehalfOf');
+    if (model) model.value = '';
+    if (formKey) formKey.value = '';
+    if (behalf) behalf.value = '0';
+  }
+
+  function removeNarrationForSaasOnly() {
+    for (const node of document.querySelectorAll('p, small, .muted, .helper, .field-hint, .config-hint, .selection-hint')) {
+      const text = String(node.textContent || '').trim();
+      if (narration.some((message) => text.includes(message))) node.remove();
+    }
+  }
+
+  function inputFor(field) {
+    const wrap = document.createElement('label');
+    wrap.className = 'v23-saas-field';
+    const caption = document.createElement('span');
+    caption.textContent = field.label + (field.required ? ' *' : '');
+    wrap.appendChild(caption);
+    const name = `v23Field__${field.key}`;
+    let control;
+    if (field.type === 'textarea') {
+      control = document.createElement('textarea'); control.rows = 3;
+    } else if (field.type === 'select' && Array.isArray(field.options)) {
+      control = document.createElement('select');
+      const blank = document.createElement('option'); blank.value=''; blank.textContent='Select'; control.appendChild(blank);
+      field.options.forEach((item) => { const o=document.createElement('option'); o.value=item.value; o.textContent=item.label; control.appendChild(o); });
+    } else if (field.type === 'date') {
+      control = document.createElement('input'); control.type='date';
+    } else if (field.type === 'datetime') {
+      control = document.createElement('input'); control.type='datetime-local';
+    } else if (field.type === 'number') {
+      control = document.createElement('input'); control.type='number'; if (field.validation?.min != null) control.min=String(field.validation.min);
+    } else if (field.type === 'url') {
+      control = document.createElement('input'); control.type='url';
+    } else if (field.type === 'approval_ref' || field.type === 'user') {
+      control = document.createElement('input'); control.type='text';
+    } else if (field.type === 'multiselect') {
+      control = document.createElement('textarea'); control.rows=2; control.placeholder='Enter one or more values';
+    } else {
+      control = document.createElement('input'); control.type='text';
+    }
+    control.name = name;
+    control.dataset.v23FieldKey = field.key;
+    if (field.required) control.required = true;
+    if (field.maxLength) control.maxLength = field.maxLength;
+    if (field.validation?.pattern) control.pattern = field.validation.pattern;
+    wrap.appendChild(control);
+    return wrap;
+  }
+
+  function renderBoundForm(payload) {
+    restoreBaselineUi();
+    activeBinding = payload;
+    if (!payload) return; // Normal/non-SaaS UI remains exactly at baseline.
+
+    const form = payload.form;
+    const fields = payload.fields || [];
+    const model = document.getElementById('v23ServiceModelKey');
+    const formKey = document.getElementById('v23FormKey');
+    const behalf = document.getElementById('v23AllowRaisedOnBehalfOf');
+    if (model) model.value = MODEL;
+    if (formKey) formKey.value = form.key;
+    if (behalf) behalf.value = form.allowRaisedOnBehalfOf ? '1' : '0';
+
+    removeNarrationForSaasOnly();
+
+    // SaaS intake stays deliberately small. Triage/lifecycle fields appear only after creation.
+    hideTemporarily(findFieldContainerByLabel('Priority'));
+    hideTemporarily(findFieldContainerByLabel('Trigger'));
+
+    const incidentLifecycleKeys = new Set(['SEVERITY','S3_BUCKET_URL','TEST_RELEASE','RELEASE_ID','RELEASE_TYPE','RCA_CATEGORY','ROOT_CAUSE','CORRECTIVE_ACTION','PREVENTIVE_ACTION','RCA_STATUS','APPROVER','EXCEPTION_APPROVER','TEST_CASE_LINK']);
+    if (form.family === 'INCIDENT') {
+      ['Severity','Release ID','Release Type','RCA Category','Root Cause','Corrective Action','Preventive Action','RCA Status','S3 Bucket URL','Test Release','Test Case Link','Approver','Exception Approver']
+        .forEach((label) => hideTemporarily(findFieldContainerByLabel(label)));
+    }
+
+    const title = document.createElement('div');
+    title.className = 'v23-saas-fields-heading';
+    title.innerHTML = '<strong>Details</strong>';
+    target.appendChild(title);
+
+    for (const field of fields) {
+      if (!field || field.key === 'PRIORITY' || (form.family === 'INCIDENT' && incidentLifecycleKeys.has(String(field.key || '').toUpperCase()))) continue;
+      if (field.key === 'RAISED_ON_BEHALF_OF') {
+        if (PORTAL === 'client' || !form.allowRaisedOnBehalfOf) continue;
+        const existing = findFieldContainerByLabel(field.label);
+        if (existing) { existing.hidden = false; continue; }
+        const group = document.createElement('div'); group.className='v23-saas-behalf-grid';
+        const n = document.createElement('label'); n.innerHTML='<span>Raise this request on behalf of</span><input type="text" name="raisedOnBehalfOfName" placeholder="Name" />';
+        const e = document.createElement('label'); e.innerHTML='<span>Email</span><input type="email" name="raisedOnBehalfOfEmail" placeholder="Email" />';
+        group.append(n,e); target.appendChild(group); continue;
+      }
+      if (coreKeys.has(field.key)) continue;
+      const existing = findFieldContainerByLabel(field.label);
+      if (existing) { existing.hidden = false; continue; }
+      target.appendChild(inputFor(field));
+    }
+    target.hidden = target.children.length === 0;
+  }
+
+  async function refresh() {
+    const generation = ++renderGeneration;
+    const l1 = fieldValue('l1');
+    const l2 = fieldValue('l2');
+    const l3 = fieldValue('l3');
+    // Restore before lookup so changing from SaaS to normal cannot leave hidden fields behind.
+    restoreBaselineUi();
+    const payload = await fetchExactBinding(l1, l2, l3);
+    if (generation !== renderGeneration) return;
+    renderBoundForm(payload);
+  }
+
+  document.addEventListener('change', (event) => {
+    if (event.target.matches('select,input[type="radio"],input[type="hidden"]')) queueMicrotask(refresh);
+  });
+  refresh();
+})();
+</script>
+<style>
+.v23-saas-fields{display:grid;gap:12px;margin-top:14px;padding-top:8px;border-top:1px solid var(--border,#E6E0D4)}
+.v23-saas-fields[hidden]{display:none}
+.v23-saas-fields-heading{font-size:13px;color:var(--text-main,#1F2933)}
+.v23-saas-field{display:grid;gap:6px}
+.v23-saas-field>span,.v23-saas-behalf-grid label>span{font-size:12px;font-weight:600;color:var(--text-main,#1F2933)}
+.v23-saas-field input,.v23-saas-field textarea,.v23-saas-field select,.v23-saas-behalf-grid input{width:100%;box-sizing:border-box}
+.v23-saas-behalf-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.v23-saas-behalf-grid{grid-template-columns:1fr}}
+</style>

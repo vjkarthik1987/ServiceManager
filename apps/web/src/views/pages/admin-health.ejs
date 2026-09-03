@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization, portal }) %>
+        <section class="page-head unified-page-head thin-head compact-only-head no-masthead">
+          <div>
+            <p class="eyebrow">Admin health</p>
+            <h2>Health</h2>
+            <p>Service status, mail status, and configuration checks.</p>
+          </div>
+          <div class="actions"><a class="btn secondary" href="/admin/activity">View activity</a></div>
+        </section>
+
+        <section class="health-grid">
+          <article class="card health-card">
+            <p class="eyebrow">Services</p>
+            <h3>Runtime checks</h3>
+            <div class="health-list">
+              <% services.forEach((item) => { %>
+                <div class="health-row"><span><%= item.name %></span><strong class="health-state <%= item.ok ? 'ok' : 'bad' %>"><%= item.ok ? 'OK' : 'DOWN' %></strong></div>
+              <% }) %>
+            </div>
+          </article>
+          <article class="card health-card">
+            <p class="eyebrow">Mail</p>
+            <h3>Email capability</h3>
+            <div class="health-list">
+              <div class="health-row"><span>Mode</span><strong><%= mail.mode %></strong></div>
+              <div class="health-row"><span>SMTP configured</span><strong class="health-state <%= mail.smtpConfigured ? 'ok' : 'warn' %>"><%= mail.smtpConfigured ? 'Yes' : 'No' %></strong></div>
+              <div class="health-row"><span>Redirect to</span><strong><%= mail.redirectTo || '—' %></strong></div>
+              <div class="health-row"><span>From</span><strong><%= mail.from || '—' %></strong></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="card table-card-smooth">
+          <div class="section-head table-section-head"><div><p class="eyebrow">Configuration</p><h3>Configuration health</h3></div></div>
+          <div class="health-check-grid">
+            <% configuration.forEach((item) => { %>
+              <div class="health-check <%= item.tone %>"><span><%= item.label %></span><strong><%= item.count %></strong></div>
+            <% }) %>
+          </div>
+        </section>
+
+        <section class="card table-card-smooth">
+          <div class="section-head table-section-head"><div><p class="eyebrow">Tenant totals</p><h3>Configured objects</h3></div></div>
+          <div class="metric-grid compact-metrics">
+            <% Object.entries(totals).forEach(([label, count]) => { %>
+              <div class="metric-card small"><span><%= label.replace(/([A-Z])/g, ' $1') %></span><strong><%= count %></strong></div>
+            <% }) %>
+          </div>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+  </body>
+</html>

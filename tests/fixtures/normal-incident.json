@@ -1,0 +1,6 @@
+{
+  "level1Type": {"code":"INCIDENT","name":"Incident"},
+  "level2Type": {"code":"APPLICATION_INCIDENT","name":"Application Incident"},
+  "currentSupportLevel":"L1",
+  "currentStatus":{"name":"New","statusType":"start"}
+}

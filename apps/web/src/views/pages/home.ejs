@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal: 'admin' }) %>
+      <main class="main admin-home-clean">
+        <section class="page-head unified-page-head thin-head">
+          <div>
+            <p class="eyebrow">Admin dashboard</p>
+            <h2>Operational view</h2>
+            <p>Requests, SLA attention, clients and workload trends.</p>
+          </div>
+          <div class="actions command-strip"><a class="btn primary" href="/admin/requests/new">Raise request</a><a class="btn secondary" href="/admin/requests">See requests</a><a class="btn secondary" href="/admin/filters">Filters</a></div>
+        </section>
+
+        <section class="metrics request-metrics minimal-metrics">
+          <a class="card metric mini-metric" href="/admin/requests?status=open"><span>Open requests</span><strong><%= requestMetrics.open %></strong></a>
+          <a class="card metric mini-metric" href="/admin/requests?status=new"><span>New</span><strong><%= requestMetrics.new %></strong></a>
+          <a class="card metric mini-metric" href="/admin/requests?visibility=internal_only"><span>Internal only</span><strong><%= requestMetrics.internal %></strong></a>
+          <a class="card metric mini-metric" href="/admin/requests?sla=red"><span>SLA attention</span><strong><%= requestMetrics.attention %></strong></a>
+        </section>
+
+        <%- include('../partials/dashboard-analytics', { analytics, calendarPulse, range, periodHref, requestBase: '/admin/requests' }) %>
+
+        <section class="card pad">
+          <div class="section-head"><div><p class="eyebrow">Recent requests</p><h3>Latest activity</h3></div><a class="text-link" href="/admin/requests">View all</a></div>
+          <div class="table-wrap">
+            <table class="clean-table request-table compact-table">
+              <thead><tr><th>Request</th><th>Summary</th><th>Client</th><th>Status</th><th>SLA</th><th>Support</th><th></th></tr></thead>
+              <tbody>
+                <% recentRequests.forEach((item) => { %>
+                  <tr>
+                    <td><a class="request-id-link" href="/admin/requests/<%= item._id %>"><%= item.requestNumber %></a></td>
+                    <td><strong><%= item.subject %></strong><small><%= item.level1Type?.name %> / <%= item.level2Type?.name %><%= item.level3Type?.name ? ` / ${item.level3Type.name}` : '' %></small></td>
+                    <td><%= item.client?.name || '—' %><small><%= item.client?.code || '' %></small></td>
+                    <td><span class="pill good"><%= item.statusLabel %></span></td>
+                    <td><span class="rag-pill rag-<%= item.slaView?.rag || 'grey' %>"><%= (item.slaView?.rag || 'grey').toUpperCase() %></span></td>
+                    <td><%= item.supportLevelLabel %></td>
+                    <td><a class="table-action" href="/admin/requests/<%= item._id %>">Open</a></td>
+                  </tr>
+                <% }) %>
+                <% if (!recentRequests.length) { %><tr><td colspan="7"><div class="empty-box"><strong>No requests yet.</strong><p>Raise the first request when you are ready.</p></div></td></tr><% } %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+  </body>
+</html>

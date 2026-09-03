@@ -1,0 +1,72 @@
+<%
+  const selectedByClient = new Map((selectedAssignments || []).map((item) => [String(item.clientId), item]));
+  const roleCounts = (selectedAssignments || []).reduce((acc, item) => {
+    const role = String(item.role || '');
+    if (role) acc[role] = (acc[role] || 0) + 1;
+    return acc;
+  }, {});
+  const defaultRole = Object.entries(roleCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'clientUser';
+  const accessProfileLabels = {
+    clientUser: 'Client user',
+    partnerUser: 'Partner user',
+    agentUser: 'Agent user',
+    agentManager: 'Agent manager',
+    engagementManager: 'Engagement manager'
+  };
+%>
+<div class="assignment-builder" data-assignment-builder>
+  <div class="assignment-builder-head contextual-assignment-head">
+    <div>
+      <p class="eyebrow">Client access</p>
+      <h3>Choose the clients this person can access</h3>
+      <p class="section-help">Client access and agent access are separate. New client rows use the access profile selected here.</p>
+    </div>
+    <div class="assignment-head-controls">
+      <label class="compact-control">
+        <span>Access profile for new clients</span>
+        <select data-assignment-profile>
+          <% Object.entries(accessProfileLabels).forEach(([value, label]) => { %>
+            <option value="<%= value %>" <%= defaultRole === value ? 'selected' : '' %>><%= label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label class="compact-control assignment-search-control">
+        <span>Find client</span>
+        <input type="search" placeholder="Search clients..." data-filter-input="assignments_<%= prefix %>">
+      </label>
+    </div>
+  </div>
+  <div class="assignment-profile-note">
+    <strong><%= accessProfileLabels[defaultRole] || 'Client user' %></strong>
+    <span>is the default for newly selected clients. Existing assignments remain unchanged unless you edit their role.</span>
+  </div>
+  <div class="assignment-table-wrap" data-filter-list="assignments_<%= prefix %>">
+    <table class="clean-table assignment-table">
+      <thead><tr><th>Use</th><th>Client</th><th>Access as</th><th>Support scope</th><th>Children</th></tr></thead>
+      <tbody>
+        <% clients.forEach((client) => { const assignment = selectedByClient.get(String(client._id)); const rowRole = assignment?.role || defaultRole; const levels = new Set((assignment?.supportLevels || [])); const rowDefaultLevel = rowRole === 'clientUser' ? 'L1' : rowRole === 'partnerUser' ? 'L2' : 'L3'; %>
+          <tr data-assignment-row data-client-id="<%= client._id %>" data-path-ids="<%= (client.path || []).map(String).join(',') %>" data-filter-item="<%= `${client.shortCode} ${client.name} ${client.pathLabel || ''}`.toLowerCase() %>">
+            <td><input type="checkbox" name="assignmentClientIds" value="<%= client._id %>" data-assignment-use <%= assignment ? 'checked' : '' %>></td>
+            <td><div class="client-tree-name compact-tree-name" style="--tree-depth:<%= client.depth || 0 %>"><strong><% if (client.depth) { %>↳ <% } %><%= client.name %></strong><small><%= client.shortCode %></small></div></td>
+            <td><select name="assignmentRole[<%= client._id %>]" data-assignment-role>
+              <option value="clientUser" <%= rowRole === 'clientUser' ? 'selected' : '' %>>Client user</option>
+              <option value="partnerUser" <%= rowRole === 'partnerUser' ? 'selected' : '' %>>Partner user</option>
+              <option value="agentUser" <%= rowRole === 'agentUser' ? 'selected' : '' %>>Agent user</option>
+              <option value="agentManager" <%= rowRole === 'agentManager' ? 'selected' : '' %>>Agent manager</option>
+              <option value="engagementManager" <%= rowRole === 'engagementManager' ? 'selected' : '' %>>Engagement manager</option>
+            </select><small class="assignment-role-hint" data-assignment-role-hint></small></td>
+            <td>
+              <div class="level-checks" data-assignment-levels>
+                <label><input type="checkbox" name="assignmentSupportLevels[<%= client._id %>]" value="L1" data-assignment-level <%= levels.has('L1') || (!assignment && rowDefaultLevel === 'L1') ? 'checked' : '' %>>L1</label>
+                <label><input type="checkbox" name="assignmentSupportLevels[<%= client._id %>]" value="L2" data-assignment-level <%= levels.has('L2') || (!assignment && rowDefaultLevel === 'L2') ? 'checked' : '' %>>L2</label>
+                <label><input type="checkbox" name="assignmentSupportLevels[<%= client._id %>]" value="L3" data-assignment-level <%= levels.has('L3') || (!assignment && rowDefaultLevel === 'L3') ? 'checked' : '' %>>L3</label>
+              </div>
+              <span class="assignment-scope-label" data-assignment-scope-label hidden></span>
+            </td>
+            <td><label class="inline-check"><input type="checkbox" name="includeChildrenIds" value="<%= client._id %>" data-assignment-child <%= assignment?.includeChildren ? 'checked' : '' %>> Include</label></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>

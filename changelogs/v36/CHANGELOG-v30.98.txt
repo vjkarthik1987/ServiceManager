@@ -1,8 +1,0 @@
-v30.98 — Multi-select ticket filters + assistant copy UX
-
-- Tickets page filters now support multi-select values for status, severity, category, entity, assignee, source, request type, product, execution mode, routing, SLA, visibility, and triage.
-- Empty multi-select filters are treated as no filter / all values.
-- Within one filter, selected values use OR logic.
-- Across different filters, selections use AND logic.
-- Pagination, sorting, and exports preserve repeated multi-select query parameters.
-- Assistant bot responses now include a right-side copy icon with copied feedback.

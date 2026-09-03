@@ -1,0 +1,41 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V23",
+  "model": "ProductVersion",
+  "fields": [
+    {
+      "key": "productId",
+      "type": "ref",
+      "required": true
+    },
+    {
+      "key": "code",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "name",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "status",
+      "type": "select",
+      "values": [
+        "active",
+        "inactive",
+        "end_of_support"
+      ],
+      "required": true
+    },
+    {
+      "key": "availableClientIds",
+      "type": "ref[]",
+      "required": false
+    },
+    {
+      "key": "supportEndsAt",
+      "type": "date",
+      "required": false
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "Service Manager v23.1.6 Full",
+  "version": "23.1.6",
+  "releaseDate": "2026-09-03",
+  "releaseLabel": "UAT Comments + Intake Polish",
+  "status": "validated-for-uat",
+  "fileCount": 211,
+  "validation": {
+    "automatedTests": 71,
+    "passed": 71,
+    "failed": 0,
+    "v23NormalIncidentGuard": "PASS",
+    "javascriptMjsFilesChecked": 66,
+    "javascriptMjsSyntax": "PASS",
+    "ejsScriptletTemplatesChecked": 48,
+    "ejsScriptletSyntax": "PASS"
+  },
+  "uatDefaults": {
+    "workspace": "suntecgroup",
+    "standardBankPlan": "Platinum",
+    "danskeBankPlan": "Gold",
+    "seededUserPassword": "password"
+  },
+  "seedOrder": [
+    "scripts/seed-uat-master-data.mjs",
+    "scripts/seed-uat-users-slas.mjs",
+    "scripts/seed-uat-support-model.mjs"
+  ],
+  "v2316Focus": [
+    "Client-safe comment and audit visibility",
+    "Partner public replies and Partner + SunTec internal notes",
+    "Single-family auto-selection and one-row intake journey",
+    "Customer-reported Severity with support reclassification and SLA recalculation"
+  ]
+}

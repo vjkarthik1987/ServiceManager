@@ -1,0 +1,17 @@
+{
+  "name": "@service-desk/request-service",
+  "version": "23.1.6",
+  "private": true,
+  "type": "module",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "node --watch src/app.js",
+    "start": "node src/app.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.2"
+  },
+  "description": "Service Manager v23.1 request/workflow service with three-level taxonomy snapshots and existing workflow/SLA runtime."
+}

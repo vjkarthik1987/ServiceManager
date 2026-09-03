@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %> · <%= appName %></title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <%- include('../partials/sidebar', { portal }) %>
+    <main class="main help-center-page">
+      <%- include('../partials/topbar', { organization }) %>
+
+      <section class="page-head unified-page-head help-page-head">
+        <div>
+          <p class="eyebrow">Help center</p>
+          <h2>Help &amp; FAQ</h2>
+          <p>Understand the service model, then find guidance for your role. We will keep expanding this help center as the product evolves.</p>
+        </div>
+        <span class="faq-role-chip"><%= helpRole === 'admin' ? 'Tenant admin' : (helpRole || '').replace(/([A-Z])/g,' $1') %></span>
+      </section>
+
+      <section class="help-model-map" aria-label="How a request is configured">
+        <div class="help-map-step"><span>1</span><div><strong>Client</strong><p>The client decides which Issue Families are available.</p></div></div>
+        <div class="help-map-arrow">→</div>
+        <div class="help-map-step"><span>2</span><div><strong>Issue Family</strong><p>Ticket, Incident, Maintenance Request or Service Request.</p></div></div>
+        <div class="help-map-arrow">→</div>
+        <div class="help-map-step"><span>3</span><div><strong>Specifics</strong><p>The subtype chooses the relevant process and fields.</p></div></div>
+        <div class="help-map-arrow">→</div>
+        <div class="help-map-step"><span>4</span><div><strong>Work</strong><p>Support path, workflow, statuses, tasks and SLA take over.</p></div></div>
+      </section>
+
+      <section class="help-family-grid">
+        <article class="card help-family-card"><p class="eyebrow">Regular support</p><h3>Ticket</h3><p>Incident · Service Request · Change Request · Query</p></article>
+        <article class="card help-family-card"><p class="eyebrow">SaaS support</p><h3>Incident</h3><p>Application · Security · Operational · Infrastructure</p></article>
+        <article class="card help-family-card"><p class="eyebrow">SaaS support</p><h3>Maintenance Request</h3><p>Maintenance · Vulnerability · Pen Test · Actual DR</p></article>
+        <article class="card help-family-card"><p class="eyebrow">SaaS support</p><h3>Service Request</h3><p>Access · Reports · DR Drill · Environment/configuration work</p></article>
+      </section>
+
+      <section class="help-support-examples" aria-label="Support model examples">
+        <article class="card help-support-example">
+          <div class="help-example-head"><span class="help-example-badge normal">Normal support</span><strong>Standard Bank</strong></div>
+          <p>The customer raises a Ticket, while SunTec Operations owns the operational work directly at L3. Customer input happens through comments and customer-visible statuses rather than customer task checklists.</p>
+          <div class="help-flow-strip direct"><span>Customer raises</span><b>→</b><span class="active">L3 SunTec Operations</span><b>↔</b><span>Customer clarification</span></div>
+        </article>
+        <article class="card help-support-example">
+          <div class="help-example-head"><span class="help-example-badge saas">SaaS support</span><strong>Danske Bank</strong></div>
+          <p>SaaS requests follow the documented Bank, Partner and SunTec model. Application incidents can use L1 → L2 → L3 or configured parallel L2 + L3 support for critical Production/DR cases.</p>
+          <div class="help-flow-strip"><span>L1 Bank</span><b>→</b><span>L2 Partner</span><b>→</b><span class="active">L3 SunTec</span></div>
+        </article>
+      </section>
+
+      <section class="card pad faq-card upgraded-faq-card">
+        <div class="faq-search-row">
+          <label class="faq-search">
+            <span>Search help</span>
+            <input type="search" placeholder="Try Ticket vs Incident, SLA, support path, L2, Query, RCA..." data-filter-input="faq" />
+          </label>
+          <div class="faq-search-tip"><strong><%= (items || []).length %></strong><span>answers in this role guide</span></div>
+        </div>
+
+        <% const categories=[...new Set((items||[]).map((item)=>item.category||'Help'))]; %>
+        <nav class="faq-category-pills" aria-label="Help categories">
+          <% categories.forEach((category, index)=>{ %><a href="#faq-cat-<%= index %>"><%= category %></a><% }) %>
+        </nav>
+
+        <div class="faq-groups" data-filter-list="faq">
+          <% categories.forEach((category, categoryIndex)=>{ %>
+            <section class="faq-group" data-faq-group id="faq-cat-<%= categoryIndex %>">
+              <div class="faq-group-head"><p class="eyebrow"><%= category %></p><span><%= (items||[]).filter((item)=>(item.category||'Help')===category).length %> topics</span></div>
+              <div class="faq-list">
+                <% (items||[]).filter((item)=>(item.category||'Help')===category).forEach((item)=>{ %>
+                  <details class="faq-item" data-filter-item="<%= `${item.category||''} ${item.q} ${item.a}`.toLowerCase() %>">
+                    <summary><span><%= item.q %></span><b aria-hidden="true">+</b></summary>
+                    <div class="faq-answer"><p><%= item.a %></p></div>
+                  </details>
+                <% }) %>
+              </div>
+            </section>
+          <% }) %>
+        </div>
+      </section>
+
+      <%- include('../partials/footer', { organization }) %>
+    </main>
+  </div>
+  <script src="/js/app.js"></script>
+</body>
+</html>

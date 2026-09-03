@@ -1,0 +1,153 @@
+Service Desk v1 Color Scheme
+Design Theme: Warm Command Minimal
+
+Overall Vibe:
+Minimalist like Notion, but warmer and more professional.
+Avoid common blue-and-white SaaS styling.
+The product should feel calm, modern, enterprise-ready, and slightly fresh.
+
+Core Design Direction:
+Warm white foundation
+Charcoal text
+Deep green for primary actions and success
+Soft yellow for guidance, attention, and onboarding highlights
+Sand / beige borders for warmth
+Minimal shadows
+Rounded cards
+Notebook-style layout
+Lots of breathing space
+
+Primary Palette:
+
+Background Main:
+#FAF8F1
+Use for the main app background. Warm off-white, not plain white.
+
+Card Background:
+#FFFFFF
+Use for cards, forms, panels, and content blocks.
+
+Soft Background:
+#F5F1E8
+Use for sidebars, secondary panels, and quiet layout areas.
+
+Border:
+#E6E0D4
+Use for card borders, input borders, dividers, and subtle separation.
+
+Main Text:
+#1F2933
+Use for primary headings, labels, and important text.
+
+Muted Text:
+#6B7280
+Use for descriptions, helper text, secondary labels, and metadata.
+
+Soft Text:
+#9CA3AF
+Use for placeholders, inactive text, and subtle timestamps.
+
+Primary Green:
+#1F8A5B
+Use for primary buttons, active states, success actions, and key positive movement.
+
+Dark Green:
+#166A45
+Use for hover states, stronger success indicators, and active navigation text.
+
+Soft Green:
+#E7F6EE
+Use for success backgrounds, selected sidebar items, positive status badges, and completed setup steps.
+
+Main Yellow:
+#F4C430
+Use sparingly for attention, onboarding highlights, important hints, and warm emphasis.
+
+Soft Yellow:
+#FFF4BF
+Use for guidance cards, warning backgrounds, setup tips, and contextual nudges.
+
+Deep Yellow / Amber:
+#B7791F
+Use for warning text, pending states, and attention labels.
+
+Sand Accent:
+#EFE7D8
+Use for warm panels, quiet dividers, and secondary backgrounds.
+
+Brown Soft:
+#8B7355
+Use for mature neutral accent text, labels, or subtle visual depth.
+
+CSS Variables:
+
+:root {
+  --bg-main: #FAF8F1;
+  --bg-card: #FFFFFF;
+  --bg-soft: #F5F1E8;
+
+  --text-main: #1F2933;
+  --text-muted: #6B7280;
+  --text-soft: #9CA3AF;
+
+  --green-main: #1F8A5B;
+  --green-dark: #166A45;
+  --green-soft: #E7F6EE;
+
+  --yellow-main: #F4C430;
+  --yellow-soft: #FFF4BF;
+  --yellow-deep: #B7791F;
+
+  --border: #E6E0D4;
+  --sand: #EFE7D8;
+  --brown-soft: #8B7355;
+
+  --shadow-soft: 0 18px 50px rgba(31, 41, 51, 0.08);
+}
+
+Usage Rules:
+
+1. Do not use blue as the main product color.
+2. Use green for primary actions, progress, success, and healthy states.
+3. Use yellow only as a highlight or guidance color, not as the main button color.
+4. Keep backgrounds warm and soft, not pure grey.
+5. Use thin borders instead of heavy shadows.
+6. Use rounded cards with generous spacing.
+7. Keep the UI minimalist, calm, and professional.
+8. Avoid crowded badges, large pills, and loud gradients.
+9. Most UI text should be 13px to 14px for a refined product feel.
+10. The app should feel like Notion + Linear + a warm enterprise command center.
+
+Suggested Button Styling:
+
+Primary Button:
+Background: #1F8A5B
+Text: #FFFFFF
+Hover: #166A45
+Border Radius: 999px
+
+Secondary Button:
+Background: #FFFFFF
+Text: #1F2933
+Border: #E6E0D4
+Border Radius: 999px
+
+Warning / Guidance Card:
+Background: #FFF4BF
+Text: #1F2933
+Accent Text: #B7791F
+Border: #F4C430
+
+Success / Completed State:
+Background: #E7F6EE
+Text: #166A45
+Accent: #1F8A5B
+
+Sidebar:
+Background: #F5F1E8
+Active Item Background: #E7F6EE
+Active Item Text: #166A45
+Inactive Item Text: #6B7280
+
+Design Name:
+Warm Command Minimal

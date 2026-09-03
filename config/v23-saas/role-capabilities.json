@@ -1,0 +1,72 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V23",
+  "roles": {
+    "client": {
+      "canCreate": true,
+      "canComment": true,
+      "canAttach": true,
+      "canSubmitRequestedInformation": true,
+      "canAcceptResolution": true,
+      "canRejectResolution": true,
+      "canTakeOwnership": false,
+      "canAssign": false,
+      "canUnassign": false,
+      "canChangePriority": false,
+      "canChangeSeverityPostCreate": false,
+      "canSeeInternalNotes": false,
+      "canSeeInternalTasks": false,
+      "canManageWorkflow": false
+    },
+    "partner": {
+      "canCreate": true,
+      "canComment": true,
+      "canAttach": true,
+      "canTakeOwnership": true,
+      "canAssign": true,
+      "canChangePriority": true,
+      "canChangeSeverityPostCreate": true,
+      "canManageWorkflow": true,
+      "canEscalateSupportLevel": true,
+      "canExpandVisibility": false
+    },
+    "agent": {
+      "canCreate": true,
+      "canComment": true,
+      "canAttach": true,
+      "canTakeOwnership": true,
+      "canAssign": true,
+      "canChangePriority": true,
+      "canChangeSeverityPostCreate": true,
+      "canManageWorkflow": true,
+      "canEscalateSupportLevel": true,
+      "canExpandVisibility": true
+    },
+    "manager": {
+      "canCreate": true,
+      "canComment": true,
+      "canAttach": true,
+      "canTakeOwnership": true,
+      "canAssign": true,
+      "canChangePriority": true,
+      "canChangeSeverityPostCreate": true,
+      "canManageWorkflow": true,
+      "canEscalateSupportLevel": true,
+      "canExpandVisibility": true,
+      "canApprove": true
+    },
+    "admin": {
+      "canCreate": true,
+      "canComment": true,
+      "canAttach": true,
+      "canTakeOwnership": true,
+      "canAssign": true,
+      "canChangePriority": true,
+      "canChangeSeverityPostCreate": true,
+      "canManageWorkflow": true,
+      "canEscalateSupportLevel": true,
+      "canExpandVisibility": true,
+      "canApprove": true,
+      "canConfigureServiceModel": true
+    }
+  }
+}

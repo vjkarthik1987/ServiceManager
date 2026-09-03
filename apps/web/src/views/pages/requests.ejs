@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell <%= portal !== 'admin' ? 'slim-shell' : '' %>">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main requests-clean-page requests-density-page">
+        <% if (portal === 'admin') { %><%- include('../partials/topbar', { organization }) %><% } else { %>
+          <header class="topbar simple-topbar page-brand-header"><div><p class="eyebrow"><%= portal === 'client' ? 'Client Portal' : 'Agent Portal' %></p><h1><%= organization.name %></h1></div></header>
+        <% } %>
+
+        <section class="page-head unified-page-head thin-head">
+          <div><p class="eyebrow">Request workspace</p><h2>Requests</h2><p><%= portal === 'client' ? 'Only client-visible requests in your assignment scope are shown.' : 'Requests are filtered by your organization, client assignments, role, and visibility.' %></p></div>
+          <div class="actions"><a class="btn primary" href="<%= newPath %>">Raise request</a></div>
+        </section>
+
+        <% if (activeFilterLabel) { %>
+          <section class="active-filter-banner-v21" aria-label="Active filter">
+            <div><span class="eyebrow">Active filter</span><strong><%= activeFilterLabel %></strong></div>
+            <a class="btn secondary small" href="<%= listPath %>">Clear filter</a>
+          </section>
+        <% } %>
+
+        <section class="card filter-strip-card request-filter-strip">
+          <form method="get" action="<%= listPath %>" class="request-filter-form">
+            <% if (filters.mine === '1') { %><input type="hidden" name="mine" value="1" /><% } %>
+            <label class="wide-search"><span>Search</span><input name="search" value="<%= filters.search || '' %>" placeholder="Request, summary, client, type..." /></label>
+            <label><span>Status</span><select name="status"><option value="">All</option><option value="open" <%= filters.status === 'open' ? 'selected' : '' %>>Open</option><option value="new" <%= filters.status === 'new' ? 'selected' : '' %>>New</option><option value="closed" <%= filters.status === 'closed' ? 'selected' : '' %>>Closed</option></select></label>
+            <label><span>SLA</span><select name="sla"><option value="">All</option><option value="red" <%= filters.sla === 'red' ? 'selected' : '' %>>Red</option><option value="amber" <%= filters.sla === 'amber' ? 'selected' : '' %>>Amber</option><option value="green" <%= filters.sla === 'green' ? 'selected' : '' %>>Green</option><option value="grey" <%= filters.sla === 'grey' ? 'selected' : '' %>>Grey</option></select></label>
+            <label><span>Level</span><select name="supportLevel"><option value="">All</option><option value="L1" <%= filters.supportLevel === 'L1' ? 'selected' : '' %>>L1</option><option value="L2" <%= filters.supportLevel === 'L2' ? 'selected' : '' %>>L2</option><option value="L3" <%= filters.supportLevel === 'L3' ? 'selected' : '' %>>L3</option></select></label>
+            <% if (portal !== 'client') { %><label><span>Visibility</span><select name="visibility"><option value="">All</option><option value="client_visible" <%= filters.visibility === 'client_visible' ? 'selected' : '' %>>Client visible</option><option value="partner_visible" <%= filters.visibility === 'partner_visible' ? 'selected' : '' %>>Partner</option><option value="internal_only" <%= filters.visibility === 'internal_only' ? 'selected' : '' %>>Internal</option></select></label><% } %>
+            <div class="filter-actions"><button class="btn primary small" type="submit">Apply</button><a class="btn secondary small" href="<%= listPath %>">Clear</a></div>
+          </form>
+          <div class="quick-filter-row request-ownership-filters">
+            <a class="<%= filters.mine !== '1' ? 'active' : '' %>" href="<%= listPath %>">All requests</a>
+            <a class="<%= filters.mine === '1' ? 'active mine-filter' : '' %>" href="<%= listPath %>?mine=1">Requests assigned to me</a>
+            <span class="quick-filter-divider"></span>
+            <a href="<%= listPath %>?status=open">Open</a><a href="<%= listPath %>?sla=red">Breached</a><a href="<%= listPath %>?sla=amber">At risk</a><a href="<%= listPath %>?supportLevel=L2">L2</a><a href="<%= listPath %>?supportLevel=L3">L3</a><% if (portal !== 'client') { %><a href="<%= listPath %>?visibility=internal_only">Internal only</a><% } %>
+          </div>
+        </section>
+
+        <section class="card client-table-card request-results-card">
+          <div class="section-head table-section-head"><div><p class="eyebrow">Results</p><h3>Showing <%= requests.length %> of <%= pagination.total %> requests</h3></div><span class="table-toolbar-meta">Page <%= pagination.page %> of <%= pagination.totalPages %></span></div>
+          <% if (requests.length) { %>
+            <div class="table-wrap request-table-wrap">
+              <table class="clean-table request-table request-table-fit">
+                <colgroup><col class="col-key"/><col class="col-summary"/><col class="col-client"/><col class="col-type"/><col class="col-status"/><col class="col-sla"/><col class="col-support"/><col class="col-owner"/><col class="col-priority"/><col class="col-updated"/></colgroup>
+                <thead>
+                  <tr><th>Request</th><th>Summary</th><th>Client</th><th>Type</th><th>Status</th><th>SLA</th><th>Support</th><th>Owner</th><th>Priority</th><th>Updated</th></tr>
+                </thead>
+                <tbody>
+                  <% requests.forEach((item) => {
+                    const owner = item.currentAssignee || {};
+                    const actorId = String(actor?._id || '');
+                    const actorEmail = String(actor?.email || '').toLowerCase();
+                    const assignedToMe = Boolean(
+                      (actorId && String(owner.actorId || owner._id || owner.id || '') === actorId)
+                      || (actorEmail && String(owner.email || '').toLowerCase() === actorEmail)
+                    );
+                    const statusKey = String(item.internalStatusLabel || item.statusLabel || 'new').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                    const familyKey = String(item.level1Type?.name || 'other').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                    const subtypeKey = String(item.level3Type?.name || item.level2Type?.name || 'other').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                    const supportKey = String(item.currentSupportLevel || 'L1').toLowerCase();
+                    const supportSide = item.ownerSide === 'suntec' ? 'suntec' : item.ownerSide === 'partner' ? 'partner' : 'client';
+                  %>
+                    <tr class="clickable-row <%= assignedToMe ? 'assigned-to-me' : '' %>" data-href="<%= detailPath(item._id) %>" title="Open <%= item.requestNumber %>">
+                      <td><a class="request-id-link" href="<%= detailPath(item._id) %>"><%= item.requestNumber %></a></td>
+                      <td class="request-summary-cell"><strong><%= item.subject %></strong><% if (portal !== 'client') { %><small><%= item.visibilityLabel %></small><% } %></td>
+                      <td class="truncate-cell"><span><%= item.client?.name || '—' %></span><small><%= item.client?.code || '' %></small></td>
+                      <td class="truncate-cell request-type-cell">
+                        <span class="type-pill type-<%= familyKey %>"><%= item.level2Type?.name || item.level1Type?.name || '—' %></span>
+                        <small class="type-subtype type-subtype-<%= subtypeKey %>"><%= item.level1Type?.name || '' %><%= item.level3Type?.name ? ` · ${item.level3Type.name}` : '' %></small>
+                      </td>
+                      <td><span class="status-compact status-<%= statusKey %>"><%= item.statusLabel %></span></td>
+                      <td><span class="rag-pill rag-<%= item.slaView?.rag || item.sla?.rag || 'grey' %>"><%= (item.slaView?.rag || item.sla?.rag || 'grey').toUpperCase() %></span><small class="sla-next-compact"><%= item.slaView?.nextTimeLeft || item.slaView?.nextAction || 'No action' %></small></td>
+                      <td>
+                        <span class="support-pill support-<%= supportKey %> support-side-<%= supportSide %>"><strong><%= item.currentSupportLevel || 'L1' %></strong><em><%= item.ownerSide === 'suntec' ? 'SunTec' : item.ownerSide === 'partner' ? 'Partner' : 'Client' %></em></span>
+                      </td>
+                      <td class="truncate-cell owner-cell <%= assignedToMe ? 'owner-is-me' : '' %>">
+                        <span><%= item.currentAssignee?.name || item.currentAssignee?.email || 'Unassigned' %></span>
+                        <% if (assignedToMe) { %><small class="mine-badge">Assigned to me</small><% } %>
+                      </td>
+                      <td><%= item.priority?.code || item.priority?.name || '—' %></td>
+                      <td><%= item.updatedShortLabel || '—' %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination-row">
+              <span>Showing page <%= pagination.page %> of <%= pagination.totalPages %></span>
+              <div>
+                <% if (pagination.page > 1) { %><a class="btn secondary small" href="<%= pageLink(pagination.page - 1) %>">Previous</a><% } %>
+                <% if (pagination.page < pagination.totalPages) { %><a class="btn secondary small" href="<%= pageLink(pagination.page + 1) %>">Next</a><% } %>
+              </div>
+            </div>
+          <% } else { %>
+            <div class="empty-box roomy"><strong>No requests found.</strong><p>Adjust the filters or start with a guided request.</p><a class="btn primary" href="<%= newPath %>">Raise request</a></div>
+          <% } %>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+    <script>
+      document.querySelectorAll('[data-href]').forEach((row) => row.addEventListener('click', (event) => {
+        if (event.target.closest('a,button,input,select')) return;
+        window.location.href = row.dataset.href;
+      }));
+    </script>
+  </body>
+</html>

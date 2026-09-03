@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css?v=2315-home-ack-hotfix-1" />
+  </head>
+  <body>
+    <div class="app-shell home-shell-v2315">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main minimal-home-page minimal-home-v2315">
+        <section class="minimal-home-hero compact-home-hero-v2315">
+          <div class="minimal-home-utility-row-v2315">
+            <span class="minimal-home-utility-spacer" aria-hidden="true"></span>
+            <p class="minimal-home-kicker"><%= portalTitle %></p>
+            <div class="minimal-home-top-actions-v2315" aria-label="Quick actions">
+              <% (homeActions || []).forEach((action) => { %>
+                <a class="btn <%= action.style === 'primary' ? 'primary' : 'secondary' %>" href="<%= action.href %>"><%= action.label %></a>
+              <% }) %>
+            </div>
+          </div>
+
+          <h1 class="minimal-home-greeting-v2315"><%= firstName ? `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, ${firstName}` : 'Good to see you' %></h1>
+
+          <form class="minimal-home-search minimal-home-search-v2315" action="<%= portalBase %>/requests" method="get">
+            <span aria-hidden="true">⌕</span>
+            <input type="search" name="search" placeholder="Search issues, clients or requests…" autocomplete="off" />
+            <button type="submit">Search</button>
+          </form>
+        </section>
+
+        <section class="minimal-home-metrics compact-home-metrics-v2315" aria-label="Request summary">
+          <a href="<%= portalBase %>/requests"><span>Open</span><strong><%= homeMetrics.open %></strong></a>
+          <a href="<%= portalBase %>/requests?mine=1"><span>Needs my attention</span><strong><%= homeMetrics.attention %></strong></a>
+          <a href="<%= portalBase %>/requests?sla=amber"><span>SLA at risk</span><strong><%= homeMetrics.slaRisk %></strong></a>
+          <a href="<%= portalBase %>/requests?search=waiting"><span>Waiting for customer</span><strong><%= homeMetrics.waitingCustomer %></strong></a>
+        </section>
+
+        <section class="minimal-home-recent compact-home-recent-v2315">
+          <div class="minimal-home-section-head">
+            <div><span>Recent</span><h2><%= portal === 'client' ? 'Your requests' : 'Latest work' %></h2></div>
+            <div class="minimal-home-section-links"><a href="<%= portalBase %>/dashboard">Dashboard</a><a href="<%= portalBase %>/requests">View all →</a></div>
+          </div>
+          <% if ((recentRequests || []).length) { %>
+            <div class="minimal-request-list compact-request-list-v2315">
+              <% recentRequests.forEach((item) => { %>
+                <a class="minimal-request-row" href="<%= portalBase %>/requests/<%= item._id || item.id %>">
+                  <span class="minimal-request-key"><%= item.requestNumber %></span>
+                  <span class="minimal-request-title"><strong><%= item.subject %></strong><small><%= item.client?.name || '' %> · <%= item.currentStatus?.customerLabel || item.currentStatus?.name || 'New' %></small></span>
+                  <span class="minimal-request-sla rag-<%= item.sla?.rag || item.slaRag || 'grey' %>"><%= item.severity?.code || item.severity?.name || '' %></span>
+                </a>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="minimal-home-empty"><strong>Nothing needs your attention right now.</strong><p>New requests will appear here when they arrive.</p></div>
+          <% } %>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

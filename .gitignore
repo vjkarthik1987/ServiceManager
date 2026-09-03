@@ -1,7 +1,96 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment / secrets
 .env
-.env.example
-/node_modules
-test-v28.js
-test-v29.js
-test-v30.js
-test.js
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime / temp
+tmp/
+temp/
+.cache/
+*.tmp
+*.temp
+*.pid
+*.pid.lock
+
+# Uploads / attachments / local data
+uploads/
+attachments/
+storage/
+data/
+backups/
+backup/
+*.bak
+
+# Local database artifacts
+*.sqlite
+*.sqlite3
+*.db
+
+# Build / coverage
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Validation / test output
+BUILD_VALIDATION*
+VALIDATION*
+validation/
+validation-results/
+test-results/
+reports/
+coverage-report/
+*.lcov
+
+# Packaged releases / generated archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local certificates / keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Local dumps / exports
+*.dump
+*.bson
+*.archive
+exports/
+
+# Session / runtime files
+sessions/
+redis-data/
+rabbitmq-data/
+mongo-data/
+
+# Generated UAT / validation artifacts
+BUILD_VALIDATION_V*.txt
+*_VALIDATION.txt
+*_TEST_RESULTS.txt

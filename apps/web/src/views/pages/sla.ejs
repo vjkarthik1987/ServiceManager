@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar') %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+
+        <section class="page-head unified-page-head">
+          <div>
+            <p class="eyebrow">Reusable commitment library</p>
+            <h2>SLA Policies</h2>
+            <p>Create reusable SLA policies here. Severities, priorities, products, regions and environments now live on their own pages.</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="button" data-open-modal="slaPolicyModal">Create SLA policy</button>
+            <form method="post" action="/config/seed"><input type="hidden" name="next" value="/admin/sla" /><button class="btn secondary" type="submit">Seed base config</button></form>
+          </div>
+        </section>
+
+        <section class="card pad hero-lite">
+          <div>
+            <p class="eyebrow">Quick start from support model</p>
+            <h3>Seed Silver, Gold and Platinum SLA templates</h3>
+            <p>These presets create S1–S4 severities if needed and add response, resolution and update-frequency rules.</p>
+          </div>
+          <div class="actions">
+            <form method="post" action="/admin/sla/preset/silver"><button class="btn secondary" type="submit">Silver</button></form>
+            <form method="post" action="/admin/sla/preset/gold"><button class="btn secondary" type="submit">Gold</button></form>
+            <form method="post" action="/admin/sla/preset/platinum"><button class="btn secondary" type="submit">Platinum</button></form>
+          </div>
+        </section>
+
+        <section class="config-anchor-row card pad">
+          <a class="active-soft" href="/admin/sla">SLA Policies</a>
+          <a href="/admin/severities-priorities">Severities & Priorities</a>
+          <a href="/admin/products-modules">Products & Modules</a>
+          <a href="/admin/regions">Regions &amp; Subregions</a>
+          <a href="/admin/environments">Environments</a>
+        </section>
+
+        <section class="config-section">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Policy library</p>
+              <h3>All SLA Policies</h3>
+            </div>
+            <button class="btn primary small" type="button" data-open-modal="slaPolicyModal">Add policy</button>
+          </div>
+
+          <div class="config-grid">
+            <% if (!slaPolicies.length) { %>
+              <article class="card pad empty-box">
+                <strong>No SLA policies yet.</strong>
+                <p>Create a custom policy or seed Silver, Gold and Platinum templates.</p>
+              </article>
+            <% } %>
+            <% slaPolicies.forEach((policy) => { %>
+              <article class="card config-card">
+                <div class="config-card-head">
+                  <div>
+                    <p class="eyebrow">SLA policy</p>
+                    <h3><%= policy.name %></h3>
+                    <p><%= policy.description %></p>
+                  </div>
+                  <span class="pill <%= policy.clientUsageCount ? 'good' : '' %>"><%= policy.clientUsageCount || 0 %> clients</span>
+                </div>
+                <div class="workflow-meta-row">
+                  <span><strong><%= (policy.rules || []).length %></strong> rules</span>
+                  <span><%= policy.supportWindow.replace('_', ' ') %></span>
+                  <span>Starts: <%= policy.clockStartTrigger.replace('_', ' ') %></span>
+                </div>
+                <% if (policy.usedByClients && policy.usedByClients.length) { %>
+                  <div class="used-by-row">
+                    <% policy.usedByClients.slice(0, 4).forEach((client) => { %><span class="chip"><%= client.name %></span><% }) %>
+                    <% if (policy.usedByClients.length > 4) { %><span class="chip">+<%= policy.usedByClients.length - 4 %> more</span><% } %>
+                  </div>
+                <% } else { %>
+                  <p class="muted tiny-line">Not assigned to any client yet.</p>
+                <% } %>
+                <div class="form-footer">
+                  <a class="btn primary small" href="/admin/sla/<%= policy._id %>">Open rules</a>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        </section>
+              <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <dialog class="modal wide" id="slaPolicyModal">
+      <form method="post" action="/admin/sla/policies" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Create SLA policy</p><h3>Reusable commitment plan</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Policy name</span><input name="name" required placeholder="Client ABC Production SLA" /></label>
+        <label><span>Description <em>required</em></span><textarea name="description" required rows="3" placeholder="Response and resolution commitments for production incidents."></textarea></label>
+        <div class="two-col">
+          <label><span>Support window</span><select name="supportWindow"><option value="business_hours">Business hours</option><option value="24x7">24x7</option><option value="mixed">Mixed</option></select></label>
+          <label><span>Clock starts when</span><select name="clockStartTrigger"><option value="severity_selected">Severity selected</option><option value="priority_selected">Priority selected</option><option value="ticket_created">Ticket created</option></select></label>
+        </div>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Create policy</button></div>
+      </form>
+    </dialog>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title %> · <%= appName %></title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+<div class="app-shell">
+  <%- include('../partials/sidebar', { portal: 'admin' }) %>
+  <main class="main">
+    <%- include('../partials/topbar', { organization }) %>
+    <section class="page-head unified-page-head thin-head taxonomy-page-head">
+      <div><p class="eyebrow"><a href="/admin/issue-types">Issue Families</a> / Family</p><h2><%= family.icon || '◇' %> <%= family.name %></h2><p><%= family.description %></p></div>
+      <div class="actions taxonomy-head-actions"><button class="btn primary" type="button" data-open-modal="addIssueTypeModal">+ Issue Type</button><button class="btn secondary" type="button" data-open-modal="editFamilyModal">Edit Family</button></div>
+    </section>
+
+    <section class="family-summary-grid">
+      <article class="metric card"><span>Issue Types</span><strong><%= (family.children || []).length %></strong><small>Direct children</small></article>
+      <article class="metric card"><span>Subtypes</span><strong><%= (family.children || []).reduce((sum, item) => sum + (item.children || []).length, 0) %></strong><small>Across the family</small></article>
+      <article class="metric card"><span>Configured</span><strong><%= (family.children || []).filter((item) => item.workflow?.name || item.formDefinitionKey || item.supportPath?.name || (item.children || []).some((sub) => sub.workflow?.name || sub.formDefinitionKey || sub.supportPath?.name)).length %></strong><small>Issue types with behaviour</small></article>
+      <article class="metric card"><span>Active</span><strong><%= (family.children || []).filter((item) => item.status === 'active').length %></strong><small>Active issue types</small></article>
+    </section>
+
+    <section class="card client-table-card taxonomy-library-card">
+      <% if (!(family.children || []).length) { %>
+        <div class="empty-box roomy"><strong>No issue types yet.</strong><p>Add the first Issue Type under <%= family.name %>.</p></div>
+      <% } else { %>
+        <div class="table-wrap taxonomy-table-wrap"><table class="clean-table compact-table taxonomy-table"><thead><tr><th>Name</th><th>Type</th><th>Parent</th><th>Configuration</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+        <% (family.children || []).forEach((issueType) => { %>
+          <tr class="taxonomy-row issue-type-row">
+            <td><div class="taxonomy-name taxonomy-level-2"><span class="taxonomy-tree-mark">↳</span><div><strong><%= issueType.name %></strong><small><%= issueType.description %></small></div></div></td>
+            <td><span class="compact-chip">Issue Type</span></td>
+            <td><span class="taxonomy-parent"><%= family.name %></span></td>
+            <td><div class="config-badges"><span class="config-badge <%= issueType.workflow?.name ? 'set' : '' %>">Workflow <%= issueType.workflow?.name ? '✓' : '—' %></span><span class="config-badge <%= issueType.formDefinitionKey ? 'set' : '' %>">Form <%= issueType.formDefinitionKey ? '✓' : '—' %></span><span class="config-badge <%= issueType.supportPath?.name ? 'set' : '' %>">Path <%= issueType.supportPath?.name ? '✓' : '—' %></span><span class="config-badge <%= issueType.slaApplicable === false || issueType.slaPolicy?.name ? 'set' : '' %>">SLA <%= issueType.slaApplicable === false ? 'N/A' : (issueType.slaPolicy?.name ? '✓' : '—') %></span></div></td>
+            <td><span class="status-pill"><%= issueType.status %></span></td>
+            <td><div class="table-actions taxonomy-actions"><button class="table-link-button" type="button" data-open-modal="addSubtype<%= issueType._id %>">+ Subtype</button><button class="table-link-button" type="button" data-open-modal="behavior<%= issueType._id %>">Configure</button><button class="table-link-button" type="button" data-open-modal="edit<%= issueType._id %>">Edit</button></div></td>
+          </tr>
+          <% (issueType.children || []).forEach((subtype) => { %>
+            <tr class="taxonomy-row subtype-row">
+              <td><div class="taxonomy-name taxonomy-level-3"><span class="taxonomy-tree-mark">↳</span><div><strong><%= subtype.name %></strong><small><%= subtype.description %></small></div></div></td>
+              <td><span class="compact-chip">Subtype</span></td>
+              <td><span class="taxonomy-parent"><%= issueType.name %></span></td>
+              <td><div class="config-badges"><span class="config-badge <%= subtype.workflow?.name ? 'set' : '' %>">Workflow <%= subtype.workflow?.name ? '✓' : 'inherit' %></span><span class="config-badge <%= subtype.formDefinitionKey ? 'set' : '' %>">Form <%= subtype.formDefinitionKey ? '✓' : 'inherit' %></span><span class="config-badge <%= subtype.supportPath?.name ? 'set' : '' %>">Path <%= subtype.supportPath?.name ? '✓' : 'inherit' %></span><span class="config-badge <%= subtype.slaApplicable !== null && subtype.slaApplicable !== undefined || subtype.slaPolicy?.name ? 'set' : '' %>">SLA <%= subtype.slaApplicable === false ? 'N/A' : (subtype.slaPolicy?.name ? '✓' : 'inherit') %></span></div></td>
+              <td><span class="status-pill"><%= subtype.status %></span></td>
+              <td><div class="table-actions taxonomy-actions"><button class="table-link-button" type="button" data-open-modal="behavior<%= subtype._id %>">Configure</button><button class="table-link-button" type="button" data-open-modal="edit<%= subtype._id %>">Edit</button></div></td>
+            </tr>
+          <% }) %>
+        <% }) %>
+        </tbody></table></div>
+      <% } %>
+    </section>
+    <%- include('../partials/footer', { organization }) %>
+  </main>
+</div>
+
+<dialog class="modal" id="editFamilyModal"><form method="post" action="/admin/issue-types/<%= family._id %>/edit" class="modal-card form compact-form"><input type="hidden" name="returnTo" value="/admin/issue-types/families/<%= family._id %>" /><div class="modal-head"><div><p class="eyebrow">Family</p><h3>Edit <%= family.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><label><span>Name</span><input name="name" value="<%= family.name %>" required /></label><label><span>Description</span><textarea name="description" rows="3" required><%= family.description %></textarea></label><div class="two-col"><label><span>Icon</span><input name="icon" value="<%= family.icon || '◇' %>" /></label><label><span>Status</span><select name="status"><option value="active" <%= family.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= family.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label></div><input type="hidden" name="displayOrder" value="<%= family.displayOrder || 100 %>" /><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save</button></div></form></dialog>
+
+<dialog class="modal" id="addIssueTypeModal"><form method="post" action="/admin/issue-types/level2" class="modal-card form compact-form"><input type="hidden" name="returnTo" value="/admin/issue-types/families/<%= family._id %>" /><input type="hidden" name="parentTypeId" value="<%= family._id %>" /><div class="modal-head"><div><p class="eyebrow">Issue Type</p><h3>Add to <%= family.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><label><span>Name</span><input name="name" required /></label><label><span>Description</span><textarea name="description" rows="3" required></textarea></label><%- include('../partials/issue-type-fields', { fieldsConfig: {} }) %><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Create</button></div></form></dialog>
+
+<% (family.children || []).forEach((issueType) => { %>
+  <dialog class="modal" id="addSubtype<%= issueType._id %>"><form method="post" action="/admin/issue-types/level3" class="modal-card form compact-form"><input type="hidden" name="returnTo" value="/admin/issue-types/families/<%= family._id %>" /><input type="hidden" name="parentTypeId" value="<%= issueType._id %>" /><div class="modal-head"><div><p class="eyebrow">Subtype</p><h3>Add under <%= issueType.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><label><span>Name</span><input name="name" required /></label><label><span>Description</span><textarea name="description" rows="3" required></textarea></label><%- include('../partials/issue-type-fields', { fieldsConfig: {} }) %><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Create subtype</button></div></form></dialog>
+  <% [issueType, ...(issueType.children || [])].forEach((node) => { %>
+    <dialog class="modal" id="edit<%= node._id %>"><form method="post" action="/admin/issue-types/<%= node._id %>/edit" class="modal-card form compact-form"><input type="hidden" name="returnTo" value="/admin/issue-types/families/<%= family._id %>" /><div class="modal-head"><div><p class="eyebrow"><%= Number(node.level) === 2 ? 'Issue Type' : 'Subtype' %></p><h3>Edit <%= node.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><label><span>Name</span><input name="name" value="<%= node.name %>" required /></label><label><span>Description</span><textarea name="description" rows="3" required><%= node.description %></textarea></label><label><span>Status</span><select name="status"><option value="active" <%= node.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= node.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label><input type="hidden" name="displayOrder" value="<%= node.displayOrder || 100 %>" /><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save</button></div></form></dialog>
+    <dialog class="modal" id="behavior<%= node._id %>"><form method="post" action="/admin/issue-types/<%= node._id %>/behavior" class="modal-card form compact-form"><input type="hidden" name="returnTo" value="/admin/issue-types/families/<%= family._id %>" /><div class="modal-head"><div><p class="eyebrow"><%= Number(node.level) === 2 ? 'Issue Type configuration' : 'Subtype override' %></p><h3><%= node.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><%- include('../partials/taxonomy-behavior-fields', { node, workflows, supportPaths, slaPolicies }) %><div class="modal-actions taxonomy-modal-actions"><a class="btn secondary" href="/admin/issue-types/nodes/<%= node._id %>/fields">Form fields</a><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save configuration</button></div></form></dialog>
+  <% }) %>
+<% }) %>
+<script src="/js/app.js"></script>
+</body>
+</html>

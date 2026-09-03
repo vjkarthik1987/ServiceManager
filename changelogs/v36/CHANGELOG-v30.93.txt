@@ -1,8 +1,0 @@
-v30.93 — Assistant conversation state hardening
-
-Fixes:
-- New user commands now interrupt stale pending issue-confirmation drafts.
-- "Raise a new issue" while an older issue draft is pending starts a fresh issue flow instead of re-confirming the old issue.
-- Issue-status questions like "What is the status of S00001-1017" are routed to status lookup even if an issue draft is pending.
-- Affirmative/negative replies still safely continue or cancel the active confirmation.
-- OpenAI intent output is constrained during draft interruption so it cannot drag the assistant back into stale CREATE_ISSUE state.

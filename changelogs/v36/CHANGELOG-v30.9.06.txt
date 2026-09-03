@@ -1,8 +1,0 @@
-ESOP v30.9.06
-
-- removed Customer view at a glance from client dashboard
-- improved Notification Center vertical spacing
-- removed helper tagline from Agent Workspace
-- added admin-managed region master list and region dropdown in entity forms
-- added spacing and an Ops Console explainer block in Admin Console
-- expanded Ops Console with recently touched issues

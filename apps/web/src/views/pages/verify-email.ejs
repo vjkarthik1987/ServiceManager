@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= title %> · <%= appName %></title><link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= title %> · <%= appName %></title><link rel="stylesheet" href="/css/app.css"></head>
+<body class="setup-page"><main class="setup-shell single-setup-shell"><section class="card setup-card activation-card">
+  <p class="eyebrow">Identity security</p><h2><%= successMessage ? 'Email verified' : 'Verify new email' %></h2>
+  <% if (errorMessage) { %><div class="alert error"><strong>Could not verify.</strong><span><%= errorMessage %></span></div><a class="btn secondary" href="/">Back to login</a>
+  <% } else if (successMessage) { %><div class="alert success"><strong>Done.</strong><span><%= successMessage %></span></div><a class="btn primary" href="/">Continue to sign in</a>
+  <% } else { %><p class="muted">Confirm that <strong><%= account?.pendingEmail %></strong> should replace <strong><%= account?.email %></strong> as the login email for <%= account?.name %> in <%= organization?.name %>.</p><form method="post" action="/verify-email/<%= token %>" class="form"><button class="btn primary full" type="submit">Verify and change email</button></form><p class="muted">The current email remains active until you confirm.</p><% } %>
+</section></main><script src="/js/app.js"></script></body></html>

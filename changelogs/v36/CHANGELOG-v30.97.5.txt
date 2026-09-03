@@ -1,5 +1,0 @@
-v30.97.5 - Chatbot Jira pending count fix
-
-- Fixed assistant count questions like 'How many issues are Jira pending' incorrectly mapping 'pending' to open issues.
-- Added Jira-pending intent classification using executionMode, executionState, jira.outboundState, and jira.pushStatus.
-- Preserved entity filtering, so 'with SPRBNK' continues to scope the count.

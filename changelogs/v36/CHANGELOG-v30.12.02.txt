@@ -1,4 +1,0 @@
-v30.12.02
-1. New user provisioning emails now go to the created user email.
-2. Tracking email is added in BCC for every new user provisioning email.
-3. Tracking email is configurable from Admin Console tenant settings.

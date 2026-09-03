@@ -1,3 +1,0 @@
-v36.01
-- Fixed module creation EJS rendering by using locals.formAction fallback.
-- Hardened module form submit label fallback.
