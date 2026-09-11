@@ -14,21 +14,21 @@ const requestNew = read('apps/web/src/views/pages/request-new.ejs');
 const requestDetail = read('apps/web/src/views/pages/request-detail.ejs');
 const css = read('apps/web/src/public/css/app.css');
 
-test('client can report Incident severity at creation while support keeps post-create classification control', () => {
+test('client can report and later edit Incident severity while Priority stays support-side', () => {
   assert.match(requestNew, /const showSeverity = cfg\.severity/);
   assert.match(requestNew, /Reported severity/);
   assert.match(requestNew, /Support can confirm or reclassify it during triage/);
   assert.match(webApp, /const submittedSeverityId = req\.body\.severityId/);
   assert.match(webApp, /Select a valid Severity/);
-  assert.match(webApp, /if \(portal === 'client'\) \{[\s\S]*Severity is controlled by the support team/);
+  assert.doesNotMatch(webApp, /Severity is controlled by the support team/);
   assert.match(requestApp, /eventType: 'severity_changed'/);
   assert.match(requestApp, /SLA clock/);
 });
 
 test('a single enabled family is auto-selected and omitted from the visible intake journey', () => {
   assert.match(webApp, /if \(!selectedLevel1Id && activeTree\.length === 1\) selectedLevel1Id/);
-  assert.match(requestNew, /familyIsAutomatic = Boolean\(selectedClient && \(activeTree \|\| \[\]\)\.length === 1\)/);
-  assert.match(requestNew, /if \(!familyIsAutomatic\) steps\.push\(\{ key: 'family'/);
+  assert.match(requestNew, /const familyChoices = activeTree \|\| \[\]/);
+  assert.match(requestNew, /if \(familyChoices\.length > 1\) steps\.push\(\{ key: 'family'/);
 });
 
 test('request intake progress stays in one horizontal row including five-step flows', () => {

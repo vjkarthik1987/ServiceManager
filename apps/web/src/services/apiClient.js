@@ -503,6 +503,13 @@ export async function updateClientContext(organizationId, clientId, data) {
   });
 }
 
+export async function updateClientNotifications(organizationId, clientId, data) {
+  return request(orgUrl(`/api/organizations/${organizationId}/clients/${clientId}/notifications`), {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
 
 export async function addClientOperationalRule(organizationId, clientId, data) {
   return request(orgUrl(`/api/organizations/${organizationId}/clients/${clientId}/operational-rules`), {
@@ -605,8 +612,29 @@ export async function changeRequestStatus(organizationId, requestId, data) {
   });
 }
 
+export async function runRequestGlobalAction(organizationId, requestId, data) {
+  return request(requestUrl(`/api/organizations/${organizationId}/requests/${requestId}/global-action`), {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
 export async function updateRequestClassification(organizationId, requestId, data) {
   return request(requestUrl(`/api/organizations/${organizationId}/requests/${requestId}/classification`), {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export async function updateRequestDetails(organizationId, requestId, data) {
+  return request(requestUrl(`/api/organizations/${organizationId}/requests/${requestId}/details`), {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export async function updateRequestVisibility(organizationId, requestId, data) {
+  return request(requestUrl(`/api/organizations/${organizationId}/requests/${requestId}/v23/visibility`), {
     method: 'POST',
     body: JSON.stringify(data)
   });
@@ -737,6 +765,14 @@ export async function createAuditLog(organizationId, data) {
   });
 }
 
+
+export async function getV24SaasFormDefinition(organizationId, level1TypeId, level2TypeId, level3TypeId = '') {
+  const params = new URLSearchParams();
+  if (level1TypeId) params.set('level1TypeId', String(level1TypeId));
+  if (level2TypeId) params.set('level2TypeId', String(level2TypeId));
+  if (level3TypeId) params.set('level3TypeId', String(level3TypeId));
+  return request(requestUrl(`/api/organizations/${organizationId}/v24/form-definition?${params.toString()}`));
+}
 
 export async function getV23SaasFormDefinition(organizationId, level1TypeId, level2TypeId, level3TypeId = '') {
   const params = new URLSearchParams();

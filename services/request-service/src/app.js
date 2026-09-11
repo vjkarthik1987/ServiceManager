@@ -46,7 +46,21 @@ function cleanActor(value = {}) {
 
 
 const V23_SAAS_SERVICE_MODEL_KEY = 'SUNTEC_SAAS_V23';
+const V24_SAAS_SERVICE_MODEL_KEY = 'SUNTEC_SAAS_V24';
 const V23_MARKER_FIELD_KEY = '__v23_service_model_key';
+const V24_MARKER_FIELD_KEY = '__v24_service_model_key';
+const SAAS_SERVICE_MODEL_KEYS = new Set([V23_SAAS_SERVICE_MODEL_KEY, V24_SAAS_SERVICE_MODEL_KEY]);
+
+function activeSaasServiceModelKey(value = {}) {
+  const key = v23ServiceModelKey(value);
+  return SAAS_SERVICE_MODEL_KEYS.has(key) ? key : '';
+}
+
+function serviceModelCollectionForKey(key) {
+  return key === V24_SAAS_SERVICE_MODEL_KEY
+    ? (process.env.V24_SERVICE_MODEL_COLLECTION || 'v24_service_models')
+    : (process.env.V23_SERVICE_MODEL_COLLECTION || 'v23_service_models');
+}
 
 function requestFamilyText(value = {}) {
   const level1 = value.level1Type || {};
@@ -69,20 +83,24 @@ function v23CustomFieldValue(field = {}) {
 }
 
 function v23ServiceModelKey(value = {}) {
-  const direct = value.serviceModelKey || value.v23ServiceModelKey || value.serviceModel?.key;
+  const direct = value.serviceModelKey || value.v24ServiceModelKey || value.v23ServiceModelKey || value.serviceModel?.key;
   if (direct) return String(direct).trim();
   const fromType = value.level1Type?.serviceModelKey || value.level2Type?.serviceModelKey;
   if (fromType) return String(fromType).trim();
   const fields = Array.isArray(value.customFields) ? value.customFields : [];
   const marker = fields.find((field) => {
     const key = v23CustomFieldKey(field).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
-    return key === V23_MARKER_FIELD_KEY || key === 'service_model_key';
+    return key === V23_MARKER_FIELD_KEY || key === V24_MARKER_FIELD_KEY || key === 'service_model_key';
   });
   return marker ? v23CustomFieldValue(marker) : '';
 }
 
 function isV23SaasRequest(value = {}) {
-  return v23ServiceModelKey(value) === V23_SAAS_SERVICE_MODEL_KEY;
+  return SAAS_SERVICE_MODEL_KEYS.has(v23ServiceModelKey(value));
+}
+
+function isV24SaasRequest(value = {}) {
+  return v23ServiceModelKey(value) === V24_SAAS_SERVICE_MODEL_KEY;
 }
 
 function isSaasIncidentRequest(value = {}) {
@@ -142,7 +160,7 @@ function ensureV23MarkerCustomField(fields = [], extra = {}) {
   const list = Array.isArray(fields) ? fields.map((field) => ({ ...field })) : [];
   const index = list.findIndex((field) => {
     const key = v23CustomFieldKey(field).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
-    return key === V23_MARKER_FIELD_KEY || key === 'service_model_key';
+    return key === V23_MARKER_FIELD_KEY || key === V24_MARKER_FIELD_KEY || key === 'service_model_key';
   });
   const marker = v23MarkerField(extra);
   if (index >= 0) list[index] = { ...list[index], ...marker };
@@ -163,9 +181,11 @@ function mergeV23CustomFields(base = [], extra = []) {
 }
 
 const V23_INCIDENT_POST_CREATE_FIELD_KEYS = new Set([
-  'SEVERITY', 'PRIORITY', 'S3_BUCKET_URL', 'TEST_RELEASE', 'RELEASE_ID', 'RELEASE_TYPE',
-  'RCA_CATEGORY', 'ROOT_CAUSE', 'CORRECTIVE_ACTION', 'PREVENTIVE_ACTION', 'RCA_STATUS',
-  'APPROVER', 'EXCEPTION_APPROVER', 'TEST_CASE_LINK'
+  // v24: Severity, Priority and S3 evidence are valid intake data. Only lifecycle-only
+  // fields are stripped from Incident creation. Client priority is still cleared separately.
+  'TEST_RELEASE', 'RELEASE_ID', 'RELEASE_TYPE', 'RCA_CATEGORY', 'ROOT_CAUSE',
+  'CORRECTIVE_ACTION', 'PREVENTIVE_ACTION', 'RCA_STATUS', 'APPROVER',
+  'EXCEPTION_APPROVER', 'TEST_CASE_LINK'
 ]);
 
 function stripV23IncidentPostCreateFields(fields = []) {
@@ -182,12 +202,12 @@ function v23ActorIsClient(body = {}) {
   return portal === 'client' || userType === 'clientuser' || userType === 'client user';
 }
 
-async function resolveV23TypeBinding(organizationId, level1Type = {}, level2Type = {}, level3Type = {}) {
+async function resolveTypeBindingForServiceModelKey(serviceModelKey, organizationId, level1Type = {}, level2Type = {}, level3Type = {}) {
   const ids = [level3Type.id, level3Type._id, level2Type.id, level2Type._id, level1Type.id, level1Type._id].filter(Boolean).map(String);
   if (!ids.length) return null;
-  const collection = mongoose.connection.collection(process.env.V23_SERVICE_MODEL_COLLECTION || 'v23_service_models');
+  const collection = mongoose.connection.collection(serviceModelCollectionForKey(serviceModelKey));
   return collection.findOne({
-    serviceModelKey: V23_SAAS_SERVICE_MODEL_KEY,
+    serviceModelKey,
     kind: 'type_binding',
     typeIds: { $in: ids },
     $or: [
@@ -198,11 +218,31 @@ async function resolveV23TypeBinding(organizationId, level1Type = {}, level2Type
   });
 }
 
-async function resolveV23Workflow(workflowKey) {
+async function resolveV23TypeBinding(organizationId, level1Type = {}, level2Type = {}, level3Type = {}) {
+  const ids = [level3Type.id, level3Type._id, level2Type.id, level2Type._id, level1Type.id, level1Type._id].filter(Boolean).map(String);
+  if (!ids.length) return null;
+
+  // v24 is authoritative for new code. v23 remains readable until the suntecgroup
+  // database is migrated, so existing environments do not break during rollout.
+  for (const serviceModelKey of [V24_SAAS_SERVICE_MODEL_KEY, V23_SAAS_SERVICE_MODEL_KEY]) {
+    const binding = await resolveTypeBindingForServiceModelKey(serviceModelKey, organizationId, level1Type, level2Type, level3Type);
+    if (binding) return binding;
+  }
+  return null;
+}
+
+async function resolveV23Workflow(workflowKey, serviceModelKey = V24_SAAS_SERVICE_MODEL_KEY) {
   if (!workflowKey) return null;
-  const collection = mongoose.connection.collection(process.env.V23_SERVICE_MODEL_COLLECTION || 'v23_service_models');
-  const doc = await collection.findOne({ serviceModelKey: V23_SAAS_SERVICE_MODEL_KEY, kind: 'workflows', key: 'workflows' });
-  return doc?.payload?.workflows?.find((workflow) => String(workflow.key || '') === String(workflowKey)) || null;
+  const keys = serviceModelKey === V23_SAAS_SERVICE_MODEL_KEY
+    ? [V23_SAAS_SERVICE_MODEL_KEY]
+    : [V24_SAAS_SERVICE_MODEL_KEY, V23_SAAS_SERVICE_MODEL_KEY];
+  for (const key of keys) {
+    const collection = mongoose.connection.collection(serviceModelCollectionForKey(key));
+    const doc = await collection.findOne({ serviceModelKey: key, kind: 'workflows', key: 'workflows' });
+    const workflow = doc?.payload?.workflows?.find((item) => String(item.key || '') === String(workflowKey));
+    if (workflow) return { ...workflow, __serviceModelKey: key };
+  }
+  return null;
 }
 
 function v23WorkflowDefinition(workflow = {}) {
@@ -223,16 +263,21 @@ function v23WorkflowDefinition(workflow = {}) {
       toStatusId: String(transition.to || ''),
       transitionType: String(transition.kind || 'status'),
       v23Condition: transition.condition || {},
-      roles: transition.roles || []
+      condition: transition.condition || {},
+      roles: transition.roles || [],
+      customerEnabled: transition.customerEnabled === true,
+      supportEffect: transition.supportEffect || {},
+      jiraTransitionId: String(transition.jiraTransitionId || '')
     }));
   return {
     localId: String(workflow.key || ''),
     name: String(workflow.name || workflow.key || ''),
     statuses,
     transitions,
-    v23ServiceModelKey: V23_SAAS_SERVICE_MODEL_KEY,
+    v23ServiceModelKey: String(workflow.__serviceModelKey || workflow.serviceModelKey || V23_SAAS_SERVICE_MODEL_KEY),
     v23SupportMovePolicy: String(workflow.supportMovePolicy || 'PRESERVE'),
     v23NewIsCreationOnly: workflow.newIsCreationOnly === true,
+    globalActions: workflow.globalActions || [],
     v23GlobalActions: workflow.globalActions || []
   };
 }
@@ -286,7 +331,8 @@ function cleanSlaDefinition(value = {}) {
   })) : [];
   return {
     supportWindow: String(value.supportWindow || 'business_hours').trim(),
-    clockStartTrigger: String(value.clockStartTrigger || 'severity_selected').trim(),
+    clockStartTrigger: String(value.clockStartTrigger || 'ticket_created').trim(),
+    clockStartStatusId: String(value.clockStartStatusId || '').trim().toUpperCase(),
     rules,
     applicability: {
       applyOnlyWhenSeveritySelected: value.applicability?.applyOnlyWhenSeveritySelected !== false,
@@ -325,6 +371,61 @@ function chooseNextSlaStep({ state, responseDueAt, resolutionDueAt }) {
   return { nextActionLabel: 'SLA running', nextDueAt: null };
 }
 
+function slaClockTriggerResult(requestItem = {}) {
+  if (requestItem.sla?.startedAt) {
+    return { ready: true, startedAt: requestItem.sla.startedAt, reason: 'SLA clock already started.' };
+  }
+
+  const trigger = String(requestItem.slaDefinition?.clockStartTrigger || 'ticket_created').trim().toLowerCase();
+  const now = new Date();
+  const createdEvent = (requestItem.timeline || []).find((item) => item.eventType === 'created' && item.createdAt);
+  const createdAt = requestItem.createdAt || createdEvent?.createdAt || now;
+  const level = String(requestItem.currentSupportLevel || '').trim().toUpperCase();
+  const currentStatuses = new Set([
+    String(requestItem.currentStatus?.localId || '').trim().toUpperCase(),
+    ...(requestItem.activeStages || []).map((stage) => String(stage.currentStatus?.localId || '').trim().toUpperCase())
+  ].filter(Boolean));
+
+  if (trigger === 'ticket_created') return { ready: true, startedAt: createdAt, reason: 'SLA starts when the issue is raised.' };
+  if (trigger === 'severity_selected') {
+    return requestItem.severity?.id
+      ? { ready: true, startedAt: now, reason: 'SLA starts when severity is selected.' }
+      : { ready: false, reason: 'Waiting for severity to start SLA.' };
+  }
+  if (trigger === 'priority_selected') {
+    return requestItem.priority?.id
+      ? { ready: true, startedAt: now, reason: 'SLA starts when priority is selected.' }
+      : { ready: false, reason: 'Waiting for priority to start SLA.' };
+  }
+  if (trigger === 'l2_received') {
+    return level === 'L2'
+      ? { ready: true, startedAt: now, reason: 'SLA starts when L2 receives the issue.' }
+      : { ready: false, reason: 'Waiting for the issue to reach L2.' };
+  }
+  if (trigger === 'l3_received') {
+    return level === 'L3'
+      ? { ready: true, startedAt: now, reason: 'SLA starts when L3 receives the issue.' }
+      : { ready: false, reason: 'Waiting for the issue to reach L3.' };
+  }
+  if (trigger === 'status_reached') {
+    const wanted = String(requestItem.slaDefinition?.clockStartStatusId || '').trim().toUpperCase();
+    if (!wanted) return { ready: false, reason: 'SLA start status is not configured.' };
+    return currentStatuses.has(wanted)
+      ? { ready: true, startedAt: now, reason: `SLA starts when status ${wanted} is reached.` }
+      : { ready: false, reason: `Waiting for status ${wanted} to start SLA.` };
+  }
+  return { ready: true, startedAt: createdAt, reason: 'SLA starts when the issue is raised.' };
+}
+
+function incidentIsCustomerBacked(requestItem = {}) {
+  if (!isSaasIncidentRequest(requestItem) && !isSeededV23IncidentPayload(requestItem)) return false;
+  if (requestItem.slaContext?.customerBacked === true) return true;
+  const sourcePortal = String(requestItem.sourcePortal || '').toLowerCase();
+  const source = String(requestItem.source || '').toLowerCase();
+  const requesterPortal = String(requestItem.requester?.portal || '').toLowerCase();
+  return sourcePortal === 'client' || requesterPortal === 'client' || source === 'client_portal' || source === 'client_asked_agent';
+}
+
 function calculateSla(requestItem) {
   const now = new Date();
   const base = {
@@ -340,15 +441,19 @@ function calculateSla(requestItem) {
   if (requestItem.lifecycleState === 'resolved') {
     return { ...base, state: 'met', rag: 'green', reason: 'Request is resolved.' };
   }
+  const customerBackedIncident = incidentIsCustomerBacked(requestItem);
+  if ((isSaasIncidentRequest(requestItem) || isSeededV23IncidentPayload(requestItem)) && !customerBackedIncident) {
+    return { ...base, state: 'not_applicable', rag: 'grey', reason: 'Customer SLA applies only to an Incident raised by the client or explicitly raised on behalf of the bank.', startedAt: null };
+  }
   const level = (requestItem.supportPathDefinition?.levels || []).find((item) => item.localId === requestItem.currentSupportLevel);
-  if (!level || level.slaApplicable !== true) {
+  if (!customerBackedIncident && (!level || level.slaApplicable !== true)) {
     return { ...base, state: 'not_applicable', rag: 'grey', reason: `SLA is not active at ${requestItem.currentSupportLevel || 'this support level'}.` };
   }
   if (!requestItem.slaPolicy?.id || !(requestItem.slaDefinition?.rules || []).length) {
     return { ...base, state: 'waiting', rag: 'grey', reason: 'No SLA policy is assigned.' };
   }
   const issueLevels = requestItem.slaDefinition?.applicability?.applicableIssueLevelCodes || [];
-  if (issueLevels.length && !issueLevels.includes(String(requestItem.currentSupportLevel || '').toUpperCase())) {
+  if (!customerBackedIncident && issueLevels.length && !issueLevels.includes(String(requestItem.currentSupportLevel || '').toUpperCase())) {
     return { ...base, state: 'not_applicable', rag: 'grey', reason: 'SLA policy does not apply to this support level.' };
   }
   const environmentIds = requestItem.slaDefinition?.applicability?.applicableEnvironmentIds || [];
@@ -359,12 +464,16 @@ function calculateSla(requestItem) {
   if (requestItem.severity?.id) rule = (requestItem.slaDefinition.rules || []).find((item) => item.ruleBasis === 'severity' && String(item.severityId) === String(requestItem.severity.id));
   if (!rule && requestItem.priority?.id) rule = (requestItem.slaDefinition.rules || []).find((item) => item.ruleBasis === 'priority' && String(item.priorityId) === String(requestItem.priority.id));
   if (!rule) {
-    return { ...base, state: 'waiting', rag: 'grey', reason: requestItem.slaDefinition?.clockStartTrigger === 'priority_selected' ? 'Waiting for priority to start SLA.' : 'Waiting for severity or matching SLA rule.' };
+    return { ...base, state: 'waiting', rag: 'grey', reason: 'Waiting for a matching severity or priority SLA rule.' };
+  }
+  const trigger = slaClockTriggerResult(requestItem);
+  if (!trigger.ready) {
+    return { ...base, state: 'waiting', rag: 'grey', reason: trigger.reason, startedAt: null };
   }
   const calendar = cleanSlaCalendar(requestItem.slaCalendar || {});
   const responseMinutes = unitToMinutes(rule.responseTimeValue, rule.responseTimeUnit, calendar);
   const resolutionMinutes = unitToMinutes(rule.resolutionTimeValue, rule.resolutionTimeUnit, calendar);
-  const startedAt = requestItem.sla?.startedAt || now;
+  const startedAt = requestItem.sla?.startedAt || trigger.startedAt || now;
   const responseDueAt = responseMinutes ? addSlaDuration(startedAt, rule.responseTimeValue, rule.responseTimeUnit, calendar) : null;
   const resolutionDueAt = resolutionMinutes ? addSlaDuration(startedAt, rule.resolutionTimeValue, rule.resolutionTimeUnit, calendar) : null;
   let state = 'running';
@@ -628,10 +737,34 @@ function cleanWorkflowDefinition(value = {}) {
   const statusIds = new Set(statuses.map((item) => item.localId));
   const transitions = Array.isArray(value.transitions)
     ? value.transitions
-        .map((item) => ({ fromStatusId: String(item.fromStatusId || '').trim(), toStatusId: String(item.toStatusId || '').trim() }))
+        .map((item) => ({
+          fromStatusId: String(item.fromStatusId || '').trim(),
+          toStatusId: String(item.toStatusId || '').trim(),
+          localId: String(item.localId || item.key || '').trim(),
+          name: String(item.name || item.label || '').trim(),
+          transitionType: String(item.transitionType || item.kind || 'status').trim(),
+          customerEnabled: item.customerEnabled === true,
+          roles: Array.isArray(item.roles) ? item.roles.map((role) => String(role || '').trim()).filter(Boolean) : [],
+          targetSupportLevel: String(item.targetSupportLevel || item.supportEffect?.targetLevel || '').trim(),
+          jiraTransitionId: String(item.jiraTransitionId || '').trim(),
+          condition: item.condition || item.v23Condition || {},
+          supportEffect: item.supportEffect || {}
+        }))
         .filter((item) => statusIds.has(item.fromStatusId) && statusIds.has(item.toStatusId) && item.fromStatusId !== item.toStatusId)
     : [];
-  return { statuses, transitions };
+  const globalActions = Array.isArray(value.globalActions || value.v23GlobalActions)
+    ? (value.globalActions || value.v23GlobalActions).map((item) => ({
+        key: String(item.key || '').trim(),
+        label: String(item.label || item.name || item.key || '').trim(),
+        kind: String(item.kind || 'escalation').trim(),
+        statusEffect: String(item.statusEffect || 'KEEP').trim().toUpperCase(),
+        customerEnabled: item.customerEnabled === true,
+        roles: Array.isArray(item.roles) ? item.roles.map((role) => String(role || '').trim()).filter(Boolean) : [],
+        jiraTransitionId: String(item.jiraTransitionId || '').trim(),
+        condition: item.condition || {}
+      })).filter((item) => item.key && item.label)
+    : [];
+  return { statuses, transitions, globalActions };
 }
 
 function cleanSupportPathDefinition(value = {}) {
@@ -667,7 +800,12 @@ function cleanSupportPathDefinition(value = {}) {
             movementType: item.movementType === 'parallel' || targets.length > 1 ? 'parallel' : 'sequential',
             toLevelIds: targets,
             primaryLevelId: targets.includes(String(item.primaryLevelId || '').trim()) ? String(item.primaryLevelId || '').trim() : (targets[0] || ''),
-            targetStatusBehavior: item.targetStatusBehavior === 'keep' ? 'keep' : 'start',
+            targetStatusBehavior: ['keep', 'start', 'explicit'].includes(item.targetStatusBehavior) ? item.targetStatusBehavior : 'start',
+            targetStatusId: String(item.targetStatusId || '').trim(),
+            allowedFromStatusIds: Array.isArray(item.allowedFromStatusIds) ? item.allowedFromStatusIds.map((status) => String(status || '').trim()).filter(Boolean) : [],
+            customerEnabled: item.customerEnabled === true,
+            roles: Array.isArray(item.roles) ? item.roles.map((role) => String(role || '').trim()).filter(Boolean) : [],
+            condition: item.condition || {},
             commentRequired: item.commentRequired !== false,
             reasonRequired: item.reasonRequired !== false,
             displayOrder: Number(item.displayOrder) || 100
@@ -772,11 +910,15 @@ function startStatusFromWorkflowDefinition(definition = {}) {
   return cleanStatus(statuses.find((status) => status.statusType === 'start') || statuses[0] || {});
 }
 
-function supportMoveTargetStatus(requestItem, sourceStage = null, workflowDefinition = {}, targetStatusBehavior = 'start', forceSaasIncident = false) {
+function supportMoveTargetStatus(requestItem, sourceStage = null, workflowDefinition = {}, targetStatusBehavior = 'start', forceSaasIncident = false, targetStatusId = '') {
   const statuses = workflowDefinition.statuses || [];
   const current = sourceStage?.currentStatus || requestItem.currentStatus || {};
   const currentIsStart = String(current.statusType || '').toLowerCase() === 'start';
   const exact = statuses.find((status) => String(status.localId || '') === String(current.localId || ''));
+  if (targetStatusBehavior === 'explicit' && targetStatusId) {
+    const explicit = statuses.find((status) => String(status.localId || '') === String(targetStatusId));
+    if (explicit) return cleanStatus(explicit);
+  }
   if (targetStatusBehavior === 'keep' && exact) return cleanStatus(exact);
   if (!(forceSaasIncident || isSaasIncidentRequest(requestItem)) || currentIsStart) return startStatusFromWorkflowDefinition(workflowDefinition);
 
@@ -967,15 +1109,28 @@ app.post('/api/organizations/:organizationId/requests', async (req, res, next) =
     const __seededV23Incident = isSeededV23IncidentPayload(req.body);
     const __v23IncidentIntake = Boolean((__v23Binding && /INCIDENT/i.test(String(__v23Binding.formKey || ''))) || __seededV23Incident);
     if (__v23Binding || __seededV23Incident) {
-      req.body.serviceModelKey = V23_SAAS_SERVICE_MODEL_KEY;
-      req.body.customFields = ensureV23MarkerCustomField(
-        mergeV23CustomFields(req.body.customFields || [], req.body.v23CustomFields || []),
-        { formKey: __v23Binding?.formKey || '', workflowKey: __v23Binding?.workflowKey || '' }
-      );
+      req.body.serviceModelKey = String(__v23Binding?.serviceModelKey || V24_SAAS_SERVICE_MODEL_KEY);
+      const mergedIntakeFields = mergeV23CustomFields(req.body.customFields || [], req.body.v23CustomFields || []);
+      if (req.body.serviceModelKey === V24_SAAS_SERVICE_MODEL_KEY) {
+        const withoutOldMarker = mergedIntakeFields.filter((field) => {
+          const key = v23CustomFieldKey(field).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+          return key !== V23_MARKER_FIELD_KEY && key !== V24_MARKER_FIELD_KEY && key !== 'service_model_key';
+        });
+        req.body.customFields = [...withoutOldMarker, {
+          fieldKey: V24_MARKER_FIELD_KEY, key: V24_MARKER_FIELD_KEY, code: V24_MARKER_FIELD_KEY,
+          name: 'Service Model Key', label: 'Service Model Key', fieldType: 'hidden', type: 'hidden',
+          value: V24_SAAS_SERVICE_MODEL_KEY, visibility: 'internal',
+          formKey: __v23Binding?.formKey || '', workflowKey: __v23Binding?.workflowKey || ''
+        }];
+      } else {
+        req.body.customFields = ensureV23MarkerCustomField(
+          mergedIntakeFields,
+          { formKey: __v23Binding?.formKey || '', workflowKey: __v23Binding?.workflowKey || '' }
+        );
+      }
       if (__v23IncidentIntake) {
-        // Intake is intentionally small: lifecycle/RCA/release/approval data is captured later.
-        req.body.severity = {};
-        req.body.priority = {};
+        // v24 Incident intake keeps reported Severity and S3 evidence. Lifecycle/RCA/release
+        // fields are captured later. Client Priority is cleared by the client guard below.
         req.body.customFields = stripV23IncidentPostCreateFields(req.body.customFields || []);
         req.body.v23CustomFields = stripV23IncidentPostCreateFields(req.body.v23CustomFields || []);
       }
@@ -996,7 +1151,7 @@ app.post('/api/organizations/:organizationId/requests', async (req, res, next) =
     if (!isValidId(req.params.organizationId)) return res.status(400).json({ message: 'Invalid organization id.' });
 
     const subject = requireText(req.body.subject, 'Subject', 3);
-    const description = requireText(req.body.description, 'Description', 10);
+    const description = __v23IncidentIntake ? String(req.body.description || '').trim().slice(0, 12000) : requireText(req.body.description, 'Description', 10);
     const client = cleanRef(req.body.client);
     const level1Type = cleanRef(req.body.level1Type);
     const level2Type = cleanRef(req.body.level2Type);
@@ -1015,7 +1170,7 @@ app.post('/api/organizations/:organizationId/requests', async (req, res, next) =
     const slaPolicy = cleanRef(req.body.slaPolicy || {});
     const slaDefinition = cleanSlaDefinition(req.body.slaDefinition || {});
     const slaCalendar = cleanSlaCalendar(req.body.slaCalendar || {});
-    let customFieldValues = cleanCustomFields(req.body.customFieldValues || []);
+    let customFieldValues = cleanCustomFields(mergeV23CustomFields(req.body.customFieldValues || [], req.body.customFields || []));
     if (__v23IncidentIntake && v23ActorIsClient(req.body)) customFieldValues = stripV23IncidentPostCreateFields(customFieldValues);
     const currentStatus = cleanStatus(req.body.currentStatus || workflowDefinition.statuses[0] || {});
     const sourcePortal = ['admin', 'client', 'agent'].includes(req.body.sourcePortal) ? req.body.sourcePortal : requester.portal || 'admin';
@@ -1060,7 +1215,7 @@ app.post('/api/organizations/:organizationId/requests', async (req, res, next) =
     const effectiveSupportLevel = primaryStage?.localId || currentSupportLevel;
     const effectiveOwnerSide = primaryStage?.ownerSide || ownerSide;
     if (__v23Binding) {
-      const __v23Workflow = await resolveV23Workflow(__v23Binding.workflowKey);
+      const __v23Workflow = await resolveV23Workflow(__v23Binding.workflowKey, __v23Binding.serviceModelKey || req.body.serviceModelKey);
       const __v23Definition = __v23Workflow ? v23WorkflowDefinition(__v23Workflow) : null;
       if (__v23Definition) {
         const __v23Start = (__v23Definition.statuses || []).find((status) => String(status.localId) === String(__v23Workflow.startStatus || ''))
@@ -1082,6 +1237,18 @@ app.post('/api/organizations/:organizationId/requests', async (req, res, next) =
       taskRequestContext
     );
     const raisedOnBehalfOf = cleanActor(req.body.raisedOnBehalfOf || {});
+    const incidentPayload = __v23IncidentIntake || isSeededV23IncidentPayload(req.body);
+    const customerBacked = incidentPayload && (
+      sourcePortal === 'client' || source === 'client_portal' || source === 'client_asked_agent' || effectiveSupportLevel === 'L1'
+    );
+    const slaContext = incidentPayload ? {
+      customerBacked,
+      incidentLevel: effectiveSupportLevel,
+      raisedForClientId: String(client.id || ''),
+      eligibilityBasis: customerBacked
+        ? (sourcePortal === 'client' ? 'client_portal' : effectiveSupportLevel === 'L1' ? 'incident_level_bank' : 'raised_on_behalf_of_bank')
+        : 'internal_support_incident'
+    } : {};
     const requestNumber = await nextRequestNumber(req.params.organizationId, client.code || 'REQ');
     const taskEnvelope = { requestNumber, tasks, taskSequence: 0 };
     ensureTaskIds(taskEnvelope);
@@ -1104,6 +1271,7 @@ app.post('/api/organizations/:organizationId/requests', async (req, res, next) =
       slaPolicy,
       slaDefinition,
       slaCalendar,
+      slaContext,
       customFieldValues,
       currentStatus: effectiveCurrentStatus,
       activeStages,
@@ -1168,6 +1336,71 @@ app.post('/api/organizations/:organizationId/requests', async (req, res, next) =
 
 
 
+
+app.post('/api/organizations/:organizationId/requests/:requestId/details', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) {
+      return res.status(400).json({ message: 'Invalid request id.' });
+    }
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    const actor = cleanActor(req.body.actor || {});
+    const clientActor = actor.portal === 'client' || actor.userType === 'clientUser';
+    const previous = requestItem.toObject();
+    const changes = [];
+
+    const textChange = (key, label, value, min = 0, max = 5000) => {
+      if (value === undefined) return;
+      const next = String(value || '').trim().slice(0, max);
+      if (min && next.length < min) { const error = new Error(`${label} must be at least ${min} characters.`); error.status = 400; throw error; }
+      if (String(requestItem[key] || '') !== next) { changes.push(`${label}: ${String(requestItem[key] || 'unset')} → ${next || 'unset'}`); requestItem[key] = next; }
+    };
+    textChange('subject', 'Summary', req.body.subject, 3, 180);
+    textChange('description', 'Description', req.body.description, 10, 5000);
+
+    const refChange = (key, label, value, { clientAllowed = true } = {}) => {
+      if (value === undefined) return;
+      if (clientActor && !clientAllowed) return;
+      const prev = requestItem[key]?.toObject?.() || requestItem[key] || {};
+      const next = cleanRef(value || {});
+      if (String(prev.id || '') !== String(next.id || '') || String(prev.name || '') !== String(next.name || '') || String(prev.code || '') !== String(next.code || '')) {
+        changes.push(`${label}: ${prev.code || prev.name || 'unset'} → ${next.code || next.name || 'unset'}`);
+        requestItem[key] = next;
+      }
+    };
+
+    refChange('severity', 'Severity', req.body.severity, { clientAllowed: true });
+    refChange('priority', 'Priority', req.body.priority, { clientAllowed: false });
+    refChange('product', 'Product', req.body.product, { clientAllowed: true });
+    refChange('environment', 'Environment', req.body.environment, { clientAllowed: true });
+
+    if (req.body.modules !== undefined) {
+      const nextModules = Array.isArray(req.body.modules) ? req.body.modules.map(cleanRef) : [];
+      const before = JSON.stringify((requestItem.modules || []).map((item) => String(item.id || '')));
+      const after = JSON.stringify(nextModules.map((item) => String(item.id || '')));
+      if (before !== after) { changes.push('Modules updated'); requestItem.modules = nextModules; requestItem.module = nextModules[0] || {}; }
+    }
+
+    if (req.body.customFieldValues !== undefined) {
+      const nextCustom = cleanCustomFields(req.body.customFieldValues || []);
+      const internalPattern = /^(RCA|ROOT_CAUSE|CORRECTIVE|PREVENTIVE|RELEASE_|TEST_CASE|APPROVER)/i;
+      const safeCustom = clientActor ? nextCustom.filter((field) => !internalPattern.test(String(field.fieldKey || ''))) : nextCustom;
+      const existing = new Map((requestItem.customFieldValues || []).map((field) => [String(field.fieldKey || '').toUpperCase(), field.toObject?.() || field]));
+      for (const field of safeCustom) existing.set(String(field.fieldKey || '').toUpperCase(), field);
+      const merged = [...existing.values()];
+      if (JSON.stringify(previous.customFieldValues || []) !== JSON.stringify(merged)) { changes.push('Request fields updated'); requestItem.customFieldValues = merged; }
+    }
+
+    if (!changes.length) return res.json({ request: requestItem, noChange: true });
+    const classificationChanged = String(previous.severity?.id || '') !== String(requestItem.severity?.id || '') || String(previous.priority?.id || '') !== String(requestItem.priority?.id || '');
+    if (classificationChanged) syncSlaState(requestItem);
+    requestItem.timeline = requestItem.timeline || [];
+    requestItem.timeline.push({ eventType: 'request_edited', message: `Request edited. ${changes.join(' · ')}`.slice(0, 1600), actor, createdAt: new Date(), visibility: clientActor ? 'client_visible' : 'client_visible' });
+    await requestItem.save();
+    return res.json({ request: requestItem, changes });
+  } catch (error) { next(error); }
+});
+
 app.post('/api/organizations/:organizationId/requests/:requestId/classification', async (req, res, next) => {
   try {
     if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) {
@@ -1177,11 +1410,9 @@ app.post('/api/organizations/:organizationId/requests/:requestId/classification'
     if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
 
     const actor = cleanActor(req.body.actor || {});
-    // v23 classification permission: Client sets Severity only at creation; Priority is support-owned.
-    if (isV23SaasRequest(requestItem) && (actor.portal === 'client' || actor.userType === 'clientUser')) {
-      if (req.body.severity !== undefined || req.body.priority !== undefined) {
-        return res.status(403).json({ message: 'Client classification is read-only after creation. Priority is controlled by support.' });
-      }
+    // v24.2: customer can correct Severity after creation; Priority remains support-only and hidden from clients.
+    if (isV23SaasRequest(requestItem) && (actor.portal === 'client' || actor.userType === 'clientUser') && req.body.priority !== undefined) {
+      return res.status(403).json({ message: 'Priority is controlled by support and is not visible to client users.' });
     }
     const previousSeverity = { ...(requestItem.severity?.toObject?.() || requestItem.severity || {}) };
     const previousPriority = { ...(requestItem.priority?.toObject?.() || requestItem.priority || {}) };
@@ -1408,40 +1639,74 @@ app.post('/api/organizations/:organizationId/requests/sla-notification-candidate
 
 
 
-app.get('/api/organizations/:organizationId/v23/form-definition', async (req, res, next) => {
+async function serveSaasFormDefinition(req, res, next, serviceModelKey) {
   try {
-    const binding = await resolveV23TypeBinding(req.params.organizationId, { id: req.query.level1TypeId }, { id: req.query.level2TypeId }, { id: req.query.level3TypeId });
-    if (!binding) return res.json({ serviceModelKey: V23_SAAS_SERVICE_MODEL_KEY, binding: null, form: null, fields: [] });
-    const collection = mongoose.connection.collection(process.env.V23_SERVICE_MODEL_COLLECTION || 'v23_service_models');
-    const formDoc = await collection.findOne({ serviceModelKey: V23_SAAS_SERVICE_MODEL_KEY, kind: 'form_definitions', key: 'forms' });
-    const fieldDoc = await collection.findOne({ serviceModelKey: V23_SAAS_SERVICE_MODEL_KEY, kind: 'field_registry', key: 'fields' });
+    const binding = await resolveTypeBindingForServiceModelKey(
+      serviceModelKey,
+      req.params.organizationId,
+      { id: req.query.level1TypeId },
+      { id: req.query.level2TypeId },
+      { id: req.query.level3TypeId }
+    );
+    if (!binding) return res.json({ serviceModelKey, binding: null, form: null, fields: [] });
+    const collection = mongoose.connection.collection(serviceModelCollectionForKey(serviceModelKey));
+    const formDoc = await collection.findOne({ serviceModelKey, kind: 'form_definitions', key: 'forms' });
+    const fieldDoc = await collection.findOne({ serviceModelKey, kind: 'field_registry', key: 'fields' });
     const form = formDoc?.payload?.forms?.find((item) => String(item.key || '') === String(binding.formKey || '')) || null;
-    if (!form) return res.status(404).json({ message: 'v23 form definition not found.' });
+    if (!form) return res.status(404).json({ message: `${serviceModelKey} form definition not found.` });
     const registry = new Map((fieldDoc?.payload?.fields || []).map((field) => [String(field.key || ''), field]));
     const resolvedFields = (form.fields || []).map((ref) => {
       const base = registry.get(String(ref.key || ''));
       return base ? { ...base, ...ref, key: String(ref.key || base.key || '') } : null;
     }).filter(Boolean);
-    res.json({ serviceModelKey: V23_SAAS_SERVICE_MODEL_KEY, binding, form, fields: resolvedFields });
+    res.json({ serviceModelKey, binding, form, fields: resolvedFields });
   } catch (error) { next(error); }
-});
+}
+
+app.get('/api/organizations/:organizationId/v24/form-definition', (req, res, next) =>
+  serveSaasFormDefinition(req, res, next, V24_SAAS_SERVICE_MODEL_KEY)
+);
+
+app.get('/api/organizations/:organizationId/v23/form-definition', (req, res, next) =>
+  serveSaasFormDefinition(req, res, next, V23_SAAS_SERVICE_MODEL_KEY)
+);
 
 app.post('/api/organizations/:organizationId/requests/:requestId/v23/visibility', async (req, res, next) => {
   try {
     if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
     const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
     if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
-    if (!isV23SaasRequest(requestItem)) return res.status(409).json({ message: 'v23 visibility controls apply only to the marked SaaS service model.' });
+
+    // Endpoint name retained for backward compatibility with v23 clients. The capability
+    // is request-level and is also used by v24. Visibility may only become broader.
     const actor = cleanActor(req.body.actor || {});
     if (actor.portal === 'client' || actor.userType === 'clientUser') return res.status(403).json({ message: 'Client cannot change request visibility.' });
-    const allowed = new Set(['l3_only','l2_l3','client_visible']);
-    const target = String(req.body.visibilityScope || '').trim();
-    if (!allowed.has(target)) return res.status(400).json({ message: 'Invalid visibility scope.' });
+
+    const labels = {
+      internal_only: 'L3 · SunTec only',
+      partner_visible: 'L2 + L3 · Partner + SunTec',
+      client_visible: 'L1 + L2 + L3 · Client visible'
+    };
+    const rank = { internal_only: 0, partner_visible: 1, client_visible: 2 };
     const previous = String(requestItem.visibilityScope || 'client_visible');
+    const target = String(req.body.visibilityScope || '').trim();
+    const reason = String(req.body.reason || '').trim();
+
+    if (!(target in rank)) return res.status(400).json({ message: 'Invalid visibility scope.' });
+    if (!(previous in rank)) return res.status(409).json({ message: 'Unsupported current visibility scope.' });
+    if (rank[target] < rank[previous]) return res.status(409).json({ message: 'Request visibility can only be expanded after creation.' });
     if (previous === target) return res.json({ request: requestItem, noChange: true });
+    if (reason.length < 3) return res.status(400).json({ message: 'Reason is required when expanding visibility.' });
+
     requestItem.visibilityScope = target;
     requestItem.timeline = requestItem.timeline || [];
-    requestItem.timeline.push({ eventType: 'visibility_changed', message: `Visibility changed: ${previous} → ${target}. ${String(req.body.reason || '').trim()}`, actor, createdAt: new Date() });
+    requestItem.timeline.push({
+      eventType: 'visibility_changed',
+      message: `Visibility expanded: ${labels[previous]} → ${labels[target]}. ${reason}`,
+      visibility: target,
+      actor,
+      createdAt: new Date()
+    });
     await requestItem.save();
     res.json({ request: requestItem, noChange: false });
   } catch (error) { next(error); }
@@ -1473,6 +1738,48 @@ app.post('/api/organizations/:organizationId/requests/:requestId/v23/approval', 
     res.json({ request: requestItem, action });
   } catch (error) { next(error); }
 });
+
+function normalizedWorkflowRole(actor = {}) {
+  const portal = String(actor.portal || '').toLowerCase();
+  const userType = String(actor.userType || '').toLowerCase();
+  if (portal === 'admin' || userType.includes('admin')) return 'admin';
+  if (portal === 'client' || userType.includes('client')) return 'client';
+  if (userType.includes('partner')) return 'partner';
+  if (userType.includes('manager') || userType.includes('head')) return 'manager';
+  return 'agent';
+}
+
+function transitionAllowedForActor(transition = {}, actor = {}, requestItem = {}) {
+  if (!transition) return false;
+  const role = normalizedWorkflowRole(actor);
+  if (role === 'client' && transition.customerEnabled !== true) return false;
+  const roles = Array.isArray(transition.roles) ? transition.roles.map((item) => String(item || '').toLowerCase()) : [];
+  if (roles.length && !roles.includes(role)) return false;
+  const severityCodes = Array.isArray(transition.condition?.severityCodes)
+    ? transition.condition.severityCodes.map((item) => String(item || '').toUpperCase())
+    : [];
+  if (severityCodes.length) {
+    const severityCode = String(requestItem.severity?.code || requestItem.severity?.name || '').toUpperCase();
+    if (!severityCodes.includes(severityCode)) return false;
+  }
+  return true;
+}
+
+function globalActionAllowedForActor(action = {}, actor = {}, requestItem = {}) {
+  if (!action) return false;
+  const role = normalizedWorkflowRole(actor);
+  if (role === 'client' && action.customerEnabled !== true) return false;
+  const roles = Array.isArray(action.roles) ? action.roles.map((item) => String(item || '').toLowerCase()) : [];
+  if (roles.length && !roles.includes(role)) return false;
+  const severityCodes = Array.isArray(action.condition?.severityCodes)
+    ? action.condition.severityCodes.map((item) => String(item || '').toUpperCase())
+    : [];
+  if (severityCodes.length) {
+    const severityCode = String(requestItem.severity?.code || requestItem.severity?.name || '').toUpperCase();
+    if (!severityCodes.includes(severityCode)) return false;
+  }
+  return true;
+}
 
 app.post('/api/organizations/:organizationId/requests/:requestId/status', async (req, res, next) => {
   try {
@@ -1525,9 +1832,16 @@ app.post('/api/organizations/:organizationId/requests/:requestId/status', async 
       });
     }
 
-    const allowed = (definition.transitions || []).some((item) => item.fromStatusId === currentId && item.toStatusId === toStatusId);
     const actor = cleanActor(req.body.actor || {});
+    const matchedTransition = (definition.transitions || []).find((item) => item.fromStatusId === currentId && item.toStatusId === toStatusId);
+    const allowed = matchedTransition && transitionAllowedForActor(matchedTransition, actor, requestItem);
     const adminOverride = actor.portal === 'admin';
+    if (matchedTransition?.supportEffect?.targetLevel && matchedTransition.supportEffect.targetLevel !== requestItem.currentSupportLevel) {
+      return res.status(409).json({
+        code: 'SUPPORT_MOVEMENT_ACTION_REQUIRED',
+        message: `${matchedTransition.name || target.name} changes support level and must be performed using the configured support action.`
+      });
+    }
     if (!allowed && !adminOverride) {
       return res.status(400).json({
         code: 'WORKFLOW_TRANSITION_NOT_ALLOWED',
@@ -1536,7 +1850,7 @@ app.post('/api/organizations/:organizationId/requests/:requestId/status', async 
         allowedNextStatuses
       });
     }
-    const forceSaasIncident = String(req.body.serviceModelKey || '').trim().toUpperCase() === V23_SAAS_SERVICE_MODEL_KEY
+    const forceSaasIncident = SAAS_SERVICE_MODEL_KEYS.has(String(req.body.serviceModelKey || '').trim().toUpperCase())
       && (req.body.saasIncident === true || String(req.body.saasIncident || '').toLowerCase() === 'true');
     const effectiveSaasIncident = forceSaasIncident || isSaasIncidentRequest(requestItem) || isSeededV23IncidentPayload(requestItem);
     if (stage) {
@@ -1552,7 +1866,7 @@ app.post('/api/organizations/:organizationId/requests/:requestId/status', async 
     const comment = requireText(req.body.comment, 'Comment', 3);
     const previousStatusName = currentStatus.name || currentId;
     const cleanedTarget = cleanStatus(target);
-    if (forceSaasIncident && !requestItem.serviceModelKey) requestItem.serviceModelKey = V23_SAAS_SERVICE_MODEL_KEY;
+    if (forceSaasIncident && !requestItem.serviceModelKey) requestItem.serviceModelKey = String(req.body.serviceModelKey || activeSaasServiceModelKey(requestItem) || V24_SAAS_SERVICE_MODEL_KEY).trim().toUpperCase();
     if (
       effectiveSaasIncident
       && String(cleanedTarget.statusType || '') === 'start'
@@ -1621,6 +1935,46 @@ app.post('/api/organizations/:organizationId/requests/:requestId/stages/:stageId
   } catch (error) { next(error); }
 });
 
+
+app.post('/api/organizations/:organizationId/requests/:requestId/global-action', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+
+    const stageId = String(req.body.stageId || requestItem.currentSupportLevel || '').trim();
+    const stage = (requestItem.activeStages || []).find((item) => item.localId === stageId)
+      || (requestItem.activeStages || []).find((item) => item.isPrimary)
+      || (requestItem.activeStages || [])[0]
+      || null;
+    const supplied = cleanWorkflowDefinition(req.body.workflowDefinition || {});
+    const stageDefinition = cleanWorkflowDefinition(stage?.workflowDefinition || {});
+    const storedDefinition = cleanWorkflowDefinition(requestItem.workflowDefinition || {});
+    const definition = stageDefinition.globalActions?.length ? stageDefinition
+      : storedDefinition.globalActions?.length ? storedDefinition
+        : supplied;
+
+    const actionKey = String(req.body.actionKey || '').trim();
+    const action = (definition.globalActions || []).find((item) => String(item.key || '') === actionKey);
+    if (!action) return res.status(400).json({ message: 'This escalation/action is not available in the current workflow.' });
+
+    const actor = cleanActor(req.body.actor || {});
+    if (!globalActionAllowedForActor(action, actor, requestItem)) return res.status(403).json({ message: `${action.label || 'This action'} is not available for your role.` });
+    if (String(action.statusEffect || 'KEEP').toUpperCase() !== 'KEEP') return res.status(409).json({ message: 'Only status-preserving global workflow actions are supported by this endpoint.' });
+
+    const comment = requireText(req.body.comment, 'Comment', 3);
+    requestItem.timeline = requestItem.timeline || [];
+    requestItem.timeline.push({
+      eventType: action.kind === 'escalation' ? 'manual_escalation' : 'workflow_global_action',
+      message: `${action.label}: ${comment}`,
+      actor,
+      createdAt: new Date()
+    });
+    await requestItem.save();
+    res.json({ request: requestItem, action, noChange: true });
+  } catch (error) { next(error); }
+});
+
 app.post('/api/organizations/:organizationId/requests/:requestId/support-move', async (req, res, next) => {
   try {
     if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
@@ -1656,8 +2010,27 @@ app.post('/api/organizations/:organizationId/requests/:requestId/support-move', 
       || activeStages.find((item) => item.localId === requestItem.currentSupportLevel)
       || activeStages.find((item) => item.isPrimary)
       || null;
-    if (currentStage) {
-      const blockers = blockingTasksForStageStatus(requestItem, currentStage.localId, currentStage.currentStatus?.localId || '');
+    const actor = cleanActor(req.body.actor || {});
+    const currentStatusId = String(currentStage?.currentStatus?.localId || requestItem.currentStatus?.localId || '').trim();
+    if (rule.allowedFromStatusIds?.length && !rule.allowedFromStatusIds.includes(currentStatusId)) {
+      return res.status(409).json({ message: `${rule.actionLabel} is not available from ${currentStage?.currentStatus?.name || currentStatusId || 'the current status'}.` });
+    }
+    if (String(actor.portal || '').toLowerCase() === 'client' && rule.customerEnabled !== true) {
+      return res.status(403).json({ message: `${rule.actionLabel} is a support-side action.` });
+    }
+    const ruleRole = normalizedWorkflowRole(actor);
+    const ruleRoles = Array.isArray(rule.roles) ? rule.roles.map((item) => String(item || '').toLowerCase()) : [];
+    if (ruleRoles.length && !ruleRoles.includes(ruleRole)) {
+      return res.status(403).json({ message: `${rule.actionLabel} is not available for your role.` });
+    }
+    const severityCodes = Array.isArray(rule.condition?.severityCodes) ? rule.condition.severityCodes.map((code) => String(code).toUpperCase()) : [];
+    if (severityCodes.length) {
+      const severityCode = String(requestItem.severity?.code || requestItem.severity?.name || '').toUpperCase();
+      if (!severityCodes.includes(severityCode)) return res.status(409).json({ message: `${rule.actionLabel} is not available for the current severity.` });
+    }
+    const currentStageForMove = currentStage;
+    if (currentStageForMove) {
+      const blockers = blockingTasksForStageStatus(requestItem, currentStageForMove.localId, currentStageForMove.currentStatus?.localId || '');
       if (blockers.length) return res.status(400).json({ message: `Complete ${blockers.length} blocking task${blockers.length === 1 ? '' : 's'} before moving this stage.` });
     }
     const targetLevelIds = rule.movementType === 'parallel' && rule.toLevelIds?.length ? rule.toLevelIds : [rule.toLevelId];
@@ -1665,18 +2038,17 @@ app.post('/api/organizations/:organizationId/requests/:requestId/support-move', 
     if (!targetLevels.length) return res.status(400).json({ message: 'Target support level is not configured.' });
     const comment = rule.commentRequired ? requireText(req.body.comment, 'Comment', 3) : String(req.body.comment || '').trim();
     const reason = rule.reasonRequired ? requireText(req.body.reason, 'Reason', 2) : String(req.body.reason || '').trim();
-    const actor = cleanActor(req.body.actor || {});
     const fromLevel = fromLevelId;
-    const forceSaasIncident = (String(req.body.serviceModelKey || '').trim().toUpperCase() === V23_SAAS_SERVICE_MODEL_KEY
+    const forceSaasIncident = (SAAS_SERVICE_MODEL_KEYS.has(String(req.body.serviceModelKey || '').trim().toUpperCase())
       && (req.body.saasIncident === true || String(req.body.saasIncident || '').toLowerCase() === 'true'))
       || isSeededV23IncidentPayload(requestItem);
-    if (forceSaasIncident && !requestItem.serviceModelKey) requestItem.serviceModelKey = V23_SAAS_SERVICE_MODEL_KEY;
+    if (forceSaasIncident && !requestItem.serviceModelKey) requestItem.serviceModelKey = String(req.body.serviceModelKey || activeSaasServiceModelKey(requestItem) || V24_SAAS_SERVICE_MODEL_KEY).trim().toUpperCase();
     const primaryLevel = targetLevels.find((level) => level.localId === rule.primaryLevelId) || targetLevels[0];
     const newStages = targetLevels.map((level) => {
       const levelDefinition = cleanWorkflowDefinition(level.workflowDefinition || level.workflow || {});
       const fallbackDefinition = cleanWorkflowDefinition(requestItem.workflowDefinition || {});
       const workflowDefinition = levelDefinition.statuses.length ? levelDefinition : fallbackDefinition;
-      const stageStatus = supportMoveTargetStatus(requestItem, currentStage, workflowDefinition, rule.targetStatusBehavior, forceSaasIncident);
+      const stageStatus = supportMoveTargetStatus(requestItem, currentStageForMove, workflowDefinition, rule.targetStatusBehavior, forceSaasIncident, rule.targetStatusId);
       return cleanActiveStage({
         ...level,
         workflow: level.workflow?.id ? level.workflow : { id: level.workflowId || '', name: level.workflowName || '' },

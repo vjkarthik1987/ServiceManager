@@ -79,7 +79,31 @@ const workflowTransitionSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true
-    }
+    },
+    localId: { type: String, trim: true, maxlength: 80, default: '' },
+    name: { type: String, trim: true, maxlength: 140, default: '' },
+    transitionType: { type: String, trim: true, maxlength: 40, default: 'status' },
+    customerEnabled: { type: Boolean, default: false },
+    roles: [{ type: String, trim: true, maxlength: 40 }],
+    allowedSupportLevels: [{ type: String, trim: true, maxlength: 20 }],
+    targetSupportLevel: { type: String, trim: true, maxlength: 20, default: '' },
+    jiraTransitionId: { type: String, trim: true, maxlength: 30, default: '' },
+    condition: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    supportEffect: { type: mongoose.Schema.Types.Mixed, default: () => ({}) }
+  },
+  { _id: false }
+);
+
+const workflowGlobalActionSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, maxlength: 80, required: true },
+    label: { type: String, trim: true, maxlength: 140, required: true },
+    kind: { type: String, trim: true, maxlength: 40, default: 'escalation' },
+    statusEffect: { type: String, trim: true, maxlength: 20, default: 'KEEP' },
+    customerEnabled: { type: Boolean, default: false },
+    roles: [{ type: String, trim: true, maxlength: 40 }],
+    jiraTransitionId: { type: String, trim: true, maxlength: 30, default: '' },
+    condition: { type: mongoose.Schema.Types.Mixed, default: () => ({}) }
   },
   { _id: false }
 );
@@ -119,6 +143,10 @@ const workflowSchema = new mongoose.Schema(
     },
     transitions: {
       type: [workflowTransitionSchema],
+      default: []
+    },
+    globalActions: {
+      type: [workflowGlobalActionSchema],
       default: []
     },
     status: {

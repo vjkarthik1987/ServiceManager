@@ -46,14 +46,15 @@ test('client-owned SaaS L1 stages do not require an individual owner to change s
 
 test('client-owned SaaS L1 stages can route forward while unassigned', () => {
   assert.match(webApp, /clientScopedSaasStage = v23SaasRequest && portal === 'client' && sourceStage\?\.ownerSide === 'client'/);
-  assert.match(webApp, /!canAutoRouteSaasStage && !clientScopedSaasStage/);
-  assert.match(requestApp, /supportMoveTargetStatus\(requestItem, currentStage, workflowDefinition, rule\.targetStatusBehavior, forceSaasIncident\)/);
+  assert.match(webApp, /configuredCrossLevelRoute/);
+  assert.match(webApp, /!sameStageRoute && !configuredCrossLevelRoute && !clientScopedSaasStage/);
+  assert.match(requestApp, /supportMoveTargetStatus\(requestItem, currentStage(?:ForMove)?, workflowDefinition, rule\.targetStatusBehavior, forceSaasIncident(?:, rule\.targetStatusId)?\)/);
 });
 
 test('existing seeded Incident records are treated as SaaS on detail pages without relying on stored marker', () => {
   assert.match(requestDetail, /level2IncidentCode/);
   assert.match(requestDetail, /seededV23Incident/);
-  assert.match(requestDetail, /const isV23Saas = v23ServiceModelKey === 'SUNTEC_SAAS_V23' \|\| seededV23Incident/);
+  assert.match(requestDetail, /const isV23Saas = \['SUNTEC_SAAS_V23','SUNTEC_SAAS_V24'\]\.includes\(v23ServiceModelKey\) \|\| seededV23Incident/);
   assert.match(requestDetail, /customerHiddenLifecycleKeys/);
 });
 

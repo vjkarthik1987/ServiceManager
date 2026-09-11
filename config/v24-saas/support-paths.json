@@ -1,0 +1,137 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V24",
+  "supportPaths": [
+    {
+      "key": "PATH_INCIDENT_COMMON_V24",
+      "name": "Incident \u2014 Common L1/L2/L3 Support Path",
+      "issueType": "INCIDENT",
+      "inheritToSubtypes": true,
+      "description": "Common Incident support path. Customer/L1 may request L2; support may assign directly to L2/L3; customer cannot directly route to L3.",
+      "levels": [
+        {
+          "localId": "L1",
+          "label": "L1 \u00b7 Bank",
+          "ownerSide": "client",
+          "slaApplicable": true,
+          "workflowKey": "WF_SAAS_INCIDENT"
+        },
+        {
+          "localId": "L2",
+          "label": "L2 \u00b7 Partner",
+          "ownerSide": "partner",
+          "slaApplicable": true,
+          "workflowKey": "WF_SAAS_INCIDENT"
+        },
+        {
+          "localId": "L3",
+          "label": "L3 \u00b7 SunTec",
+          "ownerSide": "suntec",
+          "slaApplicable": true,
+          "workflowKey": "WF_SAAS_INCIDENT"
+        }
+      ],
+      "movementRules": [
+        {
+          "localId": "request_l2",
+          "actionLabel": "Request to L2 Support",
+          "fromLevelId": "L1",
+          "toLevelId": "L2",
+          "movementType": "sequential",
+          "targetStatusBehavior": "explicit",
+          "targetStatusId": "L2_SUPPORT",
+          "allowedFromStatusIds": [
+            "NEW",
+            "ANALYSIS",
+            "IN_PREPRODUCTION",
+            "TEST_FAILED"
+          ],
+          "customerEnabled": true,
+          "roles": [
+            "client",
+            "partner",
+            "agent",
+            "manager",
+            "admin"
+          ],
+          "commentRequired": true,
+          "reasonRequired": false,
+          "displayOrder": 10
+        },
+        {
+          "localId": "assign_l2",
+          "actionLabel": "Assign to L2",
+          "fromLevelId": "L1",
+          "toLevelId": "L2",
+          "movementType": "sequential",
+          "targetStatusBehavior": "explicit",
+          "targetStatusId": "L2_SUPPORT",
+          "allowedFromStatusIds": [
+            "NEW"
+          ],
+          "customerEnabled": false,
+          "roles": [
+            "partner",
+            "agent",
+            "manager",
+            "admin"
+          ],
+          "commentRequired": true,
+          "reasonRequired": false,
+          "displayOrder": 20
+        },
+        {
+          "localId": "assign_l3",
+          "actionLabel": "Assign to L3",
+          "fromLevelId": "L1",
+          "toLevelId": "L3",
+          "movementType": "sequential",
+          "targetStatusBehavior": "explicit",
+          "targetStatusId": "L3_SUPPORT",
+          "allowedFromStatusIds": [
+            "NEW"
+          ],
+          "customerEnabled": false,
+          "roles": [
+            "agent",
+            "manager",
+            "admin"
+          ],
+          "condition": {
+            "severityCodes": [
+              "S1"
+            ]
+          },
+          "commentRequired": true,
+          "reasonRequired": true,
+          "displayOrder": 30
+        },
+        {
+          "localId": "escalate_l3",
+          "actionLabel": "Escalate to L3",
+          "fromLevelId": "L2",
+          "toLevelId": "L3",
+          "movementType": "sequential",
+          "targetStatusBehavior": "explicit",
+          "targetStatusId": "L3_SUPPORT",
+          "allowedFromStatusIds": [
+            "L2_ANALYSIS",
+            "IN_BUILD",
+            "IN_QUALITY",
+            "IN_STAGE",
+            "INTERIM_RESOLUTION"
+          ],
+          "customerEnabled": false,
+          "roles": [
+            "partner",
+            "agent",
+            "manager",
+            "admin"
+          ],
+          "commentRequired": true,
+          "reasonRequired": true,
+          "displayOrder": 40
+        }
+      ]
+    }
+  ]
+}

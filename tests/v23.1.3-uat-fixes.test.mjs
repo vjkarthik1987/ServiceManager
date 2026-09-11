@@ -39,7 +39,7 @@ test('SaaS support-level movement preserves workflow progress instead of restart
   assert.match(requestApp, /function supportMoveTargetStatus/);
   assert.match(requestApp, /currentIsStart/);
   assert.match(requestApp, /preferredIds = \['analysis', 'assigned', 'under_review', 'in_progress'\]/);
-  assert.match(requestApp, /supportMoveTargetStatus\(requestItem, currentStage, workflowDefinition, rule\.targetStatusBehavior, forceSaasIncident\)/);
+  assert.match(requestApp, /supportMoveTargetStatus\(requestItem, currentStage(?:ForMove)?, workflowDefinition, rule\.targetStatusBehavior, forceSaasIncident(?:, rule\.targetStatusId)?\)/);
   assert.match(requestApp, /SaaS incidents cannot be moved back to New after work has started/i);
 });
 

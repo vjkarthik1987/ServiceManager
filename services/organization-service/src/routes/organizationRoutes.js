@@ -1855,7 +1855,7 @@ const slaPresets = {
     name: 'Silver - Standard SLA',
     description: 'Standard SLA support plan with business-hour response and resolution commitments.',
     supportWindow: 'business_hours',
-    clockStartTrigger: 'severity_selected',
+    clockStartTrigger: 'ticket_created',
     rules: [
       { code: 'S1', responseTimeValue: 2, responseTimeUnit: 'business_hours', resolutionTimeValue: 48, resolutionTimeUnit: 'hours', updateFrequencyValue: 1, updateFrequencyUnit: 'daily', clockType: 'working_hours', notes: 'Daily status update.' },
       { code: 'S2', responseTimeValue: 4, responseTimeUnit: 'business_hours', resolutionTimeValue: 96, resolutionTimeUnit: 'hours', updateFrequencyValue: 1, updateFrequencyUnit: 'daily', clockType: 'working_hours', notes: 'Daily status update.' },
@@ -1867,7 +1867,7 @@ const slaPresets = {
     name: 'Gold - Expedited SLA',
     description: 'Expedited SLA support plan with faster commitments and 24x7 attention for S1 issues.',
     supportWindow: 'mixed',
-    clockStartTrigger: 'severity_selected',
+    clockStartTrigger: 'ticket_created',
     rules: [
       { code: 'S1', responseTimeValue: 1, responseTimeUnit: 'hours', resolutionTimeValue: 24, resolutionTimeUnit: 'hours', updateFrequencyValue: 4, updateFrequencyUnit: 'hours', clockType: 'calendar', notes: 'Every 4 hours, if required.' },
       { code: 'S2', responseTimeValue: 2, responseTimeUnit: 'business_hours', resolutionTimeValue: 72, resolutionTimeUnit: 'hours', updateFrequencyValue: 1, updateFrequencyUnit: 'daily', clockType: 'working_hours', notes: 'Daily status update.' },
@@ -1879,7 +1879,7 @@ const slaPresets = {
     name: 'Platinum - Expedited SLA',
     description: 'Premium expedited SLA support plan with the shortest commitments and 24x7 attention for S1 and S2 issues.',
     supportWindow: 'mixed',
-    clockStartTrigger: 'severity_selected',
+    clockStartTrigger: 'ticket_created',
     rules: [
       { code: 'S1', responseTimeValue: 0.5, responseTimeUnit: 'hours', resolutionTimeValue: 12, resolutionTimeUnit: 'hours', updateFrequencyValue: 2, updateFrequencyUnit: 'hours', clockType: 'calendar', notes: 'Every 2 hours, if required.' },
       { code: 'S2', responseTimeValue: 1, responseTimeUnit: 'hours', resolutionTimeValue: 48, resolutionTimeUnit: 'hours', updateFrequencyValue: 2, updateFrequencyUnit: 'twice_daily', clockType: 'calendar', notes: 'Twice a day.' },
@@ -2060,7 +2060,8 @@ async function createSlaPolicy(organizationId, body) {
     key,
     description,
     supportWindow: body.supportWindow || 'business_hours',
-    clockStartTrigger: body.clockStartTrigger || 'severity_selected',
+    clockStartTrigger: body.clockStartTrigger || 'ticket_created',
+    clockStartStatusId: String(body.clockStartStatusId || '').trim().toUpperCase(),
     applicability: {
       applyOnlyWhenSeveritySelected: body.applyOnlyWhenSeveritySelected !== 'off',
       applicableEnvironmentIds: environmentIds,
@@ -2416,6 +2417,7 @@ organizationRouter.post('/:organizationId/slas/:slaPolicyId', async (req, res, n
     policy.description = requireText(req.body.description, 'SLA policy description');
     policy.supportWindow = req.body.supportWindow || policy.supportWindow;
     policy.clockStartTrigger = req.body.clockStartTrigger || policy.clockStartTrigger;
+    policy.clockStartStatusId = String(req.body.clockStartStatusId || '').trim().toUpperCase();
     policy.status = req.body.status === 'inactive' ? 'inactive' : 'active';
     policy.applicability.applyOnlyWhenSeveritySelected = req.body.applyOnlyWhenSeveritySelected !== 'off';
     policy.applicability.applicableIssueLevelCodes = Array.isArray(req.body.applicableIssueLevelCodes) ? req.body.applicableIssueLevelCodes.map((x) => String(x).toUpperCase()) : ['L2','L3'];
@@ -2836,6 +2838,21 @@ organizationRouter.post('/:organizationId/clients/:clientId/sla-family', async (
   }
 });
 
+
+organizationRouter.post('/:organizationId/clients/:clientId/notifications', async (req, res, next) => {
+  try {
+    const organization = await requireOrganization(req.params.organizationId);
+    if (!isValidId(req.params.clientId)) return res.status(400).json({ message: 'Invalid client id.' });
+    const client = await Client.findOne({ _id: req.params.clientId, organizationId: organization._id });
+    if (!client) return res.status(404).json({ message: 'Client not found.' });
+    client.notificationMode = req.body.notificationMode === 'custom' ? 'custom' : 'inherit';
+    const keys = ['issueCreated','issueEdited','statusChanged','issueClosed','commentAdded','assignmentChanged','severityChanged','priorityChanged','slaAtRisk','slaBreached'];
+    client.notificationEvents = client.notificationEvents || {};
+    for (const key of keys) client.notificationEvents[key] = req.body.notificationEvents?.[key] !== false;
+    await client.save();
+    res.json({ client });
+  } catch (error) { next(error); }
+});
 
 organizationRouter.post('/:organizationId/clients/:clientId/context', async (req, res, next) => {
   try {

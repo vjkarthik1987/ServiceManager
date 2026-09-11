@@ -49,7 +49,30 @@ const requestStatusSchema = new mongoose.Schema(
 const workflowTransitionSchema = new mongoose.Schema(
   {
     fromStatusId: { type: String, trim: true, maxlength: 40, required: true },
-    toStatusId: { type: String, trim: true, maxlength: 40, required: true }
+    toStatusId: { type: String, trim: true, maxlength: 40, required: true },
+    localId: { type: String, trim: true, maxlength: 80, default: '' },
+    name: { type: String, trim: true, maxlength: 140, default: '' },
+    transitionType: { type: String, trim: true, maxlength: 40, default: 'status' },
+    customerEnabled: { type: Boolean, default: false },
+    roles: [{ type: String, trim: true, maxlength: 40 }],
+    targetSupportLevel: { type: String, trim: true, maxlength: 20, default: '' },
+    jiraTransitionId: { type: String, trim: true, maxlength: 30, default: '' },
+    condition: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    supportEffect: { type: mongoose.Schema.Types.Mixed, default: () => ({}) }
+  },
+  { _id: false }
+);
+
+const workflowGlobalActionSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, maxlength: 80, required: true },
+    label: { type: String, trim: true, maxlength: 140, required: true },
+    kind: { type: String, trim: true, maxlength: 40, default: 'escalation' },
+    statusEffect: { type: String, trim: true, maxlength: 20, default: 'KEEP' },
+    customerEnabled: { type: Boolean, default: false },
+    roles: [{ type: String, trim: true, maxlength: 40 }],
+    jiraTransitionId: { type: String, trim: true, maxlength: 30, default: '' },
+    condition: { type: mongoose.Schema.Types.Mixed, default: () => ({}) }
   },
   { _id: false }
 );
@@ -57,7 +80,8 @@ const workflowTransitionSchema = new mongoose.Schema(
 const workflowDefinitionSchema = new mongoose.Schema(
   {
     statuses: { type: [requestStatusSchema], default: [] },
-    transitions: { type: [workflowTransitionSchema], default: [] }
+    transitions: { type: [workflowTransitionSchema], default: [] },
+    globalActions: { type: [workflowGlobalActionSchema], default: [] }
   },
   { _id: false }
 );
@@ -86,7 +110,12 @@ const supportMovementRuleSchema = new mongoose.Schema(
     movementType: { type: String, enum: ['sequential', 'parallel'], default: 'sequential' },
     toLevelIds: [{ type: String, trim: true, maxlength: 20 }],
     primaryLevelId: { type: String, trim: true, maxlength: 20, default: '' },
-    targetStatusBehavior: { type: String, enum: ['keep', 'start'], default: 'start' },
+    targetStatusBehavior: { type: String, enum: ['keep', 'start', 'explicit'], default: 'start' },
+    targetStatusId: { type: String, trim: true, maxlength: 40, default: '' },
+    allowedFromStatusIds: [{ type: String, trim: true, maxlength: 40 }],
+    customerEnabled: { type: Boolean, default: false },
+    roles: [{ type: String, trim: true, maxlength: 40 }],
+    condition: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     commentRequired: { type: Boolean, default: true },
     reasonRequired: { type: Boolean, default: true },
     displayOrder: { type: Number, default: 100 }
@@ -213,7 +242,8 @@ const slaRuleSnapshotSchema = new mongoose.Schema(
 const slaDefinitionSchema = new mongoose.Schema(
   {
     supportWindow: { type: String, trim: true, default: 'business_hours' },
-    clockStartTrigger: { type: String, trim: true, default: 'severity_selected' },
+    clockStartTrigger: { type: String, trim: true, default: 'ticket_created' },
+    clockStartStatusId: { type: String, trim: true, uppercase: true, maxlength: 40, default: '' },
     rules: { type: [slaRuleSnapshotSchema], default: [] },
     applicability: {
       applyOnlyWhenSeveritySelected: { type: Boolean, default: true },
@@ -238,6 +268,17 @@ const slaCalendarSchema = new mongoose.Schema(
       }],
       default: []
     }
+  },
+  { _id: false }
+);
+
+
+const slaContextSchema = new mongoose.Schema(
+  {
+    customerBacked: { type: Boolean, default: false },
+    incidentLevel: { type: String, enum: ['L1', 'L2', 'L3', ''], default: '' },
+    raisedForClientId: { type: String, trim: true, default: '' },
+    eligibilityBasis: { type: String, trim: true, maxlength: 120, default: '' }
   },
   { _id: false }
 );
@@ -374,6 +415,7 @@ const serviceRequestSchema = new mongoose.Schema(
     slaPolicy: { type: namedRefSchema, default: () => ({}) },
     slaDefinition: { type: slaDefinitionSchema, default: () => ({}) },
     slaCalendar: { type: slaCalendarSchema, default: () => ({}) },
+    slaContext: { type: slaContextSchema, default: () => ({}) },
     sla: { type: slaTrackingSchema, default: () => ({}) },
     slaMilestones: { type: slaMilestonesSchema, default: () => ({}) },
     customFieldValues: { type: [customFieldValueSchema], default: [] },

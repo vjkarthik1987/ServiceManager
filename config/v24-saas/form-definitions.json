@@ -1,0 +1,1677 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V24",
+  "forms": [
+    {
+      "key": "SAAS_INCIDENT_APPLICATION",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "INCIDENT",
+      "subtype": "Application Incident",
+      "aliases": [
+        "Application"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "INCIDENT_LEVEL",
+          "section": "origin"
+        },
+        {
+          "key": "INCIDENT_FURTHER_CLASSIFICATION",
+          "label": "Further Classification",
+          "options": [
+            {
+              "value": "UI Issues",
+              "label": "UI Issues"
+            },
+            {
+              "value": "Application Server issues",
+              "label": "Application Server issues"
+            },
+            {
+              "value": "User access Issue",
+              "label": "User access Issue"
+            },
+            {
+              "value": "Password issue",
+              "label": "Password issue"
+            },
+            {
+              "value": "Business Data Issue",
+              "label": "Business Data Issue"
+            },
+            {
+              "value": "Library data issue",
+              "label": "Library data issue"
+            },
+            {
+              "value": "System Configuration issue",
+              "label": "System Configuration issue"
+            },
+            {
+              "value": "Functional Issue",
+              "label": "Functional Issue"
+            },
+            {
+              "value": "Batch Processing Issue",
+              "label": "Batch Processing Issue"
+            },
+            {
+              "value": "Process Container Issue",
+              "label": "Process Container Issue"
+            },
+            {
+              "value": "Suspense Processing issues",
+              "label": "Suspense Processing issues"
+            },
+            {
+              "value": "DB data level issues",
+              "label": "DB data level issues"
+            },
+            {
+              "value": "DB issues",
+              "label": "DB issues"
+            },
+            {
+              "value": "API Issues",
+              "label": "API Issues"
+            },
+            {
+              "value": "Performance issues",
+              "label": "Performance issues"
+            },
+            {
+              "value": "Security issue",
+              "label": "Security issue"
+            }
+          ],
+          "section": "what_happened"
+        },
+        {
+          "key": "SUMMARY",
+          "section": "what_happened"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "what_happened"
+        },
+        {
+          "key": "SEVERITY",
+          "section": "impact"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "impact"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "service_context"
+        },
+        {
+          "key": "COMPONENTS",
+          "section": "service_context"
+        },
+        {
+          "key": "S3_BUCKET_URL",
+          "section": "evidence"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "origin",
+            "label": "Incident context"
+          },
+          {
+            "key": "what_happened",
+            "label": "What happened"
+          },
+          {
+            "key": "impact",
+            "label": "Impact"
+          },
+          {
+            "key": "service_context",
+            "label": "Service context"
+          },
+          {
+            "key": "security_context",
+            "label": "Security context"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_INCIDENT_SECURITY",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "INCIDENT",
+      "subtype": "Security Incident",
+      "aliases": [
+        "Security",
+        "Cyber Security Incident"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "INCIDENT_LEVEL",
+          "section": "origin"
+        },
+        {
+          "key": "INCIDENT_FURTHER_CLASSIFICATION",
+          "label": "Further Classification",
+          "options": [
+            {
+              "value": "Unauthorised access and unsuccessful access attempts.",
+              "label": "Unauthorised access and unsuccessful access attempts."
+            },
+            {
+              "value": "Analysis and monitoring of privileged user accounts and system accounts",
+              "label": "Analysis and monitoring of privileged user accounts and system accounts"
+            },
+            {
+              "value": "Alerts from AWS Shield or similar tools",
+              "label": "Alerts from AWS Shield or similar tools"
+            },
+            {
+              "value": "Analysis and Monitoring of Sensitive Data Access",
+              "label": "Analysis and Monitoring of Sensitive Data Access"
+            },
+            {
+              "value": "Denial of Service (DoS/DDoS).",
+              "label": "Denial of Service (DoS/DDoS)."
+            },
+            {
+              "value": "Insertion of Malicious Code (Hypervisor Rootkit, Ransom ware, Malware Infection)",
+              "label": "Insertion of Malicious Code (Hypervisor Rootkit, Ransom ware, Malware Infection)"
+            },
+            {
+              "value": "Network Related Security (Botnet IP Communications, DNS attacks, Sniffer attacks)",
+              "label": "Network Related Security (Botnet IP Communications, DNS attacks, Sniffer attacks)"
+            },
+            {
+              "value": "Unauthorized deletion/modification of data",
+              "label": "Unauthorized deletion/modification of data"
+            },
+            {
+              "value": "Application Attack (SQL Injection, Cross site scripting, malicious API calls)",
+              "label": "Application Attack (SQL Injection, Cross site scripting, malicious API calls)"
+            }
+          ],
+          "section": "what_happened"
+        },
+        {
+          "key": "SUMMARY",
+          "section": "what_happened"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "what_happened"
+        },
+        {
+          "key": "SEVERITY",
+          "section": "impact"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "impact"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "service_context"
+        },
+        {
+          "key": "COMPONENTS",
+          "section": "service_context"
+        },
+        {
+          "key": "CLIENT_DATA_INVOLVED",
+          "section": "security_context"
+        },
+        {
+          "key": "S3_BUCKET_URL",
+          "section": "evidence"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "origin",
+            "label": "Incident context"
+          },
+          {
+            "key": "what_happened",
+            "label": "What happened"
+          },
+          {
+            "key": "impact",
+            "label": "Impact"
+          },
+          {
+            "key": "service_context",
+            "label": "Service context"
+          },
+          {
+            "key": "security_context",
+            "label": "Security context"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_INCIDENT_INFRASTRUCTURE",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "INCIDENT",
+      "subtype": "Infrastructure Incident",
+      "aliases": [
+        "Infrastructure"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "INCIDENT_LEVEL",
+          "section": "origin"
+        },
+        {
+          "key": "INCIDENT_FURTHER_CLASSIFICATION",
+          "label": "Further Classification",
+          "options": [
+            {
+              "value": "VM going down",
+              "label": "VM going down"
+            },
+            {
+              "value": "Monitoring Tool going down",
+              "label": "Monitoring Tool going down"
+            },
+            {
+              "value": "Network Firewall down",
+              "label": "Network Firewall down"
+            },
+            {
+              "value": "SIEM tool down",
+              "label": "SIEM tool down"
+            },
+            {
+              "value": "AWS Services Down",
+              "label": "AWS Services Down"
+            },
+            {
+              "value": "EKS down",
+              "label": "EKS down"
+            },
+            {
+              "value": "RDS Down",
+              "label": "RDS Down"
+            },
+            {
+              "value": "Infrastructure deployment issues",
+              "label": "Infrastructure deployment issues"
+            },
+            {
+              "value": "Jenkins Down",
+              "label": "Jenkins Down"
+            },
+            {
+              "value": "Controller Down",
+              "label": "Controller Down"
+            },
+            {
+              "value": "Bastion Down",
+              "label": "Bastion Down"
+            },
+            {
+              "value": "Admin Server Down",
+              "label": "Admin Server Down"
+            },
+            {
+              "value": "VPC Peering not happening",
+              "label": "VPC Peering not happening"
+            },
+            {
+              "value": "S2S Tunnel issues",
+              "label": "S2S Tunnel issues"
+            },
+            {
+              "value": "OS Patching Issues",
+              "label": "OS Patching Issues"
+            },
+            {
+              "value": "Network Connectivity Issue",
+              "label": "Network Connectivity Issue"
+            }
+          ],
+          "section": "what_happened"
+        },
+        {
+          "key": "SUMMARY",
+          "section": "what_happened"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "what_happened"
+        },
+        {
+          "key": "SEVERITY",
+          "section": "impact"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "impact"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "service_context"
+        },
+        {
+          "key": "COMPONENTS",
+          "section": "service_context"
+        },
+        {
+          "key": "S3_BUCKET_URL",
+          "section": "evidence"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "origin",
+            "label": "Incident context"
+          },
+          {
+            "key": "what_happened",
+            "label": "What happened"
+          },
+          {
+            "key": "impact",
+            "label": "Impact"
+          },
+          {
+            "key": "service_context",
+            "label": "Service context"
+          },
+          {
+            "key": "security_context",
+            "label": "Security context"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_INCIDENT_OPERATIONAL",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "INCIDENT",
+      "subtype": "Operational Incident",
+      "aliases": [
+        "Operational",
+        "Operations Incident",
+        "Operation Incident"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "INCIDENT_LEVEL",
+          "section": "origin"
+        },
+        {
+          "key": "INCIDENT_FURTHER_CLASSIFICATION",
+          "label": "Further Classification",
+          "options": [
+            {
+              "value": "Patch application issues",
+              "label": "Patch application issues"
+            },
+            {
+              "value": "Batch Process Issues",
+              "label": "Batch Process Issues"
+            },
+            {
+              "value": "CI/CD Pipeline issues",
+              "label": "CI/CD Pipeline issues"
+            },
+            {
+              "value": "Report issues",
+              "label": "Report issues"
+            },
+            {
+              "value": "Email Issues",
+              "label": "Email Issues"
+            },
+            {
+              "value": "Ticketing Tool Issues",
+              "label": "Ticketing Tool Issues"
+            },
+            {
+              "value": "Environment access Issues",
+              "label": "Environment access Issues"
+            },
+            {
+              "value": "Monitoring Tool Issues",
+              "label": "Monitoring Tool Issues"
+            },
+            {
+              "value": "DR issues",
+              "label": "DR issues"
+            }
+          ],
+          "section": "what_happened"
+        },
+        {
+          "key": "SUMMARY",
+          "section": "what_happened"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "what_happened"
+        },
+        {
+          "key": "SEVERITY",
+          "section": "impact"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "impact"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "service_context"
+        },
+        {
+          "key": "COMPONENTS",
+          "section": "service_context"
+        },
+        {
+          "key": "S3_BUCKET_URL",
+          "section": "evidence"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "origin",
+            "label": "Incident context"
+          },
+          {
+            "key": "what_happened",
+            "label": "What happened"
+          },
+          {
+            "key": "impact",
+            "label": "Impact"
+          },
+          {
+            "key": "service_context",
+            "label": "Service context"
+          },
+          {
+            "key": "security_context",
+            "label": "Security context"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_SR_APPLICATION_USER_ACCESS",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Application User Access",
+      "aliases": [
+        "Application User Access create, modify, Delete",
+        "Application Access"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "APPLICATION_USERNAME"
+        },
+        {
+          "key": "DEPARTMENT"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "PRIVILEGES"
+        },
+        {
+          "key": "REASON"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_AWS_USER_ACCESS",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "AWS User Access",
+      "aliases": [
+        "AWS User Access create, modify, Delete"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "AWS_IAM_USERNAME"
+        },
+        {
+          "key": "DEPARTMENT"
+        },
+        {
+          "key": "AWS_ACCOUNT_NO"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "PRIVILEGES"
+        },
+        {
+          "key": "REASON"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_BASTION_HOST_ACCESS",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Bastion Host Access",
+      "aliases": [
+        "Bastion Access",
+        "Bastion Host Access Create, Modify, Delete"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "APPLICATION_USERNAME"
+        },
+        {
+          "key": "DEPARTMENT"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "PRIVILEGES"
+        },
+        {
+          "key": "REASON"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_BUSINESS_CONFIGURATION",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Business Configuration",
+      "aliases": [
+        "Business Configuration change",
+        "Business Configuration changes"
+      ],
+      "workflowKey": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_DB_CICD",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "DB data through CICD Pipeline",
+      "aliases": [
+        "DB data through CICD",
+        "DB Extracts"
+      ],
+      "workflowKey": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "S3_BUCKET_URL"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_CONTAINER_IMAGE_DELETE",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Deletion of Application Container Image",
+      "aliases": [
+        "Application Container Image Deletion"
+      ],
+      "workflowKey": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "REASON"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_DR_BCP",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "DR drill / BCP",
+      "aliases": [
+        "DR drill/BCP",
+        "DR Drill and Business Continuity Plan"
+      ],
+      "workflowKey": "WF_SAAS_DR_BCP_REQUEST",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_BANK_AND_SUPPORT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_INITIATED_BY"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "DR_INITIATION_DATE"
+        },
+        {
+          "key": "TARGETED_DR_SWITCHOVER_TIME"
+        },
+        {
+          "key": "DR_DRILL_PERIOD"
+        },
+        {
+          "key": "PRODUCTION_SWITCHOVER_DATE"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "S3_BUCKET_URL"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_DYNAMIC_REPORTS",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Dynamic Reports for Clients/SunTec",
+      "aliases": [
+        "Dynamic Reports",
+        "Dynamic Reports and DB Extracts"
+      ],
+      "workflowKey": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "S3_BUCKET_URL"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_EMAIL_CREATION",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Email Creation",
+      "aliases": [
+        "Email Access",
+        "Email Access Create, Modify, Delete"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "PRIVILEGES"
+        },
+        {
+          "key": "REASON"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_FEDERATED_ACCESS",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Federated Access",
+      "aliases": [],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_PRIVILEGED_ACCESS",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Privileged Access",
+      "aliases": [
+        "Privilege Access",
+        "Privileged Account Access"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_PRIVILEGED_ACCESS",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "PRIVILEGES"
+        },
+        {
+          "key": "BUSINESS_JUSTIFICATION"
+        },
+        {
+          "key": "SCOPE_OF_ACCESS"
+        },
+        {
+          "key": "DURATION_HOURS"
+        },
+        {
+          "key": "DURATION_DAYS"
+        },
+        {
+          "key": "APPROVER"
+        },
+        {
+          "key": "SEVERITY"
+        },
+        {
+          "key": "PRIORITY"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_SR_PITR",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "SERVICE_REQUEST",
+      "subtype": "PITR Drill",
+      "aliases": [
+        "PITR",
+        "Point in Time Recovery Drill"
+      ],
+      "workflowKey": "WF_SAAS_PITR_REQUEST",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": "APPROVAL_BANK_AND_SUPPORT",
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "RAISED_ON_BEHALF_OF"
+        },
+        {
+          "key": "SERVICE_REQUEST_LEVEL"
+        },
+        {
+          "key": "SERVICE_REQUEST_SUBTYPE"
+        },
+        {
+          "key": "SUMMARY"
+        },
+        {
+          "key": "DESCRIPTION"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT"
+        },
+        {
+          "key": "DEPARTMENT_APPROVAL"
+        },
+        {
+          "key": "S3_BUCKET_URL"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false
+      }
+    },
+    {
+      "key": "SAAS_MR_SCHEDULED",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "MAINTENANCE",
+      "subtype": "Scheduled Maintenance",
+      "aliases": [
+        "Scheduled Release"
+      ],
+      "workflowKey": "WF_SAAS_MAINTENANCE",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "SUMMARY",
+          "section": "request"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "request"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "request"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "request"
+        },
+        {
+          "key": "MAINTENANCE_RELEASE_REQUEST",
+          "section": "request"
+        },
+        {
+          "key": "RELEASE_ID",
+          "section": "request"
+        },
+        {
+          "key": "COMPONENTS",
+          "section": "request"
+        },
+        {
+          "key": "PURPOSE_OF_PACK",
+          "section": "request"
+        },
+        {
+          "key": "TEST_CASE_LINK",
+          "section": "evidence"
+        },
+        {
+          "key": "DURATION_HOURS",
+          "section": "schedule",
+          "label": "Duration of Patch Application (Hours)",
+          "required": true
+        },
+        {
+          "key": "REQUEST_DUE_DATE",
+          "section": "schedule",
+          "required": true
+        },
+        {
+          "key": "APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "EXCEPTION_APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "TEST_EXECUTION_LINKS",
+          "section": "evidence"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "request",
+            "label": "Maintenance request"
+          },
+          {
+            "key": "schedule",
+            "label": "Schedule & approval"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_MR_PROACTIVE",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "MAINTENANCE",
+      "subtype": "Proactive Maintenance",
+      "aliases": [
+        "Proactive Release"
+      ],
+      "workflowKey": "WF_SAAS_MAINTENANCE",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "SUMMARY",
+          "section": "request"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "request"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "request"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "request"
+        },
+        {
+          "key": "MAINTENANCE_RELEASE_REQUEST",
+          "section": "request"
+        },
+        {
+          "key": "RELEASE_ID",
+          "section": "request"
+        },
+        {
+          "key": "COMPONENTS",
+          "section": "request"
+        },
+        {
+          "key": "PURPOSE_OF_PACK",
+          "section": "request"
+        },
+        {
+          "key": "TEST_CASE_LINK",
+          "section": "evidence"
+        },
+        {
+          "key": "DURATION_HOURS",
+          "section": "schedule",
+          "label": "Duration of Patch Application (Hours)",
+          "required": true
+        },
+        {
+          "key": "REQUEST_DUE_DATE",
+          "section": "schedule",
+          "required": true
+        },
+        {
+          "key": "APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "EXCEPTION_APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "TEST_EXECUTION_LINKS",
+          "section": "evidence"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "request",
+            "label": "Maintenance request"
+          },
+          {
+            "key": "schedule",
+            "label": "Schedule & approval"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_MR_EMERGENCY",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "MAINTENANCE",
+      "subtype": "Emergency Maintenance",
+      "aliases": [
+        "Emergency Release"
+      ],
+      "workflowKey": "WF_SAAS_MAINTENANCE",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "SUMMARY",
+          "section": "request"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "request"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "request"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "request"
+        },
+        {
+          "key": "MAINTENANCE_RELEASE_REQUEST",
+          "section": "request"
+        },
+        {
+          "key": "RELEASE_ID",
+          "section": "request"
+        },
+        {
+          "key": "COMPONENTS",
+          "section": "request"
+        },
+        {
+          "key": "PURPOSE_OF_PACK",
+          "section": "request"
+        },
+        {
+          "key": "TEST_CASE_LINK",
+          "section": "evidence"
+        },
+        {
+          "key": "DURATION_HOURS",
+          "section": "schedule",
+          "label": "Duration of Patch Application (Hours)",
+          "required": true
+        },
+        {
+          "key": "REQUEST_DUE_DATE",
+          "section": "schedule",
+          "required": true
+        },
+        {
+          "key": "APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "EXCEPTION_APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "TEST_EXECUTION_LINKS",
+          "section": "evidence"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "request",
+            "label": "Maintenance request"
+          },
+          {
+            "key": "schedule",
+            "label": "Schedule & approval"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_MR_VULNERABILITY",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "MAINTENANCE",
+      "subtype": "Vulnerability Run",
+      "aliases": [
+        "Vulnerability Scan"
+      ],
+      "workflowKey": "WF_SAAS_MAINTENANCE",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "SUMMARY",
+          "section": "request"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "request"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "request"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "request"
+        },
+        {
+          "key": "ACTIVITY",
+          "section": "request",
+          "label": "Activity"
+        },
+        {
+          "key": "COMPONENTS_SCANNED",
+          "section": "request"
+        },
+        {
+          "key": "DATE_OF_SCAN",
+          "section": "schedule",
+          "required": true
+        },
+        {
+          "key": "REQUEST_DUE_DATE",
+          "section": "schedule"
+        },
+        {
+          "key": "APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "EXCEPTION_APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "S3_BUCKET_URL",
+          "section": "evidence",
+          "label": "S3 Bucket Link"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "request",
+            "label": "Maintenance request"
+          },
+          {
+            "key": "schedule",
+            "label": "Schedule & approval"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_MR_PEN_TEST",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "MAINTENANCE",
+      "subtype": "Penetration Test Run",
+      "aliases": [
+        "Penetration Test"
+      ],
+      "workflowKey": "WF_SAAS_MAINTENANCE",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "SUMMARY",
+          "section": "request"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "request"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "request"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "request"
+        },
+        {
+          "key": "ACTIVITY",
+          "section": "request",
+          "label": "Activity"
+        },
+        {
+          "key": "COMPONENTS_SCANNED",
+          "section": "request"
+        },
+        {
+          "key": "DATE_OF_SCAN",
+          "section": "schedule",
+          "required": true
+        },
+        {
+          "key": "REQUEST_DUE_DATE",
+          "section": "schedule"
+        },
+        {
+          "key": "APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "EXCEPTION_APPROVER",
+          "section": "schedule"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "request",
+            "label": "Maintenance request"
+          },
+          {
+            "key": "schedule",
+            "label": "Schedule & approval"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    },
+    {
+      "key": "SAAS_MR_ACTUAL_DR",
+      "serviceModelKey": "SUNTEC_SAAS_V24",
+      "family": "MAINTENANCE",
+      "subtype": "Actual DR",
+      "aliases": [
+        "Disaster Recovery"
+      ],
+      "workflowKey": "WF_SAAS_MAINTENANCE",
+      "allowRaisedOnBehalfOf": true,
+      "approvalPolicyKey": null,
+      "clientPrioritySelectable": false,
+      "fields": [
+        {
+          "key": "SUMMARY",
+          "section": "request"
+        },
+        {
+          "key": "DESCRIPTION",
+          "section": "request"
+        },
+        {
+          "key": "PRIORITY",
+          "section": "request"
+        },
+        {
+          "key": "RAISED_ENVIRONMENT",
+          "section": "request"
+        },
+        {
+          "key": "ACTIVITY",
+          "section": "request",
+          "label": "Activity"
+        },
+        {
+          "key": "DR_LOCATION",
+          "section": "request"
+        },
+        {
+          "key": "DR_INITIATION_DATE",
+          "section": "schedule"
+        },
+        {
+          "key": "REASON",
+          "section": "request"
+        },
+        {
+          "key": "DR_SWITCHOVER_TIME",
+          "section": "schedule"
+        },
+        {
+          "key": "DR_ACTIVITY_CLOSURE_DATE",
+          "section": "schedule"
+        },
+        {
+          "key": "APPROVER",
+          "section": "schedule"
+        },
+        {
+          "key": "EXCEPTION_APPROVER",
+          "section": "schedule"
+        }
+      ],
+      "ui": {
+        "showExplanatoryNarration": false,
+        "layout": "sectioned",
+        "sections": [
+          {
+            "key": "request",
+            "label": "Maintenance request"
+          },
+          {
+            "key": "schedule",
+            "label": "Schedule & approval"
+          },
+          {
+            "key": "evidence",
+            "label": "Evidence"
+          }
+        ]
+      }
+    }
+  ]
+}

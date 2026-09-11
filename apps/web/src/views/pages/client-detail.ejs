@@ -107,6 +107,12 @@
             <button class="btn secondary small" type="button" data-open-modal="familySlaModal">Configure</button>
           </div>
 
+
+          <div class="config-section-row">
+            <div class="config-section-copy"><span class="config-icon">✉</span><div><strong>Email notifications</strong><p>Configure which request events send mail for this client. Public and internal comments remain visibility-safe.</p></div></div>
+            <div class="config-values"><span class="value-chip"><%= (client.notificationMode || 'inherit') === 'custom' ? 'Client-specific policy' : 'Organization defaults' %></span></div>
+            <button class="btn secondary small" type="button" data-open-modal="clientNotificationsModal">Configure</button>
+          </div>
           <div class="config-section-row">
             <div class="config-section-copy"><span class="config-icon">◎</span><div><strong>Location, calendar &amp; environments</strong><p>Region, timezone, contractual working calendar, holidays and available environments for this client.</p></div></div>
             <div class="config-values"><span class="value-chip"><%= (regions.find((region) => String(region._id) === String(client.regionId || '')) || {}).name || 'No region' %></span><% if (client.subregionId) { %><span class="value-chip"><%= (subregions.find((item) => String(item._id) === String(client.subregionId || '')) || {}).name || 'No subregion' %></span><% } %><span class="value-chip"><%= client.timezone || 'No timezone' %></span><span class="value-chip"><%= (client.businessCalendarMode || 'custom') === 'inherit' ? 'Calendar inherited' : `${businessCalendar.dayStart || '09:00'}–${businessCalendar.dayEnd || '17:00'} · ${(businessCalendar.workingDays || [1,2,3,4,5]).length} working days` %></span><% (environments || []).filter((env) => effectiveEnvironments.has(String(env._id))).forEach((env) => { %><span class="value-chip"><%= env.name %></span><% }) %><% if (!effectiveEnvironments.size) { %><span class="muted">No environments</span><% } %></div>
@@ -471,6 +477,18 @@
         <div class="two-col"><label><span>Severity condition</span><select name="severityIds" multiple size="5"><% (severities || []).forEach((severity) => { %><option value="<%= severity._id %>"><%= severity.code %> · <%= severity.name %></option><% }) %></select><small>Leave blank for all severities. Choose S1/S2 for a critical parallel path.</small></label><label><span>Environment condition</span><select name="environmentIds" multiple size="5"><% (environments || []).forEach((environment) => { %><option value="<%= environment._id %>"><%= environment.name %></option><% }) %></select><small>Leave blank for all environments.</small></label></div>
         <div class="two-col"><label class="check-line"><input type="checkbox" name="inheritToChildren" checked /><span>Apply to child clients unless overridden</span></label><label class="check-line"><input type="checkbox" name="isActive" checked /><span>Rule is active</span></label></div>
         <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save rule</button></div>
+      </form>
+    </dialog>
+
+
+    <dialog class="modal wide" id="clientNotificationsModal">
+      <form method="post" action="/admin/clients/<%= client._id %>/notifications" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Client notifications</p><h3><%= client.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Policy</span><select name="notificationMode"><option value="inherit" <%= (client.notificationMode || 'inherit') === 'inherit' ? 'selected' : '' %>>Use organization defaults</option><option value="custom" <%= client.notificationMode === 'custom' ? 'selected' : '' %>>Use client-specific settings</option></select></label>
+        <% const ne = client.notificationEvents || {}; const notificationChoices = [['issueCreated','Issue creation'],['issueEdited','Issue edit'],['statusChanged','Status change / resolution'],['issueClosed','Closure'],['commentAdded','Comments'],['assignmentChanged','Assignment / support routing'],['severityChanged','Severity change'],['priorityChanged','Priority change'],['slaAtRisk','SLA at risk'],['slaBreached','SLA breached']]; %>
+        <div class="pick-list"><% notificationChoices.forEach(([key,label]) => { %><label class="pick-row"><input type="checkbox" name="<%= key %>" <%= ne[key] !== false ? 'checked' : '' %> /><span><strong><%= label %></strong><small>Send this notification when the client policy is active.</small></span></label><% }) %></div>
+        <p class="field-hint">Internal notes are never mailed to client recipients. Priority remains support-only and is not exposed in client communications.</p>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save notification policy</button></div>
       </form>
     </dialog>
 

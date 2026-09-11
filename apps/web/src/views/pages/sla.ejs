@@ -103,8 +103,9 @@
         <label><span>Description <em>required</em></span><textarea name="description" required rows="3" placeholder="Response and resolution commitments for production incidents."></textarea></label>
         <div class="two-col">
           <label><span>Support window</span><select name="supportWindow"><option value="business_hours">Business hours</option><option value="24x7">24x7</option><option value="mixed">Mixed</option></select></label>
-          <label><span>Clock starts when</span><select name="clockStartTrigger"><option value="severity_selected">Severity selected</option><option value="priority_selected">Priority selected</option><option value="ticket_created">Ticket created</option></select></label>
+          <label><span>Clock starts when</span><select name="clockStartTrigger"><option value="ticket_created" selected>Issue raised</option><option value="severity_selected">Severity selected</option><option value="priority_selected">Priority selected</option><option value="l2_received">Received by L2</option><option value="l3_received">Received by L3</option><option value="status_reached">Specific workflow status</option></select></label>
         </div>
+        <label><span>Start status <small>only for Specific workflow status</small></span><input name="clockStartStatusId" placeholder="e.g. L2_SUPPORT" /></label>
         <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Create policy</button></div>
       </form>
     </dialog>

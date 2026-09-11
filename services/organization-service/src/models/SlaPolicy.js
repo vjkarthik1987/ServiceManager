@@ -24,7 +24,8 @@ const slaPolicySchema = new mongoose.Schema(
     key: { type: String, required: true, trim: true, uppercase: true, maxlength: 100 },
     description: { type: String, required: true, trim: true, minlength: 3, maxlength: 520 },
     supportWindow: { type: String, enum: ['business_hours', '24x7', 'mixed'], default: 'business_hours' },
-    clockStartTrigger: { type: String, enum: ['severity_selected', 'priority_selected', 'ticket_created'], default: 'severity_selected' },
+    clockStartTrigger: { type: String, enum: ['severity_selected', 'priority_selected', 'ticket_created', 'l2_received', 'l3_received', 'status_reached'], default: 'ticket_created' },
+    clockStartStatusId: { type: String, trim: true, uppercase: true, maxlength: 40, default: '' },
     rules: { type: [slaRuleSchema], default: [] },
     applicability: {
       applyOnlyWhenSeveritySelected: { type: Boolean, default: true },

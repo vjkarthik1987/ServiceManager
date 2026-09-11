@@ -1,0 +1,21 @@
+Service Manager v23.1.6 build validation
+========================================
+
+Scope:
+- internal-note styling and client audit privacy
+- Partner public/internal comment composer
+- single-family auto-skip in request intake
+- one-row request progress rail
+- customer-reported Severity restored
+
+Validation results:
+- Automated regression suite: PASS — 71/71
+- v23.1.6 focused tests: PASS — 7/7
+- JavaScript/MJS syntax: PASS — 66 files
+- EJS extracted-scriptlet syntax: PASS — 48 templates
+- v23 Normal Incident isolation guard: PASS
+
+Deployment note:
+- No UAT reseed required.
+- No destructive database migration required.
+- New timeline comment events now persist an optional visibility classification.

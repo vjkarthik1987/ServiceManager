@@ -67,6 +67,7 @@ import {
   deleteClient,
   updateClientProducts,
   updateClientContext,
+  updateClientNotifications,
   addClientOperationalRule,
   getOrganizationByWorkspace,
   listUsers,
@@ -100,10 +101,14 @@ import {
   updateSubregion,
   updateEnvironment,
   changeRequestStatus,
+  runRequestGlobalAction,
   updateRequestClassification,
+  updateRequestDetails,
+  updateRequestVisibility,
   clientRequestAction,
   claimSlaNotifications,
   getV23SaasFormDefinition,
+  getV24SaasFormDefinition,
   moveRequestSupportLevel,
   assignRequestStage,
   updateRequestTaskStatus,
@@ -499,6 +504,31 @@ const ROLE_LABELS = {
   engagementManager: 'Engagement manager'
 };
 
+function workflowRoleForUi(portal = '', assignment = null, actor = {}) {
+  const portalKey = String(portal || '').toLowerCase();
+  const role = String(assignment?.role || actor?.userType || '').toLowerCase();
+  if (portalKey === 'admin' || role.includes('admin')) return 'admin';
+  if (portalKey === 'client' || role.includes('client')) return 'client';
+  if (role.includes('partner')) return 'partner';
+  if (role.includes('manager') || role.includes('head') || role.includes('engagement')) return 'manager';
+  return 'agent';
+}
+
+function configuredActionAllowed(action = {}, { portal = '', assignment = null, actor = {}, request = {} } = {}) {
+  const role = workflowRoleForUi(portal, assignment, actor);
+  if (role === 'client' && action.customerEnabled !== true) return false;
+  const roles = Array.isArray(action.roles) ? action.roles.map((item) => String(item || '').toLowerCase()) : [];
+  if (roles.length && !roles.includes(role)) return false;
+  const severityCodes = Array.isArray(action.condition?.severityCodes)
+    ? action.condition.severityCodes.map((item) => String(item || '').toUpperCase())
+    : [];
+  if (severityCodes.length) {
+    const severityCode = String(request?.severity?.code || request?.severity?.name || '').toUpperCase();
+    if (!severityCodes.includes(severityCode)) return false;
+  }
+  return true;
+}
+
 function helpRoleForActor(portal, actor = {}) {
   if (portal === 'admin') return 'admin';
   const roles = new Set(normalizedAssignments(actor).map((item) => item.role));
@@ -869,30 +899,31 @@ function mailDeliveryLabel(result, { sent = 'Email sent.', console = 'Email prin
 function collectV23CustomFieldsFromBody(body = {}) {
   const fields = [];
   for (const [name, value] of Object.entries(body || {})) {
-    if (!name.startsWith('v23Field__')) continue;
-    const fieldKey = name.slice('v23Field__'.length).trim();
+    const prefix = name.startsWith('v24Field__') ? 'v24Field__' : name.startsWith('v23Field__') ? 'v23Field__' : '';
+    if (!prefix) continue;
+    const fieldKey = name.slice(prefix.length).trim();
     if (!fieldKey) continue;
     const cleanValue = Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean) : String(value || '').trim();
     if (Array.isArray(cleanValue) ? !cleanValue.length : !cleanValue) continue;
-    fields.push({ fieldKey, key: fieldKey, code: fieldKey, name: fieldKey, label: fieldKey, value: cleanValue, source: 'v23_configurable_form' });
+    fields.push({ fieldKey, key: fieldKey, code: fieldKey, name: fieldKey, label: fieldKey, value: cleanValue, source: prefix.startsWith('v24') ? 'v24_configurable_form' : 'v23_configurable_form' });
   }
   return fields;
 }
 
 function isV23SaasRequestRecord(request = {}) {
-  const direct = String(request.serviceModelKey || request.v23ServiceModelKey || request.level3Type?.serviceModelKey || request.level2Type?.serviceModelKey || request.level1Type?.serviceModelKey || '').trim();
-  if (direct === 'SUNTEC_SAAS_V23') return true;
+  const direct = String(request.serviceModelKey || request.v24ServiceModelKey || request.v23ServiceModelKey || request.level3Type?.serviceModelKey || request.level2Type?.serviceModelKey || request.level1Type?.serviceModelKey || '').trim();
+  if (['SUNTEC_SAAS_V24', 'SUNTEC_SAAS_V23'].includes(direct)) return true;
   const fields = request.customFieldValues || request.customFields || [];
   return (fields || []).some((field) => {
     const key = String(field.fieldKey || field.key || field.code || field.name || field.label || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_');
-    return (key === '__v23_service_model_key' || key === 'service_model_key') && String(field.value || field.displayValue || '').trim() === 'SUNTEC_SAAS_V23';
+    return (key === '__v24_service_model_key' || key === '__v23_service_model_key' || key === 'service_model_key') && ['SUNTEC_SAAS_V24','SUNTEC_SAAS_V23'].includes(String(field.value || field.displayValue || '').trim());
   });
 }
 
 const V23_INCIDENT_LIFECYCLE_FIELD_KEYS = new Set([
-  'SEVERITY', 'PRIORITY', 'S3_BUCKET_URL', 'TEST_RELEASE', 'RELEASE_ID', 'RELEASE_TYPE',
-  'RCA_CATEGORY', 'ROOT_CAUSE', 'CORRECTIVE_ACTION', 'PREVENTIVE_ACTION', 'RCA_STATUS',
-  'APPROVER', 'EXCEPTION_APPROVER', 'TEST_CASE_LINK'
+  'TEST_RELEASE', 'RELEASE_ID', 'RELEASE_TYPE', 'RCA_CATEGORY', 'ROOT_CAUSE',
+  'CORRECTIVE_ACTION', 'PREVENTIVE_ACTION', 'RCA_STATUS', 'APPROVER',
+  'EXCEPTION_APPROVER', 'TEST_CASE_LINK'
 ]);
 
 function isV23SaasBehaviorNode(node = {}) {
@@ -920,11 +951,20 @@ function requestLooksLikeV23Incident(request = {}, configuredBehavior = {}, supp
     || (taxonomyIncident && (taxonomyVersion.startsWith('23.1') || pathCode.startsWith('PATH_INC_') || /\bincident\b/i.test(pathName)));
 }
 
-function filterClientIncidentLifecycleFields(fields = [], { portal = '', behaviorNode = {}, issueType = null, incident = false } = {}) {
-  if (portal !== 'client' || !(incident || isV23SaasIncidentBehaviorNode(behaviorNode, issueType))) return fields || [];
+function filterIncidentCreationLifecycleFields(fields = [], { behaviorNode = {}, issueType = null, incident = false } = {}) {
+  // v24.1: lifecycle/RCA/release/approval fields belong to the post-creation
+  // workflow, never to the Incident intake form — regardless of whether the
+  // creator is a customer, partner, or SunTec agent.
+  if (!(incident || isV23SaasIncidentBehaviorNode(behaviorNode, issueType))) return fields || [];
   return (fields || []).filter((field) => !V23_INCIDENT_LIFECYCLE_FIELD_KEYS.has(String(field?.fieldKey || '').trim().toUpperCase()));
 }
 
+
+function filterClientIncidentLifecycleFields(fields = [], options = {}) {
+  // Backward-compatible name retained for older UAT guards. v24.1 applies the
+  // same lifecycle exclusion to Customer, Partner and Agent creation portals.
+  return filterIncidentCreationLifecycleFields(fields, options);
+}
 
 function dispatchRequestMail(args) {
   const requestLabel = args?.request?.requestNumber || args?.request?._id || args?.request?.id || 'request';
@@ -1242,6 +1282,16 @@ async function sendRequestMail({ organization, request, event, actor = {}, extra
   } catch {
     // Core notification recipients still work if the directory lookup is temporarily unavailable.
   }
+  const requestClient = clientRows.find((item) => String(item._id || item.id || '') === String(request.client?.id || '')) || null;
+  const eventPolicyKey = ({
+    'created': 'issueCreated', 'issue edited': 'issueEdited', 'edited': 'issueEdited',
+    'status changed': 'statusChanged', 'resolved': 'statusChanged', 'information requested': 'statusChanged',
+    'closed': 'issueClosed', 'resolution accepted': 'issueClosed',
+    'comment added': 'commentAdded', 'assigned': 'assignmentChanged', 'ownership changed': 'assignmentChanged', 'support level changed': 'assignmentChanged',
+    'severity changed': 'severityChanged', 'priority changed': 'priorityChanged',
+    'sla at risk': 'slaAtRisk', 'sla breached': 'slaBreached'
+  })[eventKey] || '';
+  if (requestClient?.notificationMode === 'custom' && eventPolicyKey && requestClient.notificationEvents?.[eventPolicyKey] === false) return null;
   const managementEmails = scopedUsers
     .filter((user) => {
       if ((user.status || 'active') !== 'active') return false;
@@ -1396,7 +1446,8 @@ function slaDefinitionFor(policy) {
   if (!policy) return null;
   return {
     supportWindow: policy.supportWindow || 'business_hours',
-    clockStartTrigger: policy.clockStartTrigger || 'severity_selected',
+    clockStartTrigger: policy.clockStartTrigger || 'ticket_created',
+    clockStartStatusId: String(policy.clockStartStatusId || '').trim().toUpperCase(),
     rules: (policy.rules || []).map((rule) => ({
       ruleBasis: rule.ruleBasis || 'severity',
       severityId: rule.severityId ? String(rule.severityId) : '',
@@ -1437,7 +1488,7 @@ function workflowInitialStatus(workflow) {
 function workflowDefinitionFrom(workflow = {}) {
   const statuses = (workflow?.statuses || []).filter((status) => status.isActive !== false);
   const ids = new Set(statuses.map((status) => status.localId));
-  return { statuses, transitions: (workflow?.transitions || []).filter((item) => ids.has(item.fromStatusId) && ids.has(item.toStatusId)) };
+  return { statuses, transitions: (workflow?.transitions || []).filter((item) => ids.has(item.fromStatusId) && ids.has(item.toStatusId)), globalActions: workflow?.globalActions || [] };
 }
 
 function workflowStatusByLocalId(workflow = {}, localId = '') {
@@ -1983,6 +2034,7 @@ function summarizeRequest(request, portal = 'admin', assignment = null) {
     sourceLabel: source === 'client_portal' ? 'Client portal' : source === 'client_asked_agent' ? 'Raised for client' : source === 'partner_observed' ? 'Partner/team observed' : source === 'system_alert' ? 'System alert' : 'Internal observed',
     supportLevelLabel: `${currentSupportLevel} · ${(request.ownerSide || ownerSideFromSupportLevel(currentSupportLevel)) === 'suntec' ? 'SunTec Support' : (request.ownerSide || ownerSideFromSupportLevel(currentSupportLevel)) === 'partner' ? 'Partner / Operations' : 'Client / Bank'}`,
     createdLabel: created && !Number.isNaN(created.getTime()) ? created.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '',
+    updatedLabel: updated && !Number.isNaN(updated.getTime()) ? updated.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '',
     updatedShortLabel: updated && !Number.isNaN(updated.getTime()) ? updated.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '',
     currentAssignee: primaryStage?.assignedTo || {},
     statusLabel,
@@ -2170,7 +2222,7 @@ function selectedRequestCreationState(req, context, portal = 'admin') {
   const fieldConfig = issueFieldConfig(behaviorNode || {});
   const isSaasIncidentIntake = taxonomyNodeIsIncident(selectedLevel2 || {}) || isV23SaasIncidentBehaviorNode(behaviorNode || {}, selectedLevel2 || {});
   const isV23SaasIntake = isV23SaasBehaviorNode(behaviorNode || {}) || isSaasIncidentIntake;
-  const customFieldDefinitions = filterClientIncidentLifecycleFields(activeCustomFields(behaviorNode || {}), { portal, behaviorNode, issueType: selectedLevel2, incident: isSaasIncidentIntake });
+  const customFieldDefinitions = filterIncidentCreationLifecycleFields(activeCustomFields(behaviorNode || {}), { behaviorNode, issueType: selectedLevel2, incident: isSaasIncidentIntake });
   const effectiveSlaPolicyId = selectedClient ? resolveEffectiveSlaPolicyId(selectedClient, context.clientsById, selectedLevel1?._id) : '';
   const familySlaPolicy = effectiveSlaPolicyId ? findById(context.slaPolicies || [], effectiveSlaPolicyId) : null;
   const effectiveSlaPolicy = behaviorNode?.slaApplicable === false ? null : (behaviorNode?.slaPolicy || familySlaPolicy);
@@ -2268,7 +2320,7 @@ function buildRequestPayload({ req, organization, portal, actor, context }) {
   const isSaasIncidentIntake = taxonomyNodeIsIncident(level2Type) || isV23SaasIncidentBehaviorNode(behaviorNode, level2Type);
   const fallbackWorkflow = behaviorNode.workflow || null;
   const fieldConfig = issueFieldConfig(behaviorNode);
-  const customFieldDefinitions = filterClientIncidentLifecycleFields(activeCustomFields(behaviorNode), { portal, behaviorNode, issueType: level2Type, incident: isSaasIncidentIntake });
+  const customFieldDefinitions = filterIncidentCreationLifecycleFields(activeCustomFields(behaviorNode), { behaviorNode, issueType: level2Type, incident: isSaasIncidentIntake });
   const customFieldValues = customFieldDefinitions.map((field) => customFieldValueFromBody(field, req.body)).filter(Boolean);
   const effectiveSlaPolicyId = resolveEffectiveSlaPolicyId(client, context.clientsById, level1Type._id);
   const familySlaPolicy = effectiveSlaPolicyId ? findById(context.slaPolicies || [], effectiveSlaPolicyId) : null;
@@ -2323,14 +2375,34 @@ function buildRequestPayload({ req, organization, portal, actor, context }) {
 
   const configuredLevels = [...(supportPath?.levels || [])].sort((a, b) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0));
   const activeAssignment = portal === 'admin' ? null : bestAssignmentForClient(actor, client._id, context.clients, portal);
+  const assignmentDefaultLevel = activeAssignment?.supportLevels?.[0];
+  const configuredLevelIds = configuredLevels.map((item) => item.localId).filter(Boolean);
+  const clientLevel = configuredLevels.find((item) => item.ownerSide === 'client')?.localId || configuredLevels[0]?.localId || 'L1';
+  const partnerLevel = configuredLevels.find((item) => item.ownerSide === 'partner')?.localId || 'L2';
+  const suntecLevel = configuredLevels.find((item) => item.ownerSide === 'suntec')?.localId || configuredLevels.at(-1)?.localId || 'L3';
+
+  // v24 Incident origin is driven by Incident Level, matching the working JSM form:
+  // Bank/L1 = raised for the client; Partner/L2 = partner-origin; SunTec/L3 = internal-origin.
+  // Source and visibility are derived from that level instead of making the user choose
+  // three overlapping concepts on the creation form.
+  const incidentDefaultLevel = assignmentDefaultLevel || (portal === 'client' ? clientLevel : suntecLevel);
+  const currentSupportLevel = portal === 'client'
+    ? clientLevel
+    : sanitizeChoice(req.body.currentSupportLevel, configuredLevelIds.length ? configuredLevelIds : ['L1', 'L2', 'L3'], incidentDefaultLevel);
+
   const defaultSource = portal === 'client'
     ? 'client_portal'
     : activeAssignment?.role === 'partnerUser'
       ? 'partner_observed'
       : 'internal_observed';
-  const source = portal === 'client'
-    ? 'client_portal'
-    : sanitizeChoice(req.body.source, ['client_asked_agent', 'partner_observed', 'internal_observed', 'system_alert'], defaultSource);
+  const source = isSaasIncidentIntake
+    ? (portal === 'client' || currentSupportLevel === clientLevel
+        ? (portal === 'client' ? 'client_portal' : 'client_asked_agent')
+        : currentSupportLevel === partnerLevel ? 'partner_observed' : 'internal_observed')
+    : (portal === 'client'
+        ? 'client_portal'
+        : sanitizeChoice(req.body.source, ['client_asked_agent', 'partner_observed', 'internal_observed', 'system_alert'], defaultSource));
+
   const defaultVisibility = portal === 'client'
     ? 'client_visible'
     : source === 'client_asked_agent'
@@ -2338,18 +2410,11 @@ function buildRequestPayload({ req, organization, portal, actor, context }) {
       : activeAssignment?.role === 'partnerUser'
         ? 'partner_visible'
         : 'internal_only';
-  const visibilityScope = portal === 'client'
-    ? 'client_visible'
-    : sanitizeChoice(req.body.visibilityScope, ['client_visible', 'partner_visible', 'internal_only'], defaultVisibility);
-  const assignmentDefaultLevel = activeAssignment?.supportLevels?.[0];
-  const defaultLevel = assignmentDefaultLevel || (portal === 'client'
-    ? (configuredLevels.find((item) => item.ownerSide === 'client')?.localId || configuredLevels[0]?.localId || 'L1')
-    : visibilityScope === 'partner_visible'
-      ? (configuredLevels.find((item) => item.ownerSide === 'partner')?.localId || 'L2')
-      : (configuredLevels.find((item) => item.ownerSide === 'suntec')?.localId || configuredLevels.at(-1)?.localId || 'L3'));
-  const currentSupportLevel = portal === 'client'
-    ? defaultLevel
-    : sanitizeChoice(req.body.currentSupportLevel, configuredLevels.map((item) => item.localId).length ? configuredLevels.map((item) => item.localId) : ['L1', 'L2', 'L3'], defaultLevel);
+  const visibilityScope = isSaasIncidentIntake
+    ? (currentSupportLevel === clientLevel ? 'client_visible' : currentSupportLevel === partnerLevel ? 'partner_visible' : 'internal_only')
+    : (portal === 'client'
+        ? 'client_visible'
+        : sanitizeChoice(req.body.visibilityScope, ['client_visible', 'partner_visible', 'internal_only'], defaultVisibility));
   const configuredLevel = configuredLevels.find((item) => item.localId === currentSupportLevel)
     || configuredLevels[0]
     || { localId: currentSupportLevel, label: currentSupportLevel, ownerSide: ownerSideFromSupportLevel(currentSupportLevel) };
@@ -4470,6 +4535,18 @@ app.post('/clients/:clientId/availability', async (req, res, next) => {
 
 
 
+app.post('/clients/:clientId/notifications', async (req, res, next) => {
+  try {
+    const organization = await requireAdmin(req, res);
+    if (!organization) return;
+    const keys = ['issueCreated','issueEdited','statusChanged','issueClosed','commentAdded','assignmentChanged','severityChanged','priorityChanged','slaAtRisk','slaBreached'];
+    const notificationEvents = {};
+    for (const key of keys) notificationEvents[key] = req.body[key] === 'on';
+    await updateClientNotifications(organization._id, req.params.clientId, { notificationMode: req.body.notificationMode, notificationEvents });
+    res.redirect(`/admin/clients/${req.params.clientId}?notice=${encodeURIComponent('Notification settings updated.')}`);
+  } catch (error) { next(error); }
+});
+
 app.post('/clients/:clientId/context', async (req, res, next) => {
   try {
     const organization = await ensureWorkspace(req, res);
@@ -4741,7 +4818,9 @@ async function renderRequestList(req, res, next, { organization, actor, portal =
     const context = await getRequestPageContext({ organization, actor, portal });
     const clientIds = portal === 'admin' ? [] : context.accessibleClients.map((client) => String(client._id));
     const filterParams = requestQueryParams(req.query);
+    const l3WatchView = portal === 'agent' && filterParams.supportLevel === 'L3' && normalizedAssignments(actor).some((item) => ['agentUser','agentManager','engagementManager'].includes(item.role));
     const listParams = { ...filterParams, clientIds };
+    if (l3WatchView) delete listParams.supportLevel;
     if (filterParams.mine === '1') {
       listParams.assigneeActorId = String(actor?._id || actor?.id || '');
       listParams.assigneeEmail = String(actor?.email || '').toLowerCase();
@@ -4752,6 +4831,17 @@ async function renderRequestList(req, res, next, { organization, actor, portal =
       const assignment = bestAssignmentForClient(actor, item.client?.id, context.clients, portal);
       return assignmentCanSeeRequest(assignment, item, portal);
     });
+
+    if (l3WatchView) {
+      visibleRequests = visibleRequests.filter((item) => {
+        const level = String(item.currentSupportLevel || '').toUpperCase();
+        if (level === 'L3') return true;
+        const severity = String(item.severity?.code || item.severity?.name || '').toUpperCase();
+        const customerRaised = String(item.sourcePortal || '').toLowerCase() === 'client' || String(item.source || '').toLowerCase() === 'client_portal';
+        const incident = /incident/i.test(`${item.level2Type?.name || ''} ${item.level2Type?.code || ''}`);
+        return level === 'L2' && severity === 'S1' && customerRaised && incident;
+      });
+    }
 
     if (String(req.query.attention || '') === 'escalation') {
       visibleRequests = visibleRequests.filter((item) => {
@@ -4885,14 +4975,28 @@ async function renderRequestDetail(req, res, next, { organization, actor, portal
       // Any eligible operational user can dispatch work to an eligible peer on the same stage.
       // Tenant Admin retains an organization-wide override.
       const canAssignOthers = portal === 'admin' || (portal !== 'client' && baseCanAct && actorIsEligibleForStage);
-      const allowedStatusIds = new Set((definition.transitions || []).filter((item) => item.fromStatusId === currentStatus?.localId).map((item) => item.toStatusId));
+      const currentTransitions = (definition.transitions || []).filter((item) => item.fromStatusId === currentStatus?.localId);
+      const allowedStatusIds = new Set(currentTransitions.map((item) => item.toStatusId));
+      const configuredStatusActions = currentTransitions
+        .filter((item) => configuredActionAllowed(item, { portal, assignment: activeAssignment, actor, request }))
+        // A transition that changes support level is rendered as a support-routing action,
+        // not as an ordinary status change. This mirrors JSM's Request/Assign/Escalate semantics.
+        .filter((item) => !item.supportEffect?.targetLevel || item.supportEffect.targetLevel === stageLevel)
+        .map((item) => ({
+          ...item,
+          targetStatus: (definition.statuses || []).find((status) => status.localId === item.toStatusId) || null
+        }))
+        .filter((item) => item.targetStatus && (portal !== 'client' || item.targetStatus.isCustomerVisible !== false));
+      const configuredStatusIds = new Set(configuredStatusActions.map((item) => item.toStatusId));
       let options = stageCanAct
-        ? (portal === 'admin'
-            ? (definition.statuses || []).filter((item) => item.localId !== currentStatus?.localId)
-            : (definition.statuses || []).filter((item) => allowedStatusIds.has(item.localId)))
+        ? (v23SaasRequest
+            ? (definition.statuses || []).filter((item) => configuredStatusIds.has(item.localId))
+            : (portal === 'admin'
+                ? (definition.statuses || []).filter((item) => item.localId !== currentStatus?.localId)
+                : (definition.statuses || []).filter((item) => allowedStatusIds.has(item.localId))))
         : [];
       if (portal === 'client') options = options.filter((item) => item.isCustomerVisible !== false);
-      options = options.map((item) => ({ ...item, isConfiguredTransition: allowedStatusIds.has(item.localId) }));
+      options = options.map((item) => ({ ...item, isConfiguredTransition: configuredStatusIds.has(item.localId) || allowedStatusIds.has(item.localId) }));
       const tasks = allTasks.filter((task) => task.sourceStageId === stage.localId).filter((task) => {
         if (portal === 'client') return task.visibility === 'client_visible';
         if (activeAssignment?.role === 'partnerUser') return ['client_visible', 'partner_visible'].includes(task.visibility || 'internal_only');
@@ -4910,9 +5014,21 @@ async function renderRequestDetail(req, res, next, { organization, actor, portal
         canAssignOthers,
         canAct: stageCanAct,
         statusOptions: options,
+        statusActions: stageCanAct && v23SaasRequest ? configuredStatusActions : [],
+        globalActions: stageCanAct
+          ? (definition.globalActions || []).filter((item) => configuredActionAllowed(item, { portal, assignment: activeAssignment, actor, request }))
+          : [],
         tasks,
         openBlockingTasks: tasks.filter((task) => task.isBlocking && !['done', 'cancelled'].includes(task.status)),
-        supportActions: (supportPathDefinition.movementRules || []).filter((item) => item.fromLevelId === stageLevel)
+        // Cross-level routing is intentionally separate from working the current stage.
+        // Example: a Partner can Assign to L2 and a SunTec agent can Assign an S1 to L3
+        // while the incident is still at Bank/L1 New. The configured rule/role controls it.
+        supportActions: (portal === 'admin' || portal !== 'client' || baseCanAct)
+          ? (supportPathDefinition.movementRules || [])
+              .filter((item) => item.fromLevelId === stageLevel)
+              .filter((item) => !item.allowedFromStatusIds?.length || item.allowedFromStatusIds.includes(String(currentStatus?.localId || '')))
+              .filter((item) => configuredActionAllowed(item, { portal, assignment: activeAssignment, actor, request }))
+          : []
       };
     });
     const primaryStage = stageViews.find((stage) => stage.isPrimary) || stageViews[0] || null;
@@ -4920,7 +5036,12 @@ async function renderRequestDetail(req, res, next, { organization, actor, portal
     const workflowDefinition = primaryStage?.workflowDefinition || request.workflowDefinition || workflowDefinitionFrom(fallbackWorkflow);
     const canAct = primaryStage?.canAct || false;
     const statusOptions = primaryStage?.statusOptions || [];
-    const supportActions = stageViews.flatMap((stage) => stage.canAct ? (stage.supportActions || []).map((action) => ({ ...action, sourceStageId: stage.localId })) : []);
+    const supportActions = stageViews.flatMap((stage) => (stage.supportActions || []).map((action) => ({ ...action, sourceStageId: stage.localId })));
+    // JSM management escalations are request-level self-transitions (Any Status -> Itself).
+    // They are controlled by role/visibility, not by ownership of the active support stage.
+    const globalActions = (workflowDefinition.globalActions || [])
+      .filter((action) => configuredActionAllowed(action, { portal, assignment: activeAssignment, actor, request }))
+      .map((action) => ({ ...action, sourceStageId: primaryStage?.localId || request.currentSupportLevel || 'L1', workflowDefinition }));
 
     const decoratedRequest = applyCurrentSupportConfiguration(summarizeRequest(request, portal, activeAssignment), request, context);
     if (v23SaasRequest && !decoratedRequest.serviceModelKey) decoratedRequest.serviceModelKey = 'SUNTEC_SAAS_V23';
@@ -4942,6 +5063,10 @@ async function renderRequestDetail(req, res, next, { organization, actor, portal
       activeAssignment,
       severities: context.severities || [],
       priorities: context.priorities || [],
+      products: context.products || [],
+      modules: context.modules || [],
+      environments: context.environments || [],
+      editableCustomFields: filterIncidentCreationLifecycleFields(activeCustomFields(configuredBehavior || {}), { behaviorNode: configuredBehavior, issueType: configuredBehavior, incident: taxonomyNodeIsIncident(configuredBehavior || {}) || requestLooksLikeV23Incident(request, configuredBehavior, supportPath) }),
       roleLabels: ROLE_LABELS,
       canAct,
       request: decoratedRequest,
@@ -4951,6 +5076,7 @@ async function renderRequestDetail(req, res, next, { organization, actor, portal
       allStageViews: stageViews,
       statusOptions,
       supportActions,
+      globalActions,
       actionNotice: String(req.query.notice || '').trim().slice(0, 300),
       actionError: String(req.query.error || '').trim().slice(0, 500),
       listPath: requestListPath(portal, tenantSlug),
@@ -5259,7 +5385,7 @@ async function handleStatusChange(req, res, next, portal) {
       ...(assignedToPayload ? { assignedTo: assignedToPayload } : {}),
       actor: { actorId: actor._id, name: actor.name, email: actor.email, userType: assignment?.role || actor.userType, portal },
       workflowDefinition: definition,
-      serviceModelKey: v23SaasRequest ? 'SUNTEC_SAAS_V23' : '',
+      serviceModelKey: v23SaasRequest ? (request.serviceModelKey || 'SUNTEC_SAAS_V24') : '',
       saasIncident
     });
     if (!result.noChange) {
@@ -5290,6 +5416,64 @@ async function handleStatusChange(req, res, next, portal) {
   }
 }
 
+async function handleGlobalWorkflowAction(req, res, next, portal) {
+  try {
+    const { organization, actor, allowed } = await resolvePortalAccess(req, portal);
+    if (!allowed) return res.redirect(portalLoginPath(portal));
+    const context = await getRequestPageContext({ organization, actor, portal });
+    const { request } = await getServiceRequest(organization._id, req.params.requestId);
+    const assignment = portal === 'admin' ? null : bestAssignmentForClient(actor, request.client?.id, context.clients, portal);
+    if (portal !== 'admin' && !assignmentCanSeeRequest(assignment, request, portal)) {
+      return res.status(404).render('pages/error', { title: 'Request not found', status: 404, message: 'This request is not visible in your current portal assignment.' });
+    }
+    const stageId = String(req.body.stageId || request.currentSupportLevel || '').trim();
+    const storedStage = (request.activeStages || []).find((item) => item.localId === stageId)
+      || (request.activeStages || []).find((item) => item.isPrimary)
+      || null;
+    const supportPath = currentSupportPathForRequest(request, context);
+    const stage = effectiveStageAgainstPath(storedStage, supportPath) || storedStage;
+    const workflow = (stage?.workflow?.id ? context.workflows.find((item) => String(item._id) === String(stage.workflow.id)) : null)
+      || (request.workflow?.id ? context.workflows.find((item) => String(item._id) === String(request.workflow.id)) : null)
+      || null;
+    const definition = storedStage?.workflowDefinition?.statuses?.length
+      ? storedStage.workflowDefinition
+      : (stage?.configuredWorkflowDefinition?.statuses?.length
+          ? stage.configuredWorkflowDefinition
+          : (request.workflowDefinition?.statuses?.length ? request.workflowDefinition : workflowDefinitionFrom(workflow)));
+    const actionKey = String(req.body.actionKey || '').trim();
+    const action = (definition.globalActions || []).find((item) => String(item.key || '') === actionKey);
+    if (!action || !configuredActionAllowed(action, { portal, assignment, actor, request })) {
+      return res.status(403).render('pages/error', { title: 'Action not allowed', status: 403, message: 'This escalation/action is not available for your role.' });
+    }
+    const result = await runRequestGlobalAction(organization._id, request._id, {
+      stageId: stage?.localId || stageId,
+      actionKey,
+      comment: req.body.comment,
+      actor: { actorId: actor._id, name: actor.name, email: actor.email, userType: assignment?.role || actor.userType, portal },
+      workflowDefinition: definition
+    });
+    await safeAudit(organization._id, {
+      eventType: 'manual_escalation',
+      message: `${request.requestNumber}: ${action.label}.`,
+      targetType: 'request',
+      targetId: request._id,
+      targetLabel: request.requestNumber,
+      actor: { actorId: actor._id, name: actor.name, email: actor.email, userType: assignment?.role || actor.userType, portal }
+    });
+    dispatchRequestMail({
+      organization,
+      request: result.request,
+      event: String(action.label || 'workflow escalation').toLowerCase(),
+      actor: { name: actor.name, email: actor.email, role: assignment?.role || actor.userType, portal },
+      extra: String(req.body.comment || '').trim()
+    });
+    res.redirect(withQuery(requestDetailPath(portal, request._id, req.session.tenantSlug), { notice: `${action.label} recorded.` }));
+  } catch (error) {
+    if (redirectRequestActionError(error, req, res, portal)) return;
+    next(error);
+  }
+}
+
 async function handleSupportMove(req, res, next, portal) {
   try {
     const { organization, actor, allowed } = await resolvePortalAccess(req, portal);
@@ -5305,21 +5489,37 @@ async function handleSupportMove(req, res, next, portal) {
       || requestLooksLikeV23Incident(request, configuredBehavior, currentSupportPathForRequest(request, context));
     const v23SaasRequest = isV23SaasRequestRecord(request) || configuredSaasRequest;
     const saasIncident = v23SaasRequest && /\bincident\b/i.test(`${request.level1Type?.name || ''} ${request.level2Type?.name || ''} ${request.level3Type?.name || ''}`);
-    const sourceStage = effectiveStageAgainstPath(storedSourceStage, supportPath);
+    const sourceStage = effectiveStageAgainstPath(storedSourceStage, supportPath) || storedSourceStage;
+    if (portal !== 'admin' && !assignmentCanSeeRequest(assignment, request, portal)) {
+      return res.status(404).render('pages/error', { title: 'Request not found', status: 404, message: 'This request is not visible in your current portal assignment.' });
+    }
+    const pathDefinition = supportPath?.levels?.length
+      ? { levels: supportPath.levels || [], movementRules: supportPath.movementRules || [] }
+      : (request.supportPathDefinition || { levels: [], movementRules: [] });
+    const requestedRule = (pathDefinition.movementRules || []).find((item) =>
+      String(item.localId || '') === String(req.body.ruleId || '') && String(item.fromLevelId || '') === sourceLevel
+    );
     const sourceStageUnassigned = !(sourceStage?.assignedTo?.actorId || sourceStage?.assignedTo?.email);
     const clientScopedSaasStage = v23SaasRequest && portal === 'client' && sourceStage?.ownerSide === 'client' && sourceStageUnassigned && assignmentMatchesStage(assignment, sourceStage, sourceLevel);
-    const canAutoRouteSaasStage = v23SaasRequest && portal !== 'client' && sourceStageUnassigned && assignmentMatchesStage(assignment, sourceStage, sourceLevel);
-    if (!canWorkSupportStage({ portal, actor, assignment, stage: sourceStage, level: sourceLevel }) && !canAutoRouteSaasStage && !clientScopedSaasStage) return res.status(403).render('pages/error', { title: 'Action not allowed', status: 403, message: 'This support stage is assigned to another owner or is outside your client/support scope.' });
+    // v24: a configured routing action is not the same thing as owning the source stage.
+    // Partner/L2 may Assign to L2 from Bank/New and authorised SunTec actors may Assign
+    // an S1 directly to L3 when the configured rule, role and client scope allow it.
+    const configuredCrossLevelRoute = portal !== 'client'
+      && Boolean(assignment)
+      && Boolean(requestedRule)
+      && configuredActionAllowed(requestedRule, { portal, assignment, actor, request });
+    const sameStageRoute = canWorkSupportStage({ portal, actor, assignment, stage: sourceStage, level: sourceLevel });
+    if (portal !== 'admin' && !sameStageRoute && !configuredCrossLevelRoute && !clientScopedSaasStage) {
+      return res.status(403).render('pages/error', { title: 'Action not allowed', status: 403, message: 'This support routing action is outside your client/role scope.' });
+    }
     const result = await moveRequestSupportLevel(organization._id, req.params.requestId, {
       ruleId: req.body.ruleId,
       expectedFromLevelId: req.body.expectedFromLevelId,
       reason: req.body.reason,
       comment: req.body.comment,
       actor: { actorId: actor._id, name: actor.name, email: actor.email, userType: assignment?.role || actor.userType, portal },
-      supportPathDefinition: supportPath?.levels?.length
-        ? { levels: supportPath.levels || [], movementRules: supportPath.movementRules || [] }
-        : (request.supportPathDefinition || { levels: [], movementRules: [] }),
-      serviceModelKey: v23SaasRequest ? 'SUNTEC_SAAS_V23' : '',
+      supportPathDefinition: pathDefinition,
+      serviceModelKey: v23SaasRequest ? (request.serviceModelKey || 'SUNTEC_SAAS_V24') : '',
       saasIncident
     });
     dispatchRequestMail({ organization, request: result.request, event: 'support level changed', actor: { name: actor.name, email: actor.email, role: assignment?.role || actor.userType, portal }, extra: `Support level moved to ${result.request?.currentSupportLevel || 'next level'}.` });
@@ -5520,26 +5720,65 @@ async function handleClientLifecycleAction(req, res, next, portal) {
   }
 }
 
+async function handleRequestEdit(req, res, next, portal) {
+  try {
+    const { organization, actor, allowed } = await resolvePortalAccess(req, portal);
+    if (!allowed) return res.redirect(portalLoginPath(portal));
+    const context = await getRequestPageContext({ organization, actor, portal });
+    const { request } = await getServiceRequest(organization._id, req.params.requestId);
+    const assignment = portal === 'admin' ? null : bestAssignmentForClient(actor, request.client?.id, context.clients, portal);
+    if (portal !== 'admin' && !assignmentCanSeeRequest(assignment, request, portal)) {
+      return res.status(404).render('pages/error', { title: 'Request not found', status: 404, message: 'This request is not visible in your current portal assignment.' });
+    }
+    const configuredBehavior = configuredBehaviorForRequest(request, context);
+    const fields = filterIncidentCreationLifecycleFields(activeCustomFields(configuredBehavior || {}), { behaviorNode: configuredBehavior, issueType: configuredBehavior, incident: requestLooksLikeV23Incident(request, configuredBehavior, currentSupportPathForRequest(request, context)) });
+    const severity = findById(context.severities || [], req.body.severityId);
+    const priority = portal === 'client' ? null : findById(context.priorities || [], req.body.priorityId);
+    const product = findById(context.products || [], req.body.productId);
+    const environment = findById(context.environments || [], req.body.environmentId);
+    const moduleIds = toArray(req.body.moduleIds).map(String);
+    const selectedModules = (context.modules || []).filter((item) => moduleIds.includes(String(item._id || item.id)));
+    if (req.body.severityId && !severity) throw Object.assign(new Error('Choose a configured severity.'), { status: 400 });
+    if (portal !== 'client' && req.body.priorityId && !priority) throw Object.assign(new Error('Choose a configured priority.'), { status: 400 });
+    if (req.body.productId && !product) throw Object.assign(new Error('Choose a configured product.'), { status: 400 });
+    if (req.body.environmentId && !environment) throw Object.assign(new Error('Choose a configured environment.'), { status: 400 });
+    const customFieldValues = fields.map((field) => customFieldValueFromBody(field, req.body)).filter(Boolean);
+    const payload = {
+      actor: { actorId: actor._id, name: actor.name, email: actor.email, userType: actor.userType, portal },
+      subject: req.body.subject,
+      description: req.body.description,
+      severity: makeRef(severity, req.body.severityId),
+      product: makeRef(product, req.body.productId),
+      environment: makeRef(environment, req.body.environmentId),
+      modules: selectedModules.map((item) => makeRef(item)),
+      customFieldValues
+    };
+    if (portal !== 'client') payload.priority = makeRef(priority, req.body.priorityId);
+    const result = await updateRequestDetails(organization._id, req.params.requestId, payload);
+    if (!result.noChange) dispatchRequestMail({ organization, request: result.request, event: 'issue edited', actor: { name: actor.name, email: actor.email, role: actor.userType, portal }, extra: 'Request details were edited.' });
+    res.redirect(requestActionRedirect(portal, req.params.requestId, req.session.tenantSlug, { notice: result.noChange ? 'No request details changed.' : 'Request details updated.' }));
+  } catch (error) {
+    if (redirectRequestActionError(error, req, res, portal)) return;
+    next(error);
+  }
+}
+
 async function handleRequestClassificationUpdate(req, res, next, portal) {
   try {
     const { organization, actor, allowed } = await resolvePortalAccess(req, portal);
     if (!allowed) return res.redirect(portalLoginPath(portal));
-    if (portal === 'client') {
-      return res.status(403).render('pages/error', { title: 'Action not allowed', status: 403, message: 'Severity is controlled by the support team.' });
-    }
-
     const context = await getRequestPageContext({ organization, actor, portal });
     const severity = findById(context.severities || [], req.body.severityId);
-    const priority = findById(context.priorities || [], req.body.priorityId);
+    const priority = portal === 'client' ? null : findById(context.priorities || [], req.body.priorityId);
     if (!severity && req.body.severityId) {
       return res.status(400).render('pages/error', { title: 'Invalid severity', status: 400, message: 'Choose a configured severity.' });
     }
-    if (!priority && req.body.priorityId) {
+    if (portal !== 'client' && !priority && req.body.priorityId) {
       return res.status(400).render('pages/error', { title: 'Invalid priority', status: 400, message: 'Choose a configured priority.' });
     }
     const classificationPayload = { actor: { actorId: actor._id, name: actor.name, email: actor.email, userType: actor.userType, portal } };
     if (req.body.severityId !== undefined) classificationPayload.severity = makeRef(severity, req.body.severityId);
-    if (req.body.priorityId !== undefined) classificationPayload.priority = makeRef(priority, req.body.priorityId);
+    if (portal !== 'client' && req.body.priorityId !== undefined) classificationPayload.priority = makeRef(priority, req.body.priorityId);
     const result = await updateRequestClassification(organization._id, req.params.requestId, classificationPayload);
 
     if (!result.noChange) {
@@ -5565,6 +5804,76 @@ async function handleRequestClassificationUpdate(req, res, next, portal) {
   }
 }
 
+async function handleRequestVisibilityUpdate(req, res, next, portal) {
+  try {
+    const { organization, actor, allowed } = await resolvePortalAccess(req, portal);
+    if (!allowed) return res.redirect(portalLoginPath(portal));
+    if (portal === 'client') {
+      return res.status(403).render('pages/error', {
+        title: 'Action not allowed', status: 403,
+        message: 'Client users cannot change request visibility.'
+      });
+    }
+
+    const context = await getRequestPageContext({ organization, actor, portal });
+    const { request } = await getServiceRequest(organization._id, req.params.requestId);
+    const assignment = portal === 'admin' ? null : bestAssignmentForClient(actor, request.client?.id, context.clients, portal);
+    if (portal !== 'admin' && !assignmentCanSeeRequest(assignment, request, portal)) {
+      return res.status(404).render('pages/error', { title: 'Request not found', status: 404, message: 'This request is not visible in your current portal assignment.' });
+    }
+
+    const labels = {
+      internal_only: 'L3 · SunTec only',
+      partner_visible: 'L2 + L3 · Partner + SunTec',
+      client_visible: 'L1 + L2 + L3 · Client visible'
+    };
+    const rank = { internal_only: 0, partner_visible: 1, client_visible: 2 };
+    const current = String(request.visibilityScope || 'client_visible');
+    const target = String(req.body.visibilityScope || '').trim();
+    const reason = String(req.body.reason || '').trim();
+
+    if (!(target in rank)) return res.status(400).render('pages/error', { title: 'Invalid visibility', status: 400, message: 'Choose a valid visibility level.' });
+    if (!(current in rank)) return res.status(409).render('pages/error', { title: 'Visibility cannot be changed', status: 409, message: 'This request has an unsupported visibility value. Please contact an administrator.' });
+    if (rank[target] < rank[current]) return res.status(409).render('pages/error', { title: 'Visibility cannot be reduced', status: 409, message: 'Post-creation visibility can only be expanded. Existing viewers cannot be removed from a request.' });
+    if (target !== current && reason.length < 3) return res.status(400).render('pages/error', { title: 'Reason required', status: 400, message: 'Add a short reason for expanding request visibility.' });
+
+    const actorSnapshot = { actorId: actor._id, name: actor.name, email: actor.email, userType: assignment?.role || actor.userType, portal };
+    const result = await updateRequestVisibility(organization._id, req.params.requestId, { visibilityScope: target, reason, actor: actorSnapshot });
+    if (!result.noChange) {
+      await safeAudit(organization._id, {
+        eventType: 'request_visibility_changed',
+        message: `${request.requestNumber}: visibility expanded from ${labels[current]} to ${labels[target]}.`,
+        targetType: 'request', targetId: request._id, targetLabel: request.requestNumber, actor: actorSnapshot
+      });
+      dispatchRequestMail({
+        organization, request: result.request, event: 'visibility expanded',
+        actor: { name: actor.name, email: actor.email, role: assignment?.role || actor.userType, portal },
+        extra: `${labels[current]} → ${labels[target]}. ${reason}`,
+        customerStatusChanged: target === 'client_visible'
+      });
+    }
+    res.redirect(requestActionRedirect(portal, req.params.requestId, req.session.tenantSlug, {
+      notice: result.noChange ? `Visibility is already ${labels[current]}.` : `Visibility expanded to ${labels[target]}.`
+    }));
+  } catch (error) {
+    if (redirectRequestActionError(error, req, res, portal)) return;
+    next(error);
+  }
+}
+
+async function handleV24SaasFormDefinition(req, res, next, portal) {
+  try {
+    const { organization, allowed } = await resolvePortalAccess(req, portal);
+    if (!allowed) return res.status(401).json({ message: 'Authentication required.' });
+    const result = await getV24SaasFormDefinition(organization._id, req.query.level1TypeId, req.query.level2TypeId, req.query.level3TypeId);
+    res.json(result);
+  } catch (error) {
+    const status = Number(error?.status || error?.statusCode || error?.response?.status || 500);
+    if (status === 404) return res.status(404).json({ message: 'No v24 SaaS binding for the selected request subtype.' });
+    next(error);
+  }
+}
+
 async function handleV23SaasFormDefinition(req, res, next, portal) {
   try {
     const { organization, allowed } = await resolvePortalAccess(req, portal);
@@ -5579,9 +5888,13 @@ async function handleV23SaasFormDefinition(req, res, next, portal) {
 }
 
 app.post('/:portal(admin|client|agent)/requests/:requestId/status', (req, res, next) => handleStatusChange(req, res, next, req.params.portal));
+app.post('/:portal(admin|client|agent)/requests/:requestId/global-action', (req, res, next) => handleGlobalWorkflowAction(req, res, next, req.params.portal));
+app.get('/:portal(admin|client|agent)/v24/form-definition', (req, res, next) => handleV24SaasFormDefinition(req, res, next, req.params.portal));
 app.get('/:portal(admin|client|agent)/v23/form-definition', (req, res, next) => handleV23SaasFormDefinition(req, res, next, req.params.portal));
 app.post('/:portal(admin|client|agent)/requests/:requestId/client-action', upload.array('attachments', 5), (req, res, next) => handleClientLifecycleAction(req, res, next, req.params.portal));
+app.post('/:portal(admin|client|agent)/requests/:requestId/edit', (req, res, next) => handleRequestEdit(req, res, next, req.params.portal));
 app.post('/:portal(admin|client|agent)/requests/:requestId/classification', (req, res, next) => handleRequestClassificationUpdate(req, res, next, req.params.portal));
+app.post('/:portal(admin|client|agent)/requests/:requestId/visibility', (req, res, next) => handleRequestVisibilityUpdate(req, res, next, req.params.portal));
 app.post('/:portal(admin|client|agent)/requests/:requestId/stages/:stageId/assignee', (req, res, next) => handleStageAssignment(req, res, next, req.params.portal));
 app.post('/:portal(admin|client|agent)/requests/:requestId/support-move', (req, res, next) => handleSupportMove(req, res, next, req.params.portal));
 app.post('/:portal(admin|client|agent)/requests/:requestId/tasks/:taskId/status', (req, res, next) => handleRequestTaskStatus(req, res, next, req.params.portal));
@@ -5725,12 +6038,58 @@ app.post('/:tenant/requests/:requestId/client-action', upload.array('attachments
   } catch (error) { next(error); }
 });
 
+app.post('/:tenant/requests/:requestId/edit', async (req, res, next) => {
+  try {
+    const access = await resolveTenantRouteAccess(req, res, next, req.params.tenant);
+    if (!access) return;
+    return handleRequestEdit(req, res, next, access.portal);
+  } catch (error) { next(error); }
+});
+
 app.post('/:tenant/requests/:requestId/classification', async (req, res, next) => {
   try {
     const access = await resolveTenantRouteAccess(req, res, next, req.params.tenant);
     if (!access) return;
     return handleRequestClassificationUpdate(req, res, next, access.portal);
   } catch (error) { next(error); }
+});
+
+app.post('/:tenant/requests/:requestId/visibility', async (req, res, next) => {
+  try {
+    const access = await resolveTenantRouteAccess(req, res, next, req.params.tenant);
+    if (!access) return;
+    return handleRequestVisibilityUpdate(req, res, next, access.portal);
+  } catch (error) { next(error); }
+});
+
+app.get('/:tenant/v24/form-definition', async (req, res, next) => {
+  try {
+    const access = await resolveTenantRouteAccess(req, res, next, req.params.tenant);
+    if (!access) return;
+    const resolved = await resolvePortalAccess(req, access.portal);
+    if (!resolved?.allowed) return res.status(401).json({ message: 'Authentication required.' });
+    const result = await getV24SaasFormDefinition(resolved.organization._id, req.query.level1TypeId, req.query.level2TypeId, req.query.level3TypeId);
+    res.json(result);
+  } catch (error) {
+    const status = Number(error?.status || error?.statusCode || error?.response?.status || 500);
+    if (status === 404) return res.status(404).json({ message: 'No v24 SaaS binding for the selected request subtype.' });
+    next(error);
+  }
+});
+
+app.get('/:tenant/:portal(admin|client|agent)/v24/form-definition', async (req, res, next) => {
+  try {
+    const access = await resolveTenantRouteAccess(req, res, next, req.params.tenant);
+    if (!access) return;
+    const resolved = await resolvePortalAccess(req, access.portal);
+    if (!resolved?.allowed) return res.status(401).json({ message: 'Authentication required.' });
+    const result = await getV24SaasFormDefinition(resolved.organization._id, req.query.level1TypeId, req.query.level2TypeId, req.query.level3TypeId);
+    res.json(result);
+  } catch (error) {
+    const status = Number(error?.status || error?.statusCode || error?.response?.status || 500);
+    if (status === 404) return res.status(404).json({ message: 'No v24 SaaS binding for the selected request subtype.' });
+    next(error);
+  }
 });
 
 app.get('/:tenant/v23/form-definition', async (req, res, next) => {
@@ -5785,6 +6144,14 @@ app.post('/:tenant/requests/:requestId/comments', upload.array('attachments', 5)
     const access = await resolveTenantRouteAccess(req, res, next, req.params.tenant);
     if (!access) return;
     return handleAddRequestComment(req, res, next, access.portal);
+  } catch (error) { next(error); }
+});
+
+app.post('/:tenant/requests/:requestId/global-action', async (req, res, next) => {
+  try {
+    const access = await resolveTenantRouteAccess(req, res, next, req.params.tenant);
+    if (!access) return;
+    return handleGlobalWorkflowAction(req, res, next, access.portal);
   } catch (error) { next(error); }
 });
 
@@ -5871,7 +6238,7 @@ app.use((req, res) => {
   res.status(404).render('pages/error', {
     title: 'Page not found',
     status: 404,
-    message: 'This page is not available in Service Desk v19.7.'
+    message: 'This page is not available in this Service Desk build.'
   });
 });
 
@@ -5898,17 +6265,29 @@ app.use((error, req, res, next) => {
   });
 });
 
+async function bootstrapSlaNotifier(attempt = 1) {
+  try {
+    const latest = await getLatestOrganization();
+    if (latest?.organization?._id && latest.organization.status === 'active') {
+      knownSlaOrganizations.add(String(latest.organization._id));
+      await pollSlaNotifications();
+    }
+  } catch (error) {
+    const maxAttempts = 6;
+    if (attempt < maxAttempts) {
+      const delayMs = Math.min(500 * (2 ** (attempt - 1)), 5000);
+      console.warn(`[sla-notifier] dependent services are not ready; retrying in ${delayMs}ms (${attempt}/${maxAttempts}).`);
+      const timer = setTimeout(() => {
+        runInBackground('SLA notifier bootstrap retry', () => bootstrapSlaNotifier(attempt + 1));
+      }, delayMs);
+      timer.unref?.();
+      return;
+    }
+    console.error(`[sla-notifier] bootstrap failed after ${maxAttempts} attempts: ${error.message}`);
+  }
+}
+
 app.listen(config.port, () => {
   console.log(`Service Desk web gateway running on http://localhost:${config.port}`);
-  runInBackground('SLA notifier bootstrap', async () => {
-    try {
-      const latest = await getLatestOrganization();
-      if (latest?.organization?._id && latest.organization.status === 'active') {
-        knownSlaOrganizations.add(String(latest.organization._id));
-        await pollSlaNotifications();
-      }
-    } catch (error) {
-      console.error(`[sla-notifier] bootstrap: ${error.message}`);
-    }
-  });
+  runInBackground('SLA notifier bootstrap', () => bootstrapSlaNotifier());
 });

@@ -1,0 +1,42 @@
+Service Manager v24.2.1 — Build Validation
+============================================
+
+Version: 24.2.1
+
+Regression suite
+----------------
+Command: npm run test:all
+Result : PASS
+Tests  : 115 passed / 115 total / 0 failed
+
+Focused v24.2.1 suite
+---------------------
+Command: node --test tests/v24.2.1-edit-maintenance.test.mjs
+Result : PASS
+Tests  : 7 passed / 7 total / 0 failed
+
+Configuration validation
+------------------------
+Command: npm run validate:v24
+Result : PASS
+Fields : 47
+Forms  : 22
+Workflows: 8
+Support paths: 1
+Bindings: 22
+
+Syntax checks
+-------------
+apps/web/src/app.js                               PASS
+scripts/migrate-suntecgroup-to-v24.2.1.mjs      PASS
+scripts/provision-v24-saas-service-model.mjs     PASS
+
+Key regression verified
+-----------------------
+- Client Edit button has a real edit dialog.
+- Client Priority remains hidden/support-only.
+- SLA notifier retries dependent-service startup races.
+- Six Maintenance Request subtype forms are configured.
+- Maintenance workflow carries the JSM maintenance states/branches.
+- Maintenance SLA remains not applicable.
+- Controlled SunTecGroup migration provisions Maintenance runtime bindings.

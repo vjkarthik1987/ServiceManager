@@ -186,6 +186,23 @@ const clientSchema = new mongoose.Schema(
         ref: 'Environment'
       }
     ],
+    notificationMode: {
+      type: String,
+      enum: ['inherit', 'custom'],
+      default: 'inherit'
+    },
+    notificationEvents: {
+      issueCreated: { type: Boolean, default: true },
+      issueEdited: { type: Boolean, default: true },
+      statusChanged: { type: Boolean, default: true },
+      issueClosed: { type: Boolean, default: true },
+      commentAdded: { type: Boolean, default: true },
+      assignmentChanged: { type: Boolean, default: true },
+      severityChanged: { type: Boolean, default: true },
+      priorityChanged: { type: Boolean, default: true },
+      slaAtRisk: { type: Boolean, default: true },
+      slaBreached: { type: Boolean, default: true }
+    },
     operationalRules: {
       type: [clientOperationalRuleSchema],
       default: []

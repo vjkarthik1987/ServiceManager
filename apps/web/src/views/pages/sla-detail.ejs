@@ -30,7 +30,7 @@
         <section class="metrics">
           <article class="metric card"><span>Rules</span><strong><%= (slaPolicy.rules || []).length %></strong><p>Severity or priority based</p></article>
           <article class="metric card"><span>Support window</span><strong class="metric-word"><%= String(slaPolicy.supportWindow || 'business_hours').replace('_', ' ') %></strong><p>Policy-level window</p></article>
-          <article class="metric card"><span>Clock start</span><strong class="metric-word"><%= String(slaPolicy.clockStartTrigger || 'severity_selected').replace('_', ' ') %></strong><p>When the timer begins</p></article>
+          <article class="metric card"><span>Clock start</span><strong class="metric-word"><%= String(slaPolicy.clockStartTrigger || 'ticket_created').replace('_', ' ') %></strong><p>When the timer begins</p></article>
           <article class="metric card"><span>Clients</span><strong><%= (clients || []).filter((client) => String(client.defaultSlaPolicyId || '') === String(slaPolicy._id) || (client.familySlaAssignments || []).some((assignment) => assignment.isActive !== false && String(assignment.slaPolicyId || '') === String(slaPolicy._id))).length %></strong><p>Default or family assignment</p></article>
         </section>
 
@@ -69,7 +69,7 @@
                 <% }) %>
               </div>
             <% } %>
-          <div class="plain-applicability"><p><strong>Applicability:</strong> Clock starts by policy trigger, usually when severity is selected. L2/L3 and environment applicability are stored on the policy and used when the SLA engine is added.</p></div>
+          <div class="plain-applicability"><p><strong>Applicability:</strong> SLA eligibility and SLA clock start are configured separately. For customer-backed Incidents the recommended default is <strong>Issue raised</strong>; policies can instead start on severity, priority, L2 receipt, L3 receipt, or a configured workflow status.</p></div>
         </section>
               <%- include('../partials/footer', { organization }) %>
       </main>
@@ -82,6 +82,8 @@
         <label><span>Name</span><input name="name" value="<%= slaPolicy.name %>" required /></label>
         <label><span>Description</span><textarea name="description" rows="3" required><%= slaPolicy.description %></textarea></label>
         <div class="two-col"><label><span>Support window</span><select name="supportWindow"><option value="business_hours" <%= slaPolicy.supportWindow === 'business_hours' ? 'selected' : '' %>>Business hours</option><option value="24x7" <%= slaPolicy.supportWindow === '24x7' ? 'selected' : '' %>>24x7</option><option value="mixed" <%= slaPolicy.supportWindow === 'mixed' ? 'selected' : '' %>>Mixed</option></select></label><label><span>Status</span><select name="status"><option value="active" <%= slaPolicy.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= slaPolicy.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label></div>
+        <label><span>Clock starts when</span><select name="clockStartTrigger"><option value="ticket_created" <%= slaPolicy.clockStartTrigger === 'ticket_created' ? 'selected' : '' %>>Issue raised</option><option value="severity_selected" <%= slaPolicy.clockStartTrigger === 'severity_selected' ? 'selected' : '' %>>Severity selected</option><option value="priority_selected" <%= slaPolicy.clockStartTrigger === 'priority_selected' ? 'selected' : '' %>>Priority selected</option><option value="l2_received" <%= slaPolicy.clockStartTrigger === 'l2_received' ? 'selected' : '' %>>Received by L2</option><option value="l3_received" <%= slaPolicy.clockStartTrigger === 'l3_received' ? 'selected' : '' %>>Received by L3</option><option value="status_reached" <%= slaPolicy.clockStartTrigger === 'status_reached' ? 'selected' : '' %>>Specific workflow status</option></select></label>
+        <label><span>Start status <small>only for Specific workflow status</small></span><input name="clockStartStatusId" value="<%= slaPolicy.clockStartStatusId || '' %>" placeholder="e.g. L2_SUPPORT" /></label>
         <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save policy</button></div>
       </form>
     </dialog>

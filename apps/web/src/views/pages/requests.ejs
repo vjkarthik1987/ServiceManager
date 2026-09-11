@@ -50,9 +50,9 @@
           <% if (requests.length) { %>
             <div class="table-wrap request-table-wrap">
               <table class="clean-table request-table request-table-fit">
-                <colgroup><col class="col-key"/><col class="col-summary"/><col class="col-client"/><col class="col-type"/><col class="col-status"/><col class="col-sla"/><col class="col-support"/><col class="col-owner"/><col class="col-priority"/><col class="col-updated"/></colgroup>
+                <colgroup><col class="col-key"/><col class="col-summary"/><col class="col-client"/><col class="col-type"/><col class="col-status"/><col class="col-sla"/><col class="col-support"/><col class="col-owner"/><% if (portal !== 'client') { %><col class="col-priority"/><% } %><col class="col-updated"/></colgroup>
                 <thead>
-                  <tr><th>Request</th><th>Summary</th><th>Client</th><th>Type</th><th>Status</th><th>SLA</th><th>Support</th><th>Owner</th><th>Priority</th><th>Updated</th></tr>
+                  <tr><th>Request</th><th>Summary</th><th>Client</th><th>Type</th><th>Status</th><th>SLA</th><th>Support</th><th>Owner</th><% if (portal !== 'client') { %><th>Priority</th><% } %><th>Updated</th></tr>
                 </thead>
                 <tbody>
                   <% requests.forEach((item) => {
@@ -86,7 +86,7 @@
                         <span><%= item.currentAssignee?.name || item.currentAssignee?.email || 'Unassigned' %></span>
                         <% if (assignedToMe) { %><small class="mine-badge">Assigned to me</small><% } %>
                       </td>
-                      <td><%= item.priority?.code || item.priority?.name || '—' %></td>
+                      <% if (portal !== 'client') { %><td><%= item.priority?.code || item.priority?.name || '—' %></td><% } %>
                       <td><%= item.updatedShortLabel || '—' %></td>
                     </tr>
                   <% }) %>

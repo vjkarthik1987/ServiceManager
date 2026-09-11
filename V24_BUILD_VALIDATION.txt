@@ -1,0 +1,22 @@
+Service Manager v24.0.0 - Final Validation
+Date: 2026-09-11
+
+Automated regression suite: PASS
+- 90 tests
+- 90 passed
+- 0 failed
+
+JavaScript / MJS syntax checks: PASS
+JSON configuration validation: PASS
+- 28 JSON files parsed successfully
+
+v24 configuration validator: PASS
+- Fields: 39
+- Forms: 16
+- Workflows: 8
+- Support paths: 1
+- Bindings: 16
+
+Normal Incident compatibility guard: PASS
+
+Note: EJS compile-only validation was not run because the packaged workspace's local node_modules did not contain the EJS package entry point, although the regression suite exercising the relevant templates passed. The release ZIP excludes node_modules; run `npm install` after extraction.
