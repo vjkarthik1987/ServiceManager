@@ -1,0 +1,44 @@
+Service Manager v24.2.0 — Build Validation
+==========================================
+
+Version: 24.2.0
+Validation date: 2026-09-11
+
+1. Full automated regression suite
+   Command: npm run test:all
+   Result : PASS
+   Tests  : 108
+   Passed : 108
+   Failed : 0
+
+2. v24 configuration validation
+   Command: npm run validate:v24
+   Result : PASS
+   Fields : 39
+   Forms  : 16
+   Workflows: 8
+   Support paths: 1
+   Bindings: 16
+
+3. JavaScript/MJS syntax check
+   Scope  : apps/, services/, scripts/, tests/
+   Result : PASS
+
+4. JSON parse validation
+   Scope  : config/**/*.json
+   Result : PASS
+
+5. v24.2 UAT-specific regression coverage
+   - Priority hidden/non-editable for customer: PASS
+   - Customer can edit Severity: PASS
+   - Change Status labels are non-duplicative: PASS
+   - Dynamic intake stepper: PASS
+   - Full issue key / full-width search: PASS
+   - Semantic status pills / Closed state: PASS
+   - Technical workflow name hidden: PASS
+   - Components + Problem + Change migration provisioning: PASS
+   - Customer S1 at L2 visible to L3: PASS
+   - Client-level notification policy events: PASS
+   - Version/config freeze: PASS
+
+Package is suitable for UAT subject to environment-specific database migration dry-run and normal deployment backup controls.

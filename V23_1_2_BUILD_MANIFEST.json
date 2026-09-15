@@ -1,0 +1,19 @@
+{
+  "version": "23.1.2",
+  "releaseDate": "2026-09-03",
+  "status": "validated-for-uat",
+  "tests": "41/41 passed",
+  "seedOrder": [
+    "scripts/seed-uat-master-data.mjs",
+    "scripts/seed-uat-users-slas.mjs",
+    "scripts/seed-uat-support-model.mjs"
+  ],
+  "keyAdditions": [
+    "services/request-service/src/slaCalendar.js",
+    "apps/web/src/views/pages/landing.ejs",
+    "apps/web/src/views/pages/simple-home.ejs",
+    "apps/web/src/views/pages/workspace-loading.ejs",
+    "V23_1_2_RELEASE_NOTES.md",
+    "UAT_QUICK_START_V23.1.2.md"
+  ]
+}

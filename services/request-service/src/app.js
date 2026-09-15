@@ -1,0 +1,2621 @@
+import express from 'express';
+import mongoose from 'mongoose';
+import { config } from './config.js';
+import { connectDatabase, disconnectDatabase } from './db.js';
+import { requestContext } from './middleware/requestContext.js';
+import { ServiceRequest } from './models/ServiceRequest.js';
+import { addSlaDuration, normalizeBusinessCalendar, slaConsumptionRatio, targetMinutes } from './slaCalendar.js';
+
+const app = express();
+
+app.use(express.json({ limit: '1mb' }));
+app.use(requestContext);
+
+function isValidId(value) {
+  return mongoose.Types.ObjectId.isValid(String(value || ''));
+}
+
+function requireText(value, label, min = 1) {
+  const trimmed = String(value || '').trim();
+  if (trimmed.length < min) {
+    const error = new Error(min > 1 ? `${label} must be at least ${min} characters.` : `${label} is required.`);
+    error.status = 400;
+    throw error;
+  }
+  return trimmed;
+}
+
+function cleanRef(value = {}) {
+  return {
+    id: String(value.id || value._id || '').trim(),
+    name: String(value.name || '').trim(),
+    code: String(value.code || '').trim().toUpperCase()
+  };
+}
+
+function cleanActor(value = {}) {
+  return {
+    actorId: String(value.actorId || value.id || '').trim(),
+    name: String(value.name || '').trim(),
+    email: String(value.email || '').trim().toLowerCase(),
+    userType: String(value.userType || '').trim(),
+    portal: String(value.portal || '').trim()
+  };
+}
+
+
+
+const V23_SAAS_SERVICE_MODEL_KEY = 'SUNTEC_SAAS_V23';
+const V24_SAAS_SERVICE_MODEL_KEY = 'SUNTEC_SAAS_V24';
+const V23_MARKER_FIELD_KEY = '__v23_service_model_key';
+const V24_MARKER_FIELD_KEY = '__v24_service_model_key';
+const SAAS_SERVICE_MODEL_KEYS = new Set([V23_SAAS_SERVICE_MODEL_KEY, V24_SAAS_SERVICE_MODEL_KEY]);
+
+function activeSaasServiceModelKey(value = {}) {
+  const key = v23ServiceModelKey(value);
+  return SAAS_SERVICE_MODEL_KEYS.has(key) ? key : '';
+}
+
+function serviceModelCollectionForKey(key) {
+  return key === V24_SAAS_SERVICE_MODEL_KEY
+    ? (process.env.V24_SERVICE_MODEL_COLLECTION || 'v24_service_models')
+    : (process.env.V23_SERVICE_MODEL_COLLECTION || 'v23_service_models');
+}
+
+function requestFamilyText(value = {}) {
+  const level1 = value.level1Type || {};
+  const level2 = value.level2Type || {};
+  return [value.family, level1.code, level1.name, level2.code, level2.name]
+    .map((item) => String(item || '').trim().toLowerCase())
+    .filter(Boolean)
+    .join(' ');
+}
+
+function v23CustomFieldKey(field = {}) {
+  return String(field.fieldKey || field.key || field.code || field.name || field.label || '').trim();
+}
+
+function v23CustomFieldValue(field = {}) {
+  const value = field.value ?? field.text ?? field.selectedValue ?? field.currentValue ?? '';
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).join(',');
+  if (value && typeof value === 'object') return String(value.code || value.name || value.label || value.id || '');
+  return String(value || '').trim();
+}
+
+function v23ServiceModelKey(value = {}) {
+  const direct = value.serviceModelKey || value.v24ServiceModelKey || value.v23ServiceModelKey || value.serviceModel?.key;
+  if (direct) return String(direct).trim();
+  const fromType = value.level1Type?.serviceModelKey || value.level2Type?.serviceModelKey;
+  if (fromType) return String(fromType).trim();
+  const fields = Array.isArray(value.customFields) ? value.customFields : [];
+  const marker = fields.find((field) => {
+    const key = v23CustomFieldKey(field).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    return key === V23_MARKER_FIELD_KEY || key === V24_MARKER_FIELD_KEY || key === 'service_model_key';
+  });
+  return marker ? v23CustomFieldValue(marker) : '';
+}
+
+function isV23SaasRequest(value = {}) {
+  return SAAS_SERVICE_MODEL_KEYS.has(v23ServiceModelKey(value));
+}
+
+function isV24SaasRequest(value = {}) {
+  return v23ServiceModelKey(value) === V24_SAAS_SERVICE_MODEL_KEY;
+}
+
+function isSaasIncidentRequest(value = {}) {
+  return isV23SaasRequest(value) && /\bincident\b/i.test(requestFamilyText(value));
+}
+
+function isSeededV23IncidentPayload(value = {}) {
+  const level2 = value.level2Type || {};
+  const level2Code = String(level2.code || level2.key || '').trim().toUpperCase();
+  const level2Name = String(level2.name || '').trim().toLowerCase();
+  const taxonomyVersion = String(value.taxonomyVersion || '').trim();
+  const supportPath = value.supportPath || {};
+  const supportPathCode = String(supportPath.code || supportPath.key || '').trim().toUpperCase();
+  const supportPathName = String(supportPath.name || '').trim();
+  const isIncident = level2Code === 'INCIDENT' || level2Name === 'incident';
+  return isIncident && (taxonomyVersion.startsWith('23.1') || supportPathCode.startsWith('PATH_INC_') || /\bincident\b/i.test(supportPathName));
+}
+
+function requestFamilyDisablesSla(value = {}) {
+  if (!isV23SaasRequest(value)) return false;
+  const family = requestFamilyText(value);
+  return /\bquery\b/i.test(family) || /\bservice\s*request\b/i.test(family);
+}
+
+const ESSENTIAL_SAAS_TASK_PATTERN = /\b(approval|approve|verify|verification|evidence|development|develop|release|deploy|deployment|testing|test case|rca|root cause|vendor|closure|corrective action|preventive action)\b/i;
+
+function isEssentialSaasWorkflowTask(task = {}) {
+  return ESSENTIAL_SAAS_TASK_PATTERN.test(`${task.title || ''} ${task.description || ''} ${task.queue || ''} ${task.sourceStatusName || ''}`);
+}
+
+function filterWorkflowTasksForRequest(tasks = [], value = {}) {
+  if (!isSaasIncidentRequest(value)) return tasks;
+  return (tasks || []).filter(isEssentialSaasWorkflowTask);
+}
+
+function automaticWorkflowTasksEnabled() {
+  // Workflow task automation remains available, but SaaS incidents are filtered to real gated/accountable work only.
+  return true;
+}
+
+function v23MarkerField(extra = {}) {
+  return {
+    fieldKey: V23_MARKER_FIELD_KEY,
+    key: V23_MARKER_FIELD_KEY,
+    code: V23_MARKER_FIELD_KEY,
+    name: 'Service Model Key',
+    label: 'Service Model Key',
+    fieldType: 'hidden',
+    type: 'hidden',
+    value: V23_SAAS_SERVICE_MODEL_KEY,
+    visibility: 'internal',
+    ...extra
+  };
+}
+
+function ensureV23MarkerCustomField(fields = [], extra = {}) {
+  const list = Array.isArray(fields) ? fields.map((field) => ({ ...field })) : [];
+  const index = list.findIndex((field) => {
+    const key = v23CustomFieldKey(field).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    return key === V23_MARKER_FIELD_KEY || key === V24_MARKER_FIELD_KEY || key === 'service_model_key';
+  });
+  const marker = v23MarkerField(extra);
+  if (index >= 0) list[index] = { ...list[index], ...marker };
+  else list.push(marker);
+  return list;
+}
+
+function mergeV23CustomFields(base = [], extra = []) {
+  const out = Array.isArray(base) ? [...base] : [];
+  for (const field of Array.isArray(extra) ? extra : []) {
+    const key = v23CustomFieldKey(field);
+    if (!key) continue;
+    const index = out.findIndex((item) => v23CustomFieldKey(item) === key);
+    if (index >= 0) out[index] = { ...out[index], ...field };
+    else out.push(field);
+  }
+  return out;
+}
+
+const V23_INCIDENT_POST_CREATE_FIELD_KEYS = new Set([
+  // v24: Severity, Priority and S3 evidence are valid intake data. Only lifecycle-only
+  // fields are stripped from Incident creation. Client priority is still cleared separately.
+  'TEST_RELEASE', 'RELEASE_ID', 'RELEASE_TYPE', 'RCA_CATEGORY', 'ROOT_CAUSE',
+  'CORRECTIVE_ACTION', 'PREVENTIVE_ACTION', 'RCA_STATUS', 'APPROVER',
+  'EXCEPTION_APPROVER', 'TEST_CASE_LINK'
+]);
+
+function stripV23IncidentPostCreateFields(fields = []) {
+  return (Array.isArray(fields) ? fields : []).filter((field) => {
+    const key = v23CustomFieldKey(field).toUpperCase();
+    return !V23_INCIDENT_POST_CREATE_FIELD_KEYS.has(key);
+  });
+}
+
+function v23ActorIsClient(body = {}) {
+  const actor = body.actor || body.requester || body.createdBy || {};
+  const portal = String(actor.portal || body.portal || '').toLowerCase();
+  const userType = String(actor.userType || '').toLowerCase();
+  return portal === 'client' || userType === 'clientuser' || userType === 'client user';
+}
+
+async function resolveTypeBindingForServiceModelKey(serviceModelKey, organizationId, level1Type = {}, level2Type = {}, level3Type = {}) {
+  const ids = [level3Type.id, level3Type._id, level2Type.id, level2Type._id, level1Type.id, level1Type._id].filter(Boolean).map(String);
+  if (!ids.length) return null;
+  const collection = mongoose.connection.collection(serviceModelCollectionForKey(serviceModelKey));
+  return collection.findOne({
+    serviceModelKey,
+    kind: 'type_binding',
+    typeIds: { $in: ids },
+    $or: [
+      { organizationId: String(organizationId || '') },
+      { organizationId: '' },
+      { organizationId: { $exists: false } }
+    ]
+  });
+}
+
+async function resolveV23TypeBinding(organizationId, level1Type = {}, level2Type = {}, level3Type = {}) {
+  const ids = [level3Type.id, level3Type._id, level2Type.id, level2Type._id, level1Type.id, level1Type._id].filter(Boolean).map(String);
+  if (!ids.length) return null;
+
+  // v24 is authoritative for new code. v23 remains readable until the suntecgroup
+  // database is migrated, so existing environments do not break during rollout.
+  for (const serviceModelKey of [V24_SAAS_SERVICE_MODEL_KEY, V23_SAAS_SERVICE_MODEL_KEY]) {
+    const binding = await resolveTypeBindingForServiceModelKey(serviceModelKey, organizationId, level1Type, level2Type, level3Type);
+    if (binding) return binding;
+  }
+  return null;
+}
+
+async function resolveV23Workflow(workflowKey, serviceModelKey = V24_SAAS_SERVICE_MODEL_KEY) {
+  if (!workflowKey) return null;
+  const keys = serviceModelKey === V23_SAAS_SERVICE_MODEL_KEY
+    ? [V23_SAAS_SERVICE_MODEL_KEY]
+    : [V24_SAAS_SERVICE_MODEL_KEY, V23_SAAS_SERVICE_MODEL_KEY];
+  for (const key of keys) {
+    const collection = mongoose.connection.collection(serviceModelCollectionForKey(key));
+    const doc = await collection.findOne({ serviceModelKey: key, kind: 'workflows', key: 'workflows' });
+    const workflow = doc?.payload?.workflows?.find((item) => String(item.key || '') === String(workflowKey));
+    if (workflow) return { ...workflow, __serviceModelKey: key };
+  }
+  return null;
+}
+
+function v23WorkflowDefinition(workflow = {}) {
+  const statuses = (workflow.statuses || []).map((status) => ({
+    localId: String(status.key || ''),
+    name: String(status.name || status.key || ''),
+    customerLabel: String(status.customerLabel || status.name || status.key || ''),
+    statusType: String(status.statusType || (status.category === 'start' ? 'start' : status.category === 'final' ? 'final' : status.category === 'resolved' ? 'resolved' : 'normal')),
+    category: String(status.category || 'active'),
+    jiraStatusId: String(status.jiraStatusId || ''),
+    jiraStatusCategory: String(status.jiraStatusCategory || ''),
+    approvalConfiguration: status.approvalConfiguration || null,
+    sourceProperties: status.sourceProperties || {},
+    jiraDescription: String(status.jiraDescription || '')
+  }));
+  const transitions = (workflow.transitions || [])
+    .filter((transition) => ['status','approval'].includes(String(transition.kind || 'status')))
+    .map((transition) => ({
+      localId: String(transition.key || ''),
+      name: String(transition.label || transition.key || ''),
+      fromStatusId: String(transition.from || ''),
+      toStatusId: String(transition.to || ''),
+      transitionType: String(transition.kind || 'status'),
+      v23Condition: transition.condition || {},
+      condition: transition.condition || {},
+      roles: transition.roles || [],
+      customerEnabled: transition.customerEnabled === true,
+      clientEnabled: transition.clientEnabled !== undefined ? transition.clientEnabled === true : transition.customerEnabled === true,
+      jiraCustomerEnabled: transition.jiraCustomerEnabled === true,
+      allowedSupportLevels: Array.isArray(transition.allowedSupportLevels) ? transition.allowedSupportLevels : [],
+      targetSupportLevel: String(transition.targetSupportLevel || transition.supportEffect?.targetLevel || '').trim(),
+      supportEffect: transition.supportEffect || {},
+      jiraTransitionId: String(transition.jiraTransitionId || ''),
+      jiraTransitionType: String(transition.jiraTransitionType || ''),
+      transitionScreenId: String(transition.transitionScreenId || ''),
+      requiredFields: Array.isArray(transition.requiredFields) ? transition.requiredFields : [],
+      screenFields: Array.isArray(transition.screenFields) ? transition.screenFields : [],
+      jiraRules: transition.jiraRules || {}
+    }));
+  const mapGlobal = (action) => ({
+    key: String(action.key || '').trim(),
+    label: String(action.label || action.name || action.key || '').trim(),
+    kind: String(action.kind || 'escalation').trim(),
+    statusEffect: String(action.statusEffect || 'KEEP').trim().toUpperCase(),
+    customerEnabled: action.customerEnabled === true,
+    clientEnabled: action.clientEnabled !== undefined ? action.clientEnabled === true : action.customerEnabled === true,
+    jiraCustomerEnabled: action.jiraCustomerEnabled === true,
+    roles: Array.isArray(action.roles) ? action.roles : [],
+    jiraTransitionId: String(action.jiraTransitionId || '').trim(),
+    requiredFields: Array.isArray(action.requiredFields) ? action.requiredFields : [],
+    jiraRules: action.jiraRules || {},
+    condition: action.condition || {}
+  });
+  return {
+    localId: String(workflow.key || ''),
+    name: String(workflow.name || workflow.key || ''),
+    statuses,
+    transitions,
+    sourceMetadata: workflow.jiraSource || workflow.sourceMetadata || {},
+    v23ServiceModelKey: String(workflow.__serviceModelKey || workflow.serviceModelKey || V23_SAAS_SERVICE_MODEL_KEY),
+    v23SupportMovePolicy: String(workflow.supportMovePolicy || 'PRESERVE'),
+    v23NewIsCreationOnly: workflow.newIsCreationOnly === true,
+    globalActions: (workflow.globalActions || []).map(mapGlobal),
+    v23GlobalActions: (workflow.globalActions || []).map(mapGlobal)
+  };
+}
+
+function setWorkflowStatusWithV23Sync(requestItem, stage, status) {
+  const cleaned = cleanStatus(status || {});
+  if (stage) stage.currentStatus = cleaned;
+  if (!isV23SaasRequest(requestItem)) {
+    if (stage?.isPrimary) requestItem.currentStatus = cleanStatus(status || {});
+    return;
+  }
+  // v23 status is independent of L1/L2/L3 routing. All active support stages
+  // carry the same business status, so moving support level cannot reset to New.
+  for (const item of requestItem.activeStages || []) item.currentStatus = cleanStatus(status || {});
+  requestItem.currentStatus = cleanStatus(status || {});
+}
+
+function cleanCustomFields(value = []) {
+  const source = Array.isArray(value) ? value : [];
+  return source
+    .map((item) => {
+      const fieldType = String(item.fieldType || 'short_text').trim();
+      let value = item.value;
+      if (fieldType === 'checkbox') value = value === true || value === 'true' || value === 'on' || value === 'yes';
+      if (fieldType === 'multi_select') value = Array.isArray(value) ? value.map(String) : String(value || '').split('||').filter(Boolean);
+      const displayValue = Array.isArray(value) ? value.join(', ') : fieldType === 'checkbox' ? (value ? 'Yes' : 'No') : String(value ?? '');
+      return {
+        fieldKey: String(item.fieldKey || '').trim().toUpperCase().slice(0, 60),
+        label: String(item.label || '').trim().slice(0, 120),
+        fieldType,
+        value,
+        displayValue: String(item.displayValue || displayValue).trim().slice(0, 1200)
+      };
+    })
+    .filter((item) => item.fieldKey && item.label);
+}
+
+function cleanSlaDefinition(value = {}) {
+  const rules = Array.isArray(value.rules) ? value.rules.map((rule) => ({
+    ruleBasis: String(rule.ruleBasis || 'severity').trim(),
+    severityId: String(rule.severityId || '').trim(),
+    priorityId: String(rule.priorityId || '').trim(),
+    responseTimeValue: Number.isFinite(Number(rule.responseTimeValue)) ? Number(rule.responseTimeValue) : null,
+    responseTimeUnit: String(rule.responseTimeUnit || 'hours').trim(),
+    resolutionTimeValue: Number.isFinite(Number(rule.resolutionTimeValue)) ? Number(rule.resolutionTimeValue) : null,
+    resolutionTimeUnit: String(rule.resolutionTimeUnit || 'hours').trim(),
+    updateFrequencyValue: Number.isFinite(Number(rule.updateFrequencyValue)) ? Number(rule.updateFrequencyValue) : null,
+    updateFrequencyUnit: String(rule.updateFrequencyUnit || 'daily').trim(),
+    clockType: String(rule.clockType || 'working_hours').trim(),
+    notes: String(rule.notes || '').trim()
+  })) : [];
+  return {
+    supportWindow: String(value.supportWindow || 'business_hours').trim(),
+    clockStartTrigger: String(value.clockStartTrigger || 'ticket_created').trim(),
+    clockStartStatusId: String(value.clockStartStatusId || '').trim().toUpperCase(),
+    rules,
+    applicability: {
+      applyOnlyWhenSeveritySelected: value.applicability?.applyOnlyWhenSeveritySelected !== false,
+      applicableEnvironmentIds: Array.isArray(value.applicability?.applicableEnvironmentIds) ? value.applicability.applicableEnvironmentIds.map(String) : [],
+      applicableIssueLevelCodes: Array.isArray(value.applicability?.applicableIssueLevelCodes) ? value.applicability.applicableIssueLevelCodes.map((x) => String(x).toUpperCase()) : ['L2','L3']
+    }
+  };
+}
+
+function cleanSlaCalendar(value = {}) {
+  return normalizeBusinessCalendar(value, value?.timeZone || value?.timezone || 'UTC');
+}
+
+function unitToMinutes(value, unit, calendar = {}) {
+  return targetMinutes(value, unit, calendar);
+}
+
+function addMinutes(date, minutes) {
+  return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
+function chooseNextSlaStep({ state, responseDueAt, resolutionDueAt }) {
+  const now = Date.now();
+  const responseDate = responseDueAt ? new Date(responseDueAt) : null;
+  const resolutionDate = resolutionDueAt ? new Date(resolutionDueAt) : null;
+  if (!['running', 'at_risk', 'breached'].includes(state)) return { nextActionLabel: '', nextDueAt: null };
+  if (responseDate && !Number.isNaN(responseDate.getTime()) && responseDate.getTime() > now) {
+    return { nextActionLabel: 'Respond by', nextDueAt: responseDate };
+  }
+  if (resolutionDate && !Number.isNaN(resolutionDate.getTime())) {
+    return { nextActionLabel: resolutionDate.getTime() < now ? 'Resolution overdue since' : 'Resolve by', nextDueAt: resolutionDate };
+  }
+  if (responseDate && !Number.isNaN(responseDate.getTime())) {
+    return { nextActionLabel: responseDate.getTime() < now ? 'Response overdue since' : 'Respond by', nextDueAt: responseDate };
+  }
+  return { nextActionLabel: 'SLA running', nextDueAt: null };
+}
+
+function slaClockTriggerResult(requestItem = {}) {
+  if (requestItem.sla?.startedAt) {
+    return { ready: true, startedAt: requestItem.sla.startedAt, reason: 'SLA clock already started.' };
+  }
+
+  const trigger = String(requestItem.slaDefinition?.clockStartTrigger || 'ticket_created').trim().toLowerCase();
+  const now = new Date();
+  const createdEvent = (requestItem.timeline || []).find((item) => item.eventType === 'created' && item.createdAt);
+  const createdAt = requestItem.createdAt || createdEvent?.createdAt || now;
+  const level = String(requestItem.currentSupportLevel || '').trim().toUpperCase();
+  const currentStatuses = new Set([
+    String(requestItem.currentStatus?.localId || '').trim().toUpperCase(),
+    ...(requestItem.activeStages || []).map((stage) => String(stage.currentStatus?.localId || '').trim().toUpperCase())
+  ].filter(Boolean));
+
+  if (trigger === 'ticket_created') return { ready: true, startedAt: createdAt, reason: 'SLA starts when the issue is raised.' };
+  if (trigger === 'severity_selected') {
+    return requestItem.severity?.id
+      ? { ready: true, startedAt: now, reason: 'SLA starts when severity is selected.' }
+      : { ready: false, reason: 'Waiting for severity to start SLA.' };
+  }
+  if (trigger === 'priority_selected') {
+    return requestItem.priority?.id
+      ? { ready: true, startedAt: now, reason: 'SLA starts when priority is selected.' }
+      : { ready: false, reason: 'Waiting for priority to start SLA.' };
+  }
+  if (trigger === 'l2_received') {
+    return level === 'L2'
+      ? { ready: true, startedAt: now, reason: 'SLA starts when L2 receives the issue.' }
+      : { ready: false, reason: 'Waiting for the issue to reach L2.' };
+  }
+  if (trigger === 'l3_received') {
+    return level === 'L3'
+      ? { ready: true, startedAt: now, reason: 'SLA starts when L3 receives the issue.' }
+      : { ready: false, reason: 'Waiting for the issue to reach L3.' };
+  }
+  if (trigger === 'status_reached') {
+    const wanted = String(requestItem.slaDefinition?.clockStartStatusId || '').trim().toUpperCase();
+    if (!wanted) return { ready: false, reason: 'SLA start status is not configured.' };
+    return currentStatuses.has(wanted)
+      ? { ready: true, startedAt: now, reason: `SLA starts when status ${wanted} is reached.` }
+      : { ready: false, reason: `Waiting for status ${wanted} to start SLA.` };
+  }
+  return { ready: true, startedAt: createdAt, reason: 'SLA starts when the issue is raised.' };
+}
+
+function incidentIsCustomerBacked(requestItem = {}) {
+  if (!isSaasIncidentRequest(requestItem) && !isSeededV23IncidentPayload(requestItem)) return false;
+  if (requestItem.slaContext?.customerBacked === true) return true;
+  const sourcePortal = String(requestItem.sourcePortal || '').toLowerCase();
+  const source = String(requestItem.source || '').toLowerCase();
+  const requesterPortal = String(requestItem.requester?.portal || '').toLowerCase();
+  return sourcePortal === 'client' || requesterPortal === 'client' || source === 'client_portal' || source === 'client_asked_agent';
+}
+
+function calculateSla(requestItem) {
+  const now = new Date();
+  const base = {
+    state: 'not_applicable', rag: 'grey', reason: '', policyName: requestItem.slaPolicy?.name || '',
+    ruleLabel: '', basis: '', startedAt: requestItem.sla?.startedAt || null, responseDueAt: null, resolutionDueAt: null, nextActionLabel: '', nextDueAt: null, lastCalculatedAt: now
+  };
+  if (requestFamilyDisablesSla(requestItem)) {
+    return { ...base, state: 'not_applicable', rag: 'grey', reason: 'SLA is not applicable to this request type in the SaaS service model.', startedAt: null };
+  }
+  if (['closed', 'cancelled', 'returned'].includes(requestItem.lifecycleState)) {
+    return { ...base, state: 'stopped', rag: 'grey', reason: 'Request is closed or returned.' };
+  }
+  if (requestItem.lifecycleState === 'resolved') {
+    return { ...base, state: 'met', rag: 'green', reason: 'Request is resolved.' };
+  }
+  const customerBackedIncident = incidentIsCustomerBacked(requestItem);
+  if ((isSaasIncidentRequest(requestItem) || isSeededV23IncidentPayload(requestItem)) && !customerBackedIncident) {
+    return { ...base, state: 'not_applicable', rag: 'grey', reason: 'Customer SLA applies only to an Incident raised by the client or explicitly raised on behalf of the bank.', startedAt: null };
+  }
+  const level = (requestItem.supportPathDefinition?.levels || []).find((item) => item.localId === requestItem.currentSupportLevel);
+  if (!customerBackedIncident && (!level || level.slaApplicable !== true)) {
+    return { ...base, state: 'not_applicable', rag: 'grey', reason: `SLA is not active at ${requestItem.currentSupportLevel || 'this support level'}.` };
+  }
+  if (!requestItem.slaPolicy?.id || !(requestItem.slaDefinition?.rules || []).length) {
+    return { ...base, state: 'waiting', rag: 'grey', reason: 'No SLA policy is assigned.' };
+  }
+  const issueLevels = requestItem.slaDefinition?.applicability?.applicableIssueLevelCodes || [];
+  if (!customerBackedIncident && issueLevels.length && !issueLevels.includes(String(requestItem.currentSupportLevel || '').toUpperCase())) {
+    return { ...base, state: 'not_applicable', rag: 'grey', reason: 'SLA policy does not apply to this support level.' };
+  }
+  const environmentIds = requestItem.slaDefinition?.applicability?.applicableEnvironmentIds || [];
+  if (environmentIds.length && requestItem.environment?.id && !environmentIds.map(String).includes(String(requestItem.environment.id))) {
+    return { ...base, state: 'not_applicable', rag: 'grey', reason: 'SLA policy does not apply to the selected environment.' };
+  }
+  let rule = null;
+  if (requestItem.severity?.id) rule = (requestItem.slaDefinition.rules || []).find((item) => item.ruleBasis === 'severity' && String(item.severityId) === String(requestItem.severity.id));
+  if (!rule && requestItem.priority?.id) rule = (requestItem.slaDefinition.rules || []).find((item) => item.ruleBasis === 'priority' && String(item.priorityId) === String(requestItem.priority.id));
+  if (!rule) {
+    return { ...base, state: 'waiting', rag: 'grey', reason: 'Waiting for a matching severity or priority SLA rule.' };
+  }
+  const trigger = slaClockTriggerResult(requestItem);
+  if (!trigger.ready) {
+    return { ...base, state: 'waiting', rag: 'grey', reason: trigger.reason, startedAt: null };
+  }
+  const calendar = cleanSlaCalendar(requestItem.slaCalendar || {});
+  const responseMinutes = unitToMinutes(rule.responseTimeValue, rule.responseTimeUnit, calendar);
+  const resolutionMinutes = unitToMinutes(rule.resolutionTimeValue, rule.resolutionTimeUnit, calendar);
+  const startedAt = requestItem.sla?.startedAt || trigger.startedAt || now;
+  const responseDueAt = responseMinutes ? addSlaDuration(startedAt, rule.responseTimeValue, rule.responseTimeUnit, calendar) : null;
+  const resolutionDueAt = resolutionMinutes ? addSlaDuration(startedAt, rule.resolutionTimeValue, rule.resolutionTimeUnit, calendar) : null;
+  let state = 'running';
+  let rag = 'green';
+  let reason = 'SLA is running.';
+  const due = resolutionDueAt || responseDueAt;
+  const activeTargetValue = resolutionDueAt ? rule.resolutionTimeValue : rule.responseTimeValue;
+  const activeTargetUnit = resolutionDueAt ? rule.resolutionTimeUnit : rule.responseTimeUnit;
+  if (due && now > due) { state = 'breached'; rag = 'red'; reason = 'SLA has breached.'; }
+  else if (due && slaConsumptionRatio(startedAt, now, activeTargetValue, activeTargetUnit, calendar) >= 0.75) {
+    state = 'at_risk'; rag = 'amber'; reason = 'SLA is nearing breach.';
+  }
+  const ruleLabel = rule.ruleBasis === 'priority' ? (requestItem.priority?.code || requestItem.priority?.name || 'Priority rule') : (requestItem.severity?.code || requestItem.severity?.name || 'Severity rule');
+  const nextStep = chooseNextSlaStep({ state, responseDueAt, resolutionDueAt });
+  return { ...base, state, rag, reason, startedAt, responseDueAt, resolutionDueAt, ...nextStep, basis: rule.ruleBasis, ruleLabel, policyName: requestItem.slaPolicy?.name || '', lastCalculatedAt: now };
+}
+
+
+function activeSlaRule(requestItem) {
+  const rules = requestItem.slaDefinition?.rules || [];
+  if (requestItem.severity?.id) {
+    const severityRule = rules.find((item) => item.ruleBasis === 'severity' && String(item.severityId) === String(requestItem.severity.id));
+    if (severityRule) return severityRule;
+  }
+  if (requestItem.priority?.id) {
+    const priorityRule = rules.find((item) => item.ruleBasis === 'priority' && String(item.priorityId) === String(requestItem.priority.id));
+    if (priorityRule) return priorityRule;
+  }
+  return null;
+}
+
+function milestoneStateFromDue(dueAt, actualAt, startedAt, label = '', targetValue = null, targetUnit = '', calendar = {}) {
+  const now = new Date();
+  const due = dueAt ? new Date(dueAt) : null;
+  const actual = actualAt ? new Date(actualAt) : null;
+  const milestoneLabel = label || 'Milestone';
+
+  if ((!due || Number.isNaN(due.getTime())) && actual && !Number.isNaN(actual.getTime())) {
+    return { state: 'met', rag: 'grey', reason: `${milestoneLabel} was recorded, but no SLA target was configured.` };
+  }
+  if (!due || Number.isNaN(due.getTime())) return { state: 'not_applicable', rag: 'grey', reason: `${milestoneLabel} is not configured.` };
+  if (actual && !Number.isNaN(actual.getTime())) {
+    const met = actual.getTime() <= due.getTime();
+    return { state: met ? 'met' : 'breached', rag: met ? 'green' : 'red', reason: met ? `${milestoneLabel} met.` : `${milestoneLabel} breached.` };
+  }
+  if (now.getTime() > due.getTime()) return { state: 'breached', rag: 'red', reason: `${milestoneLabel} overdue.` };
+
+  const startDate = startedAt ? new Date(startedAt) : now;
+  if (targetValue && targetUnit && slaConsumptionRatio(startDate, now, targetValue, targetUnit, calendar) >= 0.75) {
+    return { state: 'at_risk', rag: 'amber', reason: `${milestoneLabel} is approaching its due time.` };
+  }
+  return { state: 'running', rag: 'green', reason: `${milestoneLabel} is on track.` };
+}
+
+function calculateSlaMilestones(requestItem, baseSla = null) {
+  const base = baseSla || calculateSla(requestItem);
+  const existing = requestItem.slaMilestones || {};
+  const rule = activeSlaRule(requestItem);
+  const startedAt = base.startedAt || requestItem.sla?.startedAt || null;
+  const calendar = cleanSlaCalendar(requestItem.slaCalendar || {});
+  const responseActualAt = existing.response?.actualAt || null;
+  const resolutionActualAt = existing.resolution?.actualAt || (['closed', 'resolved'].includes(requestItem.lifecycleState) ? new Date() : null);
+  const lastUpdateActualAt = existing.update?.actualAt || null;
+
+  const waitingState = ['waiting', 'not_applicable'].includes(base.state);
+  const stoppedState = ['stopped', 'met'].includes(base.state);
+
+  const responseBase = {
+    label: 'Response',
+    dueAt: base.responseDueAt || null,
+    actualAt: responseActualAt,
+    targetMinutes: rule ? unitToMinutes(rule.responseTimeValue, rule.responseTimeUnit, calendar) : null,
+    completedBy: existing.response?.completedBy || {},
+    completedByEventId: existing.response?.completedByEventId || ''
+  };
+  const resolutionBase = {
+    label: 'Resolution',
+    dueAt: base.resolutionDueAt || null,
+    actualAt: resolutionActualAt,
+    targetMinutes: rule ? unitToMinutes(rule.resolutionTimeValue, rule.resolutionTimeUnit, calendar) : null,
+    completedBy: existing.resolution?.completedBy || {},
+    completedByEventId: existing.resolution?.completedByEventId || ''
+  };
+
+  let response = { ...responseBase, ...milestoneStateFromDue(responseBase.dueAt, responseBase.actualAt, startedAt, 'Response', rule?.responseTimeValue, rule?.responseTimeUnit, calendar) };
+  let resolution = { ...resolutionBase, ...milestoneStateFromDue(resolutionBase.dueAt, resolutionBase.actualAt, startedAt, 'Resolution', rule?.resolutionTimeValue, rule?.resolutionTimeUnit, calendar) };
+
+  if (waitingState) {
+    const waitingMilestoneState = base.state === 'waiting' ? 'waiting' : 'not_applicable';
+    if (!responseBase.actualAt) {
+      response = { ...responseBase, state: waitingMilestoneState, rag: 'grey', reason: base.reason || 'SLA is not active yet.' };
+    }
+    if (!resolutionBase.actualAt) {
+      resolution = { ...resolutionBase, state: waitingMilestoneState, rag: 'grey', reason: base.reason || 'SLA is not active yet.' };
+    }
+  }
+  if (stoppedState && requestItem.lifecycleState === 'closed') {
+    response = response.actualAt ? response : { ...response, state: response.state === 'breached' ? 'breached' : 'stopped', rag: response.rag || 'grey', reason: response.reason || 'Request is closed.' };
+    resolution = { ...resolutionBase, ...milestoneStateFromDue(resolutionBase.dueAt, resolutionBase.actualAt || new Date(), startedAt, 'Resolution', rule?.resolutionTimeValue, rule?.resolutionTimeUnit, calendar) };
+  }
+
+  const updateMinutes = rule ? unitToMinutes(rule.updateFrequencyValue, rule.updateFrequencyUnit, calendar) : null;
+  let update = {
+    label: 'Next update',
+    dueAt: null,
+    actualAt: lastUpdateActualAt,
+    targetMinutes: updateMinutes,
+    completedBy: existing.update?.completedBy || {},
+    completedByEventId: existing.update?.completedByEventId || '',
+    state: 'not_applicable',
+    rag: 'grey',
+    reason: 'Follow-up cadence is not configured.'
+  };
+  if (!waitingState && updateMinutes && !['closed', 'cancelled', 'returned'].includes(requestItem.lifecycleState)) {
+    const updateAnchor = lastUpdateActualAt || responseActualAt || startedAt;
+    if (updateAnchor) {
+      const updateValue = rule?.updateFrequencyValue || (rule?.updateFrequencyUnit === 'daily' ? 1 : rule?.updateFrequencyUnit === 'twice_daily' ? 1 : null);
+      const dueAt = addSlaDuration(new Date(updateAnchor), updateValue, rule?.updateFrequencyUnit, calendar)
+        || addMinutes(new Date(updateAnchor), updateMinutes);
+      update = { ...update, dueAt, ...milestoneStateFromDue(dueAt, null, updateAnchor, 'Next update', updateValue, rule?.updateFrequencyUnit, calendar) };
+      update.reason = lastUpdateActualAt ? 'Next public update is due.' : 'First public update cadence is running.';
+    }
+  }
+
+  return { response, resolution, update };
+}
+
+function summarizeSlaFromMilestones(baseSla, milestones = {}) {
+  const ranked = [milestones.response, milestones.resolution, milestones.update].filter(Boolean);
+  const hasActiveDue = ranked.some((item) => item?.dueAt);
+  const eligible = ranked.filter((item) => item && (item.dueAt || ['breached', 'at_risk', 'running'].includes(item.state)));
+
+  if (!hasActiveDue && ['not_applicable', 'waiting', 'stopped'].includes(baseSla.state)) {
+    return {
+      ...baseSla,
+      rag: baseSla.rag || 'grey',
+      state: baseSla.state || 'not_applicable',
+      responseDueAt: milestones.response?.dueAt || baseSla.responseDueAt || null,
+      resolutionDueAt: milestones.resolution?.dueAt || baseSla.resolutionDueAt || null
+    };
+  }
+
+  const rag = eligible.some((item) => item.rag === 'red') ? 'red'
+    : eligible.some((item) => item.rag === 'amber') ? 'amber'
+    : eligible.some((item) => item.rag === 'green') ? 'green'
+    : (baseSla.rag || 'grey');
+  const state = eligible.some((item) => item.state === 'breached') ? 'breached'
+    : eligible.some((item) => item.state === 'at_risk') ? 'at_risk'
+    : eligible.some((item) => item.state === 'running') ? 'running'
+    : ranked.every((item) => ['met', 'not_applicable', 'stopped'].includes(item.state)) && ranked.some((item) => item.state === 'met' && item.dueAt) ? 'met'
+    : (baseSla.state || 'not_applicable');
+  const next = [milestones.response, milestones.update, milestones.resolution]
+    .filter((item) => item && ['running', 'at_risk', 'breached'].includes(item.state) && item.dueAt)
+    .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())[0];
+  return {
+    ...baseSla,
+    state,
+    rag,
+    reason: next ? next.reason : (baseSla.reason || ''),
+    responseDueAt: milestones.response?.dueAt || baseSla.responseDueAt || null,
+    resolutionDueAt: milestones.resolution?.dueAt || baseSla.resolutionDueAt || null,
+    nextActionLabel: next ? (next.label === 'Response' ? (next.state === 'breached' ? 'Response overdue since' : 'Respond by') : next.label === 'Resolution' ? (next.state === 'breached' ? 'Resolution overdue since' : 'Resolve by') : (next.state === 'breached' ? 'Update overdue since' : 'Update by')) : baseSla.nextActionLabel,
+    nextDueAt: next?.dueAt || baseSla.nextDueAt || null
+  };
+}
+
+function syncSlaState(requestItem) {
+  const base = calculateSla(requestItem);
+  const milestones = calculateSlaMilestones(requestItem, base);
+  requestItem.slaMilestones = milestones;
+  requestItem.sla = summarizeSlaFromMilestones(base, milestones);
+  return requestItem.sla;
+}
+
+function markResponseMet(requestItem, actor = {}, eventId = 'manual_acknowledge', at = new Date()) {
+  const existing = requestItem.slaMilestones || {};
+  requestItem.slaMilestones = {
+    ...existing,
+    response: {
+      ...(existing.response || {}),
+      label: 'Response',
+      actualAt: existing.response?.actualAt || at,
+      completedBy: existing.response?.completedBy?.actorId ? existing.response.completedBy : actor,
+      completedByEventId: existing.response?.completedByEventId || eventId
+    }
+  };
+}
+
+function markPublicUpdate(requestItem, actor = {}, eventId = 'comment_update', at = new Date()) {
+  const existing = requestItem.slaMilestones || {};
+  requestItem.slaMilestones = {
+    ...existing,
+    update: {
+      ...(existing.update || {}),
+      label: 'Next update',
+      actualAt: at,
+      completedBy: actor,
+      completedByEventId: eventId
+    }
+  };
+}
+
+function slaHistoryMessage(previous = {}, current = {}) {
+  if (!current || !current.state) return '';
+  if (previous.state === current.state && previous.rag === current.rag && String(previous.startedAt || '') === String(current.startedAt || '')) return '';
+  if (current.state === 'running' || current.state === 'at_risk' || current.state === 'breached') return `SLA ${current.state.replace('_', ' ')} · ${String(current.rag || '').toUpperCase()}. ${current.reason}`;
+  if (current.state === 'waiting') return `SLA waiting. ${current.reason}`;
+  if (current.state === 'not_applicable') return `SLA not applicable. ${current.reason}`;
+  return `SLA ${current.state}. ${current.reason}`;
+}
+
+function cleanAttachments(value = [], actor = {}) {
+  const source = Array.isArray(value) ? value : [];
+  return source
+    .map((item) => ({
+      fileName: String(item.fileName || item.name || '').trim().slice(0, 260),
+      note: String(item.note || '').trim().slice(0, 260),
+      fileUrl: String(item.fileUrl || item.url || '').trim().slice(0, 1200),
+      publicId: String(item.publicId || '').trim().slice(0, 300),
+      mimeType: String(item.mimeType || '').trim().slice(0, 120),
+      sizeBytes: Number.isFinite(Number(item.sizeBytes)) ? Number(item.sizeBytes) : null,
+      uploadedBy: item.uploadedBy || actor,
+      createdAt: new Date()
+    }))
+    .filter((item) => item.fileName);
+}
+
+function pickEnum(value, allowed, fallback) {
+  const candidate = String(value || '').trim();
+  return allowed.includes(candidate) ? candidate : fallback;
+}
+
+function ownerSideFromSupportLevel(level) {
+  if (level === 'L2') return 'partner';
+  if (level === 'L3') return 'suntec';
+  return 'client';
+}
+
+function cleanStatus(value = {}) {
+  return {
+    localId: String(value.localId || 'new').trim(),
+    name: String(value.name || 'New').trim(),
+    customerLabel: String(value.customerLabel || value.name || 'New').trim(),
+    statusType: String(value.statusType || 'start').trim(),
+    isCustomerVisible: value.isCustomerVisible !== false,
+    jiraStatusId: String(value.jiraStatusId || '').trim(),
+    jiraStatusCategory: String(value.jiraStatusCategory || '').trim(),
+    approvalConfiguration: value.approvalConfiguration || null,
+    sourceProperties: value.sourceProperties || {},
+    jiraDescription: String(value.jiraDescription || '').trim(),
+    taskTemplates: Array.isArray(value.taskTemplates) ? value.taskTemplates.map((template, index) => ({
+      localId: String(template.localId || `template_${index + 1}`).trim(),
+      title: String(template.title || '').trim(),
+      description: String(template.description || '').trim(),
+      ownerSide: ['client', 'partner', 'suntec', 'internal'].includes(template.ownerSide) ? template.ownerSide : 'suntec',
+      queue: String(template.queue || '').trim(),
+      isBlocking: template.isBlocking === true,
+      visibility: ['client_visible', 'partner_visible', 'internal_only'].includes(template.visibility) ? template.visibility : 'internal_only',
+      displayOrder: Number(template.displayOrder) || 100
+    })).filter((template) => template.title) : []
+  };
+}
+
+function cleanWorkflowDefinition(value = {}) {
+  const statuses = Array.isArray(value.statuses) ? value.statuses.map(cleanStatus).filter((item) => item.localId) : [];
+  const statusIds = new Set(statuses.map((item) => item.localId));
+  const transitions = Array.isArray(value.transitions)
+    ? value.transitions
+        .map((item) => ({
+          fromStatusId: String(item.fromStatusId || '').trim(),
+          toStatusId: String(item.toStatusId || '').trim(),
+          localId: String(item.localId || item.key || '').trim(),
+          name: String(item.name || item.label || '').trim(),
+          transitionType: String(item.transitionType || item.kind || 'status').trim(),
+          customerEnabled: item.customerEnabled === true,
+          clientEnabled: item.clientEnabled !== undefined ? item.clientEnabled === true : item.customerEnabled === true,
+          jiraCustomerEnabled: item.jiraCustomerEnabled !== undefined ? item.jiraCustomerEnabled === true : item.customerEnabled === true,
+          allowedSupportLevels: Array.isArray(item.allowedSupportLevels) ? item.allowedSupportLevels.map((level) => String(level || '').trim().toUpperCase()).filter(Boolean) : [],
+          roles: Array.isArray(item.roles) ? item.roles.map((role) => String(role || '').trim()).filter(Boolean) : [],
+          targetSupportLevel: String(item.targetSupportLevel || item.supportEffect?.targetLevel || '').trim(),
+          jiraTransitionId: String(item.jiraTransitionId || '').trim(),
+          jiraTransitionType: String(item.jiraTransitionType || '').trim(),
+          transitionScreenId: String(item.transitionScreenId || '').trim(),
+          requiredFields: Array.isArray(item.requiredFields) ? item.requiredFields : [],
+          screenFields: Array.isArray(item.screenFields) ? item.screenFields : [],
+          jiraRules: item.jiraRules || {},
+          condition: item.condition || item.v23Condition || {},
+          supportEffect: item.supportEffect || {}
+        }))
+        .filter((item) => statusIds.has(item.fromStatusId) && statusIds.has(item.toStatusId) && item.fromStatusId !== item.toStatusId)
+    : [];
+  const globalActions = Array.isArray(value.globalActions || value.v23GlobalActions)
+    ? (value.globalActions || value.v23GlobalActions).map((item) => ({
+        key: String(item.key || '').trim(),
+        label: String(item.label || item.name || item.key || '').trim(),
+        kind: String(item.kind || 'escalation').trim(),
+        statusEffect: String(item.statusEffect || 'KEEP').trim().toUpperCase(),
+        customerEnabled: item.customerEnabled === true,
+        clientEnabled: item.clientEnabled !== undefined ? item.clientEnabled === true : item.customerEnabled === true,
+        jiraCustomerEnabled: item.jiraCustomerEnabled !== undefined ? item.jiraCustomerEnabled === true : item.customerEnabled === true,
+        roles: Array.isArray(item.roles) ? item.roles.map((role) => String(role || '').trim()).filter(Boolean) : [],
+        jiraTransitionId: String(item.jiraTransitionId || '').trim(),
+        requiredFields: Array.isArray(item.requiredFields) ? item.requiredFields : [],
+        jiraRules: item.jiraRules || {},
+        condition: item.condition || {}
+      })).filter((item) => item.key && item.label)
+    : [];
+  return { statuses, transitions, globalActions, sourceMetadata: value.sourceMetadata || value.jiraSource || {} };
+}
+
+function cleanSupportPathDefinition(value = {}) {
+  const levels = Array.isArray(value.levels)
+    ? value.levels
+        .map((item) => ({
+          localId: String(item.localId || '').trim(),
+          label: String(item.label || item.localId || '').trim(),
+          ownerSide: ['client', 'partner', 'suntec'].includes(item.ownerSide) ? item.ownerSide : 'client',
+          slaApplicable: item.slaApplicable === true,
+          displayOrder: Number(item.displayOrder) || 100,
+          workflowId: String(item.workflowId || item.workflow?.id || '').trim(),
+          workflowName: String(item.workflowName || item.workflow?.name || '').trim(),
+          workflow: cleanRef(item.workflow || {}),
+          workflowDefinition: cleanWorkflowDefinition(item.workflowDefinition || item.workflow || {})
+        }))
+        .filter((item) => item.localId)
+    : [];
+  const levelIds = new Set(levels.map((item) => item.localId));
+  const movementRules = Array.isArray(value.movementRules)
+    ? value.movementRules
+        .map((item) => {
+          const toLevelId = String(item.toLevelId || '').trim();
+          const toLevelIds = Array.isArray(item.toLevelIds)
+            ? [...new Set(item.toLevelIds.map((level) => String(level || '').trim()).filter((level) => levelIds.has(level)))]
+            : [];
+          const targets = toLevelIds.length ? toLevelIds : (levelIds.has(toLevelId) ? [toLevelId] : []);
+          return {
+            localId: String(item.localId || '').trim(),
+            actionLabel: String(item.actionLabel || '').trim(),
+            fromLevelId: String(item.fromLevelId || '').trim(),
+            toLevelId: targets[0] || toLevelId,
+            movementType: item.movementType === 'parallel' || targets.length > 1 ? 'parallel' : 'sequential',
+            toLevelIds: targets,
+            primaryLevelId: targets.includes(String(item.primaryLevelId || '').trim()) ? String(item.primaryLevelId || '').trim() : (targets[0] || ''),
+            targetStatusBehavior: ['keep', 'start', 'explicit'].includes(item.targetStatusBehavior) ? item.targetStatusBehavior : 'start',
+            targetStatusId: String(item.targetStatusId || '').trim(),
+            allowedFromStatusIds: Array.isArray(item.allowedFromStatusIds) ? item.allowedFromStatusIds.map((status) => String(status || '').trim()).filter(Boolean) : [],
+            customerEnabled: item.customerEnabled === true,
+            roles: Array.isArray(item.roles) ? item.roles.map((role) => String(role || '').trim()).filter(Boolean) : [],
+            condition: item.condition || {},
+            commentRequired: item.commentRequired !== false,
+            reasonRequired: item.reasonRequired !== false,
+            displayOrder: Number(item.displayOrder) || 100
+          };
+        })
+        .filter((item) => item.localId && item.actionLabel && levelIds.has(item.fromLevelId) && item.toLevelIds.length)
+    : [];
+  return { levels, movementRules };
+}
+
+function cleanTask(value = {}, index = 0) {
+  return {
+    localId: String(value.localId || `task_${index + 1}`).trim().slice(0, 80),
+    taskId: String(value.taskId || '').trim().toUpperCase().slice(0, 120),
+    title: String(value.title || 'Task').trim().slice(0, 180),
+    description: String(value.description || '').trim().slice(0, 1500),
+    ownerSide: ['client', 'partner', 'suntec', 'internal'].includes(value.ownerSide) ? value.ownerSide : 'suntec',
+    queue: String(value.queue || '').trim().slice(0, 140),
+    priority: ['low', 'normal', 'high', 'critical'].includes(value.priority) ? value.priority : 'normal',
+    assignedTo: cleanActor(value.assignedTo || {}),
+    dueAt: value.dueAt ? new Date(value.dueAt) : null,
+    startedAt: value.startedAt ? new Date(value.startedAt) : null,
+    status: ['open', 'in_progress', 'blocked', 'done', 'cancelled'].includes(value.status) ? value.status : 'open',
+    visibility: ['client_visible', 'partner_visible', 'internal_only'].includes(value.visibility) ? value.visibility : 'internal_only',
+    isBlocking: value.isBlocking === true,
+    sourceStatusId: String(value.sourceStatusId || '').trim(),
+    sourceStatusName: String(value.sourceStatusName || '').trim().slice(0, 120),
+    sourceStageId: String(value.sourceStageId || '').trim(),
+    createdByAutomation: value.createdByAutomation !== false,
+    createdAt: value.createdAt ? new Date(value.createdAt) : new Date(),
+    completedAt: value.completedAt ? new Date(value.completedAt) : null,
+    completionNote: String(value.completionNote || '').trim().slice(0, 1200),
+    completedBy: cleanActor(value.completedBy || {}),
+    comments: Array.isArray(value.comments) ? value.comments.map((comment, commentIndex) => ({
+      commentId: String(comment.commentId || `comment_${commentIndex + 1}`).trim().slice(0, 80),
+      body: String(comment.body || '').trim().slice(0, 5000),
+      visibility: ['client_visible', 'partner_visible', 'internal_only'].includes(comment.visibility) ? comment.visibility : 'internal_only',
+      author: cleanActor(comment.author || {}),
+      attachments: cleanAttachments(comment.attachments || [], comment.author || {}),
+      createdAt: comment.createdAt ? new Date(comment.createdAt) : new Date()
+    })).filter((comment) => comment.body) : [],
+    activity: Array.isArray(value.activity) ? value.activity.map((event) => ({
+      eventType: String(event.eventType || 'updated').trim().slice(0, 60),
+      message: String(event.message || '').trim().slice(0, 1000),
+      actor: cleanActor(event.actor || {}),
+      createdAt: event.createdAt ? new Date(event.createdAt) : new Date()
+    })) : []
+  };
+}
+
+function taskDisplayId(requestNumber, sequence) {
+  return `${String(requestNumber || 'REQ').toUpperCase()}-T${String(sequence).padStart(3, '0')}`;
+}
+
+function ensureTaskIds(requestItem) {
+  requestItem.tasks = requestItem.tasks || [];
+  let sequence = Math.max(0, Number(requestItem.taskSequence || 0));
+  let changed = false;
+  for (const task of requestItem.tasks) {
+    const existingMatch = String(task.taskId || '').match(/-T(\d+)$/i);
+    if (existingMatch) sequence = Math.max(sequence, Number(existingMatch[1]));
+  }
+  for (const task of requestItem.tasks) {
+    if (String(task.taskId || '').trim()) continue;
+    sequence += 1;
+    task.taskId = taskDisplayId(requestItem.requestNumber, sequence);
+    task.activity = task.activity || [];
+    task.activity.push({ eventType: 'created', message: `Task ${task.taskId} created from ${task.sourceStatusName || 'workflow status'}.`, actor: {}, createdAt: task.createdAt || new Date() });
+    changed = true;
+  }
+  if (Number(requestItem.taskSequence || 0) !== sequence) {
+    requestItem.taskSequence = sequence;
+    changed = true;
+  }
+  return changed;
+}
+
+
+function cleanActiveStage(value = {}, index = 0) {
+  const localId = String(value.localId || '').trim();
+  const workflowDefinition = cleanWorkflowDefinition(value.workflowDefinition || value.workflow || {});
+  return {
+    localId: localId || `L${index + 1}`,
+    label: String(value.label || localId || `Stage ${index + 1}`).trim(),
+    ownerSide: ['client', 'partner', 'suntec'].includes(value.ownerSide) ? value.ownerSide : ownerSideFromSupportLevel(localId || 'L1'),
+    isPrimary: value.isPrimary === true,
+    assignedTo: cleanActor(value.assignedTo || {}),
+    workflow: cleanRef(value.workflow || {}),
+    workflowDefinition,
+    currentStatus: cleanStatus(value.currentStatus || workflowDefinition.statuses?.find((status) => status.statusType === 'start') || workflowDefinition.statuses?.[0] || {}),
+    previousStatusId: String(value.previousStatusId || '').trim(),
+    previousStatusName: String(value.previousStatusName || '').trim()
+  };
+}
+
+function isAssignedWorkflowStatus(status = {}) {
+  const localId = String(status.localId || '').trim().toLowerCase();
+  const name = String(status.name || status.customerLabel || '').trim().toLowerCase();
+  return localId === 'assigned' || name === 'assigned' || name.startsWith('assigned ');
+}
+
+function startStatusFromWorkflowDefinition(definition = {}) {
+  const statuses = definition.statuses || [];
+  return cleanStatus(statuses.find((status) => status.statusType === 'start') || statuses[0] || {});
+}
+
+function supportMoveTargetStatus(requestItem, sourceStage = null, workflowDefinition = {}, targetStatusBehavior = 'start', forceSaasIncident = false, targetStatusId = '') {
+  const statuses = workflowDefinition.statuses || [];
+  const current = sourceStage?.currentStatus || requestItem.currentStatus || {};
+  const currentIsStart = String(current.statusType || '').toLowerCase() === 'start';
+  const exact = statuses.find((status) => String(status.localId || '') === String(current.localId || ''));
+  if (targetStatusBehavior === 'explicit' && targetStatusId) {
+    const explicit = statuses.find((status) => String(status.localId || '') === String(targetStatusId));
+    if (explicit) return cleanStatus(explicit);
+  }
+  if (targetStatusBehavior === 'keep' && exact) return cleanStatus(exact);
+  if (!(forceSaasIncident || isSaasIncidentRequest(requestItem)) || currentIsStart) return startStatusFromWorkflowDefinition(workflowDefinition);
+
+  // Once a SaaS incident has left New, support routing must not make the
+  // customer-visible lifecycle appear to go backwards. Prefer the same
+  // workflow status when the receiving workflow supports it, then a matching
+  // customer label, then the first meaningful work status.
+  if (exact && String(exact.statusType || '').toLowerCase() !== 'start') return cleanStatus(exact);
+  const customerLabel = String(current.customerLabel || current.name || '').trim().toLowerCase();
+  const labelMatch = customerLabel ? statuses.find((status) =>
+    String(status.statusType || '').toLowerCase() !== 'start'
+      && String(status.customerLabel || status.name || '').trim().toLowerCase() === customerLabel
+  ) : null;
+  if (labelMatch) return cleanStatus(labelMatch);
+  const preferredIds = ['analysis', 'assigned', 'under_review', 'in_progress'];
+  for (const localId of preferredIds) {
+    const candidate = statuses.find((status) => String(status.localId || '').trim().toLowerCase() === localId);
+    if (candidate && String(candidate.statusType || '').toLowerCase() !== 'start') return cleanStatus(candidate);
+  }
+  const firstWorkStatus = statuses.find((status) => String(status.statusType || '').toLowerCase() !== 'start');
+  return cleanStatus(firstWorkStatus || startStatusFromWorkflowDefinition(workflowDefinition));
+}
+
+function tasksFromStageStatus(stage = {}, statusOverride = null, instanceKey = '', requestContext = {}) {
+  const status = statusOverride ? cleanStatus(statusOverride) : (stage.currentStatus || startStatusFromWorkflowDefinition(stage.workflowDefinition || {}));
+  const workflowStatus = (stage.workflowDefinition?.statuses || []).find((item) => item.localId === status.localId) || status || {};
+  const templates = filterWorkflowTasksForRequest(workflowStatus.taskTemplates || [], requestContext);
+  return templates.map((template, index) => cleanTask({
+    localId: `${stage.localId}_${status.localId}_${template.localId || index}_${instanceKey || Date.now().toString(36)}_${index}`.replace(/[^A-Za-z0-9_]/g, '_').slice(0, 80),
+    title: template.title,
+    description: template.description,
+    ownerSide: template.ownerSide || stage.ownerSide,
+    queue: template.queue,
+    visibility: template.visibility,
+    isBlocking: template.isBlocking,
+    sourceStatusId: status.localId,
+    sourceStatusName: status.name || status.customerLabel || status.localId,
+    sourceStageId: stage.localId,
+    createdByAutomation: true
+  }, index));
+}
+
+function addStageTasks(requestItem, stage, statusOverride = null) {
+  if (!automaticWorkflowTasksEnabled(requestItem)) return;
+  requestItem.tasks = requestItem.tasks || [];
+  const generated = tasksFromStageStatus(stage, statusOverride, `${Date.now().toString(36)}_${requestItem.tasks.length}`, requestItem);
+  requestItem.tasks.push(...generated);
+  ensureTaskIds(requestItem);
+}
+
+function blockingTasksForStageStatus(requestItem, stageId, statusId) {
+  return (requestItem.tasks || []).filter((task) => task.sourceStageId === stageId && task.sourceStatusId === statusId && task.isBlocking && !['done', 'cancelled'].includes(task.status));
+}
+
+function lifecycleFromActiveStages(stages = []) {
+  if (!stages.length) return 'open';
+  const types = stages.map((stage) => stage.currentStatus?.statusType || 'normal');
+  if (types.every((type) => type === 'cancelled')) return 'cancelled';
+  if (types.every((type) => ['final', 'cancelled'].includes(type))) return 'closed';
+  if (types.every((type) => ['resolved', 'final', 'cancelled'].includes(type))) return 'resolved';
+  return 'open';
+}
+
+function lifecycleFromStatus(status) {
+  if (status.statusType === 'cancelled') return 'cancelled';
+  if (status.statusType === 'final') return 'closed';
+  if (status.statusType === 'resolved') return 'resolved';
+  return 'open';
+}
+
+async function nextRequestNumber(organizationId, clientCode = '') {
+  const prefix = String(clientCode || 'REQ').replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'REQ';
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const count = await ServiceRequest.countDocuments({ organizationId });
+    const sequence = String(count + attempt + 1).padStart(5, '0');
+    const candidate = `${prefix}-${sequence}`;
+    const exists = await ServiceRequest.exists({ organizationId, requestNumber: candidate });
+    if (!exists) return candidate;
+  }
+  return `${prefix}-${Date.now().toString().slice(-8)}`;
+}
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'request-service', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/organizations/:organizationId/clients/:clientId/usage', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.clientId)) return res.status(400).json({ message: 'Valid organization and client ids are required.' });
+    const requestCount = await ServiceRequest.countDocuments({ organizationId: req.params.organizationId, 'client.id': String(req.params.clientId) });
+    res.json({ clientId: String(req.params.clientId), requestCount });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/organizations/:organizationId/requests', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId)) return res.status(400).json({ message: 'Invalid organization id.' });
+    const filter = { organizationId: req.params.organizationId };
+
+    const clientIds = String(req.query.clientIds || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (clientIds.length) filter['client.id'] = { $in: clientIds };
+
+    const requesterId = String(req.query.requesterId || '').trim();
+    if (requesterId) filter['requester.actorId'] = requesterId;
+
+    const assigneeActorId = String(req.query.assigneeActorId || '').trim();
+    const assigneeEmail = String(req.query.assigneeEmail || '').trim().toLowerCase();
+    if (assigneeActorId || assigneeEmail) {
+      const assigneeOr = [];
+      if (assigneeActorId) assigneeOr.push({ 'activeStages.assignedTo.actorId': assigneeActorId });
+      if (assigneeEmail) assigneeOr.push({ 'activeStages.assignedTo.email': assigneeEmail });
+      filter.$and = [...(filter.$and || []), { $or: assigneeOr }];
+    }
+
+    const visibilityScopes = String(req.query.visibilityScopes || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (visibilityScopes.length) {
+      filter.$or = [{ visibilityScope: { $in: visibilityScopes } }];
+      if (visibilityScopes.includes('client_visible')) filter.$or.push({ visibilityScope: { $exists: false } });
+    }
+
+    const status = String(req.query.status || '').trim().toLowerCase();
+    if (status) {
+      if (status === 'open') filter.lifecycleState = { $nin: ['closed', 'cancelled', 'returned'] };
+      else if (status === 'closed') filter.lifecycleState = 'closed';
+      else filter.$and = [...(filter.$and || []), { $or: [
+        { 'currentStatus.name': new RegExp(status, 'i') },
+        { 'currentStatus.customerLabel': new RegExp(status, 'i') },
+        { lifecycleState: new RegExp(status, 'i') }
+      ] }];
+    }
+
+    const sla = String(req.query.sla || '').trim().toLowerCase();
+    if (sla) filter['sla.rag'] = sla;
+
+    const supportLevel = String(req.query.supportLevel || '').trim().toUpperCase();
+    if (['L1','L2','L3'].includes(supportLevel)) filter.currentSupportLevel = supportLevel;
+
+    const visibility = String(req.query.visibility || '').trim();
+    if (visibility) filter.visibilityScope = visibility;
+
+    const searchText = String(req.query.search || '').trim();
+    if (searchText) {
+      const rx = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$and = [...(filter.$and || []), { $or: [
+        { requestNumber: rx },
+        { subject: rx },
+        { 'client.name': rx },
+        { 'client.code': rx },
+        { 'level1Type.name': rx },
+        { 'level2Type.name': rx },
+        { 'level3Type.name': rx }
+      ] }];
+    }
+
+    const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom) : null;
+    const dateTo = req.query.dateTo ? new Date(req.query.dateTo) : null;
+    if ((dateFrom && !Number.isNaN(dateFrom.getTime())) || (dateTo && !Number.isNaN(dateTo.getTime()))) {
+      filter.createdAt = {};
+      if (dateFrom && !Number.isNaN(dateFrom.getTime())) filter.createdAt.$gte = dateFrom;
+      if (dateTo && !Number.isNaN(dateTo.getTime())) filter.createdAt.$lte = dateTo;
+    }
+
+    const page = Math.max(1, Number.parseInt(req.query.page || '1', 10));
+    const pageSize = Math.min(5000, Math.max(1, Number.parseInt(req.query.pageSize || '50', 10)));
+    const total = await ServiceRequest.countDocuments(filter);
+    const requests = await ServiceRequest.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize);
+
+    res.json({ requests, pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/organizations/:organizationId/requests', async (req, res, next) => {
+  try {
+    const __v23Binding = await resolveV23TypeBinding(req.params.organizationId, req.body.level1Type || {}, req.body.level2Type || {}, req.body.level3Type || {});
+    const __seededV23Incident = isSeededV23IncidentPayload(req.body);
+    const __v23IncidentIntake = Boolean((__v23Binding && /INCIDENT/i.test(String(__v23Binding.formKey || ''))) || __seededV23Incident);
+    if (__v23Binding || __seededV23Incident) {
+      req.body.serviceModelKey = String(__v23Binding?.serviceModelKey || V24_SAAS_SERVICE_MODEL_KEY);
+      const mergedIntakeFields = mergeV23CustomFields(req.body.customFields || [], req.body.v23CustomFields || []);
+      if (req.body.serviceModelKey === V24_SAAS_SERVICE_MODEL_KEY) {
+        const withoutOldMarker = mergedIntakeFields.filter((field) => {
+          const key = v23CustomFieldKey(field).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+          return key !== V23_MARKER_FIELD_KEY && key !== V24_MARKER_FIELD_KEY && key !== 'service_model_key';
+        });
+        req.body.customFields = [...withoutOldMarker, {
+          fieldKey: V24_MARKER_FIELD_KEY, key: V24_MARKER_FIELD_KEY, code: V24_MARKER_FIELD_KEY,
+          name: 'Service Model Key', label: 'Service Model Key', fieldType: 'hidden', type: 'hidden',
+          value: V24_SAAS_SERVICE_MODEL_KEY, visibility: 'internal',
+          formKey: __v23Binding?.formKey || '', workflowKey: __v23Binding?.workflowKey || ''
+        }];
+      } else {
+        req.body.customFields = ensureV23MarkerCustomField(
+          mergedIntakeFields,
+          { formKey: __v23Binding?.formKey || '', workflowKey: __v23Binding?.workflowKey || '' }
+        );
+      }
+      if (__v23IncidentIntake) {
+        // v24 Incident intake keeps reported Severity and S3 evidence. Lifecycle/RCA/release
+        // fields are captured later. Client Priority is cleared by the client guard below.
+        req.body.customFields = stripV23IncidentPostCreateFields(req.body.customFields || []);
+        req.body.v23CustomFields = stripV23IncidentPostCreateFields(req.body.v23CustomFields || []);
+      }
+      if (v23ActorIsClient(req.body)) {
+        // Customer intake never sets operational priority or raises on behalf of another person.
+        req.body.priority = {};
+        req.body.raisedOnBehalfOf = {};
+      } else if (__v23Binding && !__v23Binding.allowRaisedOnBehalfOf) {
+        req.body.raisedOnBehalfOf = {};
+      }
+    } else {
+      // Browser fields/markers are never trusted. Without an exact DB binding or
+      // the seeded v23.1 Incident taxonomy, preserve baseline normal-request rules.
+      req.body.serviceModelKey = '';
+      req.body.v23CustomFields = [];
+      if (v23ActorIsClient(req.body)) req.body.raisedOnBehalfOf = {};
+    }
+    if (!isValidId(req.params.organizationId)) return res.status(400).json({ message: 'Invalid organization id.' });
+
+    const subject = requireText(req.body.subject, 'Subject', 3);
+    const description = __v23IncidentIntake ? String(req.body.description || '').trim().slice(0, 12000) : requireText(req.body.description, 'Description', 10);
+    const client = cleanRef(req.body.client);
+    const level1Type = cleanRef(req.body.level1Type);
+    const level2Type = cleanRef(req.body.level2Type);
+    const level3Type = cleanRef(req.body.level3Type || {});
+    const requester = cleanActor(req.body.requester);
+
+    if (!client.id || !client.name) return res.status(400).json({ message: 'Client is required.' });
+    if (!level1Type.id || !level1Type.name) return res.status(400).json({ message: 'Level 1 issue type is required.' });
+    if (!level2Type.id || !level2Type.name) return res.status(400).json({ message: 'Level 2 issue type is required.' });
+    if (!requester.actorId || !requester.email) return res.status(400).json({ message: 'Requester details are required.' });
+
+    const workflow = cleanRef(req.body.workflow || {});
+    const workflowDefinition = cleanWorkflowDefinition(req.body.workflowDefinition || {});
+    const supportPath = cleanRef(req.body.supportPath || {});
+    const supportPathDefinition = cleanSupportPathDefinition(req.body.supportPathDefinition || {});
+    const slaPolicy = cleanRef(req.body.slaPolicy || {});
+    const slaDefinition = cleanSlaDefinition(req.body.slaDefinition || {});
+    const slaCalendar = cleanSlaCalendar(req.body.slaCalendar || {});
+    let customFieldValues = cleanCustomFields(mergeV23CustomFields(req.body.customFieldValues || [], req.body.customFields || []));
+    if (__v23IncidentIntake && v23ActorIsClient(req.body)) customFieldValues = stripV23IncidentPostCreateFields(customFieldValues);
+    const currentStatus = cleanStatus(req.body.currentStatus || workflowDefinition.statuses[0] || {});
+    const sourcePortal = ['admin', 'client', 'agent'].includes(req.body.sourcePortal) ? req.body.sourcePortal : requester.portal || 'admin';
+    const defaultSource = sourcePortal === 'client'
+      ? 'client_portal'
+      : requester.userType === 'partnerUser'
+        ? 'partner_observed'
+        : 'internal_observed';
+    const source = pickEnum(req.body.source, ['client_portal', 'client_asked_agent', 'partner_observed', 'internal_observed', 'system_alert'], defaultSource);
+    const defaultVisibility = sourcePortal === 'client'
+      ? 'client_visible'
+      : source === 'client_asked_agent'
+        ? 'client_visible'
+        : requester.userType === 'partnerUser'
+          ? 'partner_visible'
+          : 'internal_only';
+    const visibilityScope = sourcePortal === 'client'
+      ? 'client_visible'
+      : pickEnum(req.body.visibilityScope, ['client_visible', 'partner_visible', 'internal_only'], defaultVisibility);
+    const currentSupportLevel = sourcePortal === 'client'
+      ? 'L1'
+      : pickEnum(req.body.currentSupportLevel, ['L1', 'L2', 'L3'], visibilityScope === 'partner_visible' ? 'L2' : 'L3');
+    const ownerSide = ownerSideFromSupportLevel(currentSupportLevel);
+    let activeStages = Array.isArray(req.body.activeStages) ? req.body.activeStages.map(cleanActiveStage).filter((stage) => stage.localId) : [];
+    if (!activeStages.length) {
+      const configuredLevel = (supportPathDefinition.levels || []).find((item) => item.localId === currentSupportLevel) || supportPathDefinition.levels?.[0];
+      if (configuredLevel) {
+        activeStages = [cleanActiveStage({
+          ...configuredLevel,
+          workflow: configuredLevel.workflow?.id ? configuredLevel.workflow : workflow,
+          workflowDefinition: configuredLevel.workflowDefinition?.statuses?.length ? configuredLevel.workflowDefinition : workflowDefinition,
+          currentStatus,
+          isPrimary: true
+        })];
+      }
+    }
+    if (activeStages.length && !activeStages.some((stage) => stage.isPrimary)) activeStages[0].isPrimary = true;
+    const primaryStage = activeStages.find((stage) => stage.isPrimary) || activeStages[0] || null;
+    const effectiveWorkflow = primaryStage?.workflow?.id ? primaryStage.workflow : workflow;
+    const effectiveWorkflowDefinition = primaryStage?.workflowDefinition?.statuses?.length ? primaryStage.workflowDefinition : workflowDefinition;
+    const effectiveCurrentStatus = primaryStage?.currentStatus?.localId ? primaryStage.currentStatus : currentStatus;
+    const effectiveSupportLevel = primaryStage?.localId || currentSupportLevel;
+    const effectiveOwnerSide = primaryStage?.ownerSide || ownerSide;
+    if (__v23Binding) {
+      const __v23Workflow = await resolveV23Workflow(__v23Binding.workflowKey, __v23Binding.serviceModelKey || req.body.serviceModelKey);
+      const __v23Definition = __v23Workflow ? v23WorkflowDefinition(__v23Workflow) : null;
+      if (__v23Definition) {
+        const __v23Start = (__v23Definition.statuses || []).find((status) => String(status.localId) === String(__v23Workflow.startStatus || ''))
+          || (__v23Definition.statuses || []).find((status) => String(status.statusType) === 'start')
+          || (__v23Definition.statuses || [])[0];
+        for (const __stage of activeStages || []) {
+          __stage.workflowDefinition = __v23Definition;
+          if (__v23Start) __stage.currentStatus = cleanStatus(__v23Start);
+        }
+      }
+    }
+    const taskRequestContext = { serviceModelKey: req.body.serviceModelKey, customFields: req.body.customFields || [], level1Type: req.body.level1Type || {}, level2Type: req.body.level2Type || {} };
+    const tasks = filterWorkflowTasksForRequest(
+      Array.isArray(req.body.tasks)
+        ? req.body.tasks.map(cleanTask)
+        : (automaticWorkflowTasksEnabled(taskRequestContext)
+            ? activeStages.flatMap((stage, index) => tasksFromStageStatus(stage, null, `create_${index}`, taskRequestContext))
+            : []),
+      taskRequestContext
+    );
+    const raisedOnBehalfOf = cleanActor(req.body.raisedOnBehalfOf || {});
+    const incidentPayload = __v23IncidentIntake || isSeededV23IncidentPayload(req.body);
+    const customerBacked = incidentPayload && (
+      sourcePortal === 'client' || source === 'client_portal' || source === 'client_asked_agent' || effectiveSupportLevel === 'L1'
+    );
+    const slaContext = incidentPayload ? {
+      customerBacked,
+      incidentLevel: effectiveSupportLevel,
+      raisedForClientId: String(client.id || ''),
+      eligibilityBasis: customerBacked
+        ? (sourcePortal === 'client' ? 'client_portal' : effectiveSupportLevel === 'L1' ? 'incident_level_bank' : 'raised_on_behalf_of_bank')
+        : 'internal_support_incident'
+    } : {};
+    const requestNumber = await nextRequestNumber(req.params.organizationId, client.code || 'REQ');
+    const taskEnvelope = { requestNumber, tasks, taskSequence: 0 };
+    ensureTaskIds(taskEnvelope);
+
+    const request = new ServiceRequest({
+      organizationId: req.params.organizationId,
+      requestNumber,
+      subject,
+      description,
+      client,
+      level1Type,
+      level2Type,
+      level3Type,
+      taxonomyVersion: String(req.body.taxonomyVersion || '').trim(),
+      serviceModelKey: String(req.body.serviceModelKey || '').trim().toUpperCase(),
+      workflow: effectiveWorkflow,
+      workflowDefinition: effectiveWorkflowDefinition,
+      supportPath,
+      supportPathDefinition,
+      slaPolicy,
+      slaDefinition,
+      slaCalendar,
+      slaContext,
+      customFieldValues,
+      currentStatus: effectiveCurrentStatus,
+      activeStages,
+      tasks: taskEnvelope.tasks,
+      taskSequence: taskEnvelope.taskSequence,
+      severity: cleanRef(req.body.severity || {}),
+      priority: cleanRef(req.body.priority || {}),
+      product: cleanRef(req.body.product || {}),
+      module: cleanRef(req.body.module || {}),
+      modules: Array.isArray(req.body.modules) ? req.body.modules.map((item) => cleanRef(item)).filter((item) => item.id || item.name) : [],
+      region: cleanRef(req.body.region || {}),
+      environment: cleanRef(req.body.environment || {}),
+      attachments: cleanAttachments(req.body.attachments || [], requester),
+      requester,
+      raisedOnBehalfOf,
+      sourcePortal,
+      source,
+      visibilityScope,
+      currentSupportLevel: effectiveSupportLevel,
+      originSupportLevel: String(req.body.originSupportLevel || effectiveSupportLevel || 'L1').trim().toUpperCase(),
+      ownerSide: effectiveOwnerSide,
+      timeline: [
+        {
+          eventType: 'created',
+          message: raisedOnBehalfOf.name || raisedOnBehalfOf.email
+            ? `${requester.name || requester.email} created this request on behalf of ${raisedOnBehalfOf.name || raisedOnBehalfOf.email} for ${client.name}.`
+            : `${requester.name || requester.email} created this request for ${client.name}.`,
+          actor: requester,
+          createdAt: new Date()
+        },
+        {
+          eventType: 'origin_visibility_set',
+          message: `Origin: ${source.replaceAll('_', ' ')} · Visibility: ${visibilityScope.replaceAll('_', ' ')} · Support level: ${effectiveSupportLevel}.`,
+          actor: requester,
+          createdAt: new Date()
+        },
+        {
+          eventType: 'status_set',
+          message: `Request created with status ${effectiveCurrentStatus.name || 'New'}.`,
+          actor: requester,
+          createdAt: new Date()
+        },
+        ...cleanAttachments(req.body.attachments || [], requester).map((attachment) => ({
+          eventType: 'attachment_added',
+          message: `Attachment added: ${attachment.fileName}.`,
+          actor: requester,
+          createdAt: new Date()
+        }))
+      ]
+    });
+
+    const previousSla = request.sla ? request.sla.toObject?.() || request.sla : {};
+    syncSlaState(request);
+    const slaMessage = slaHistoryMessage(previousSla, request.sla);
+    if (slaMessage) request.timeline.push({ eventType: 'sla_calculated', message: slaMessage, actor: requester, createdAt: new Date() });
+    await request.save();
+
+    res.status(201).json({ request });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+
+
+app.post('/api/organizations/:organizationId/requests/:requestId/details', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) {
+      return res.status(400).json({ message: 'Invalid request id.' });
+    }
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    const actor = cleanActor(req.body.actor || {});
+    const clientActor = actor.portal === 'client' || actor.userType === 'clientUser';
+    const previous = requestItem.toObject();
+    const changes = [];
+
+    const textChange = (key, label, value, min = 0, max = 5000) => {
+      if (value === undefined) return;
+      const next = String(value || '').trim().slice(0, max);
+      if (min && next.length < min) { const error = new Error(`${label} must be at least ${min} characters.`); error.status = 400; throw error; }
+      if (String(requestItem[key] || '') !== next) { changes.push(`${label}: ${String(requestItem[key] || 'unset')} → ${next || 'unset'}`); requestItem[key] = next; }
+    };
+    textChange('subject', 'Summary', req.body.subject, 3, 180);
+    textChange('description', 'Description', req.body.description, 10, 5000);
+
+    const refChange = (key, label, value, { clientAllowed = true } = {}) => {
+      if (value === undefined) return;
+      if (clientActor && !clientAllowed) return;
+      const prev = requestItem[key]?.toObject?.() || requestItem[key] || {};
+      const next = cleanRef(value || {});
+      if (String(prev.id || '') !== String(next.id || '') || String(prev.name || '') !== String(next.name || '') || String(prev.code || '') !== String(next.code || '')) {
+        changes.push(`${label}: ${prev.code || prev.name || 'unset'} → ${next.code || next.name || 'unset'}`);
+        requestItem[key] = next;
+      }
+    };
+
+    refChange('severity', 'Severity', req.body.severity, { clientAllowed: true });
+    refChange('priority', 'Priority', req.body.priority, { clientAllowed: false });
+    refChange('product', 'Product', req.body.product, { clientAllowed: true });
+    refChange('environment', 'Environment', req.body.environment, { clientAllowed: true });
+
+    if (req.body.modules !== undefined) {
+      const nextModules = Array.isArray(req.body.modules) ? req.body.modules.map(cleanRef) : [];
+      const before = JSON.stringify((requestItem.modules || []).map((item) => String(item.id || '')));
+      const after = JSON.stringify(nextModules.map((item) => String(item.id || '')));
+      if (before !== after) { changes.push('Modules updated'); requestItem.modules = nextModules; requestItem.module = nextModules[0] || {}; }
+    }
+
+    if (req.body.customFieldValues !== undefined) {
+      const nextCustom = cleanCustomFields(req.body.customFieldValues || []);
+      const internalPattern = /^(RCA|ROOT_CAUSE|CORRECTIVE|PREVENTIVE|RELEASE_|TEST_CASE|APPROVER)/i;
+      const safeCustom = clientActor ? nextCustom.filter((field) => !internalPattern.test(String(field.fieldKey || ''))) : nextCustom;
+      const existing = new Map((requestItem.customFieldValues || []).map((field) => [String(field.fieldKey || '').toUpperCase(), field.toObject?.() || field]));
+      for (const field of safeCustom) existing.set(String(field.fieldKey || '').toUpperCase(), field);
+      const merged = [...existing.values()];
+      if (JSON.stringify(previous.customFieldValues || []) !== JSON.stringify(merged)) { changes.push('Request fields updated'); requestItem.customFieldValues = merged; }
+    }
+
+    if (!changes.length) return res.json({ request: requestItem, noChange: true });
+    const classificationChanged = String(previous.severity?.id || '') !== String(requestItem.severity?.id || '') || String(previous.priority?.id || '') !== String(requestItem.priority?.id || '');
+    if (classificationChanged) syncSlaState(requestItem);
+    requestItem.timeline = requestItem.timeline || [];
+    requestItem.timeline.push({ eventType: 'request_edited', message: `Request edited. ${changes.join(' · ')}`.slice(0, 1600), actor, createdAt: new Date(), visibility: clientActor ? 'client_visible' : 'client_visible' });
+    await requestItem.save();
+    return res.json({ request: requestItem, changes });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/requests/:requestId/classification', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) {
+      return res.status(400).json({ message: 'Invalid request id.' });
+    }
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+
+    const actor = cleanActor(req.body.actor || {});
+    // v24.2: customer can correct Severity after creation; Priority remains support-only and hidden from clients.
+    if (isV23SaasRequest(requestItem) && (actor.portal === 'client' || actor.userType === 'clientUser') && req.body.priority !== undefined) {
+      return res.status(403).json({ message: 'Priority is controlled by support and is not visible to client users.' });
+    }
+    const previousSeverity = { ...(requestItem.severity?.toObject?.() || requestItem.severity || {}) };
+    const previousPriority = { ...(requestItem.priority?.toObject?.() || requestItem.priority || {}) };
+    const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+
+    if (req.body.severity !== undefined) requestItem.severity = cleanRef(req.body.severity || {});
+    if (req.body.priority !== undefined) requestItem.priority = cleanRef(req.body.priority || {});
+
+    const severityChanged = String(previousSeverity.id || '') !== String(requestItem.severity?.id || '');
+    const priorityChanged = String(previousPriority.id || '') !== String(requestItem.priority?.id || '');
+
+    if (!severityChanged && !priorityChanged) {
+      return res.json({ request: requestItem, noChange: true });
+    }
+
+    // Important: syncSlaState preserves an existing startedAt. Changing severity
+    // therefore changes the target/due time without resetting the SLA clock.
+    syncSlaState(requestItem);
+
+    const changes = [];
+    if (severityChanged) changes.push(`severity ${previousSeverity.code || previousSeverity.name || 'unset'} → ${requestItem.severity?.code || requestItem.severity?.name || 'unset'}`);
+    if (priorityChanged) changes.push(`priority ${previousPriority.code || previousPriority.name || 'unset'} → ${requestItem.priority?.code || requestItem.priority?.name || 'unset'}`);
+
+    requestItem.timeline = requestItem.timeline || [];
+    if (isV23SaasRequest(requestItem)) {
+      if (severityChanged) requestItem.timeline.push({
+        eventType: 'severity_changed',
+        message: `Severity changed: ${previousSeverity.code || previousSeverity.name || 'unset'} → ${requestItem.severity?.code || requestItem.severity?.name || 'unset'}.`,
+        actor,
+        createdAt: new Date()
+      });
+      if (priorityChanged) requestItem.timeline.push({
+        eventType: 'priority_changed',
+        message: `Priority changed: ${previousPriority.code || previousPriority.name || 'unset'} → ${requestItem.priority?.code || requestItem.priority?.name || 'unset'}.`,
+        actor,
+        createdAt: new Date()
+      });
+    } else {
+      requestItem.timeline.push({
+        eventType: severityChanged ? 'severity_changed' : 'priority_changed',
+        message: `Classification changed: ${changes.join(', ')}.`,
+        actor,
+        createdAt: new Date()
+      });
+    }
+
+    const slaMessage = slaHistoryMessage(previousSla, requestItem.sla);
+    if (slaMessage) {
+      requestItem.timeline.push({
+        eventType: 'sla_recalculated',
+        message: slaMessage,
+        actor,
+        createdAt: new Date()
+      });
+    }
+
+    await requestItem.save();
+    res.json({ request: requestItem, noChange: false });
+  } catch (error) { next(error); }
+});
+
+
+app.post('/api/organizations/:organizationId/requests/:requestId/client-action', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) {
+      return res.status(400).json({ message: 'Invalid request id.' });
+    }
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+
+    const actor = cleanActor(req.body.actor || {});
+    if (actor.portal !== 'client' && actor.userType !== 'clientUser') {
+      return res.status(403).json({ message: 'This action is available only to the client requester.' });
+    }
+
+    if ((requestItem.visibilityScope || 'client_visible') !== 'client_visible') {
+      return res.status(403).json({ message: 'This request is not client-visible.' });
+    }
+
+    const action = String(req.body.action || '').trim();
+    const comment = requireText(req.body.comment, 'Comment', 2);
+    const now = new Date();
+    const stage = (requestItem.activeStages || []).find((item) => item.isPrimary) || (requestItem.activeStages || [])[0] || null;
+    if (!stage) return res.status(400).json({ message: 'No active workflow stage is available.' });
+
+    const definition = stage.workflowDefinition || requestItem.workflowDefinition || {};
+    const currentId = String(stage.currentStatus?.localId || '');
+    const allowedToIds = new Set((definition.transitions || [])
+      .filter((transition) => String(transition.fromStatusId || '') === currentId)
+      .map((transition) => String(transition.toStatusId || '')));
+
+    const allowedStatuses = (definition.statuses || []).filter((status) => allowedToIds.has(String(status.localId || '')));
+    const findStatus = (patterns) => allowedStatuses.find((status) => {
+      const text = `${status.name || ''} ${status.customerLabel || ''}`;
+      return patterns.some((pattern) => pattern.test(text));
+    });
+
+    const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+    let eventType = 'client_action';
+    let message = '';
+
+    if (action === 'submit_information') {
+      const target = findStatus([/active/i, /in\s*progress/i, /assigned/i, /working/i]);
+      if (!target) return res.status(400).json({ message: 'The workflow has no valid resume transition from Need Information.' });
+      setWorkflowStatusWithV23Sync(requestItem, stage, target);
+      requestItem.lifecycleState = 'open';
+      addStageTasks(requestItem, stage, target);
+      eventType = 'client_information_submitted';
+      message = `Client submitted requested information and resumed the request at ${target.customerLabel || target.name}.`;
+    } else if (action === 'accept_resolution') {
+      const currentlyResolved = requestItem.lifecycleState === 'resolved'
+        || String(stage.currentStatus?.statusType || '') === 'resolved'
+        || /resolved/i.test(`${stage.currentStatus?.name || ''} ${stage.currentStatus?.customerLabel || ''}`);
+      if (!currentlyResolved) return res.status(400).json({ message: 'The request is not awaiting client resolution acceptance.' });
+
+      const finalTarget = allowedStatuses.find((status) =>
+        String(status.statusType || '') === 'final' || /closed|close/i.test(`${status.name || ''} ${status.customerLabel || ''}`)
+      );
+      if (finalTarget) {
+        stage.currentStatus = cleanStatus(finalTarget);
+        if (stage.isPrimary) requestItem.currentStatus = cleanStatus(finalTarget);
+      }
+      requestItem.lifecycleState = 'closed';
+      requestItem.slaMilestones = requestItem.slaMilestones || {};
+      requestItem.slaMilestones.resolution = requestItem.slaMilestones.resolution || {};
+      requestItem.slaMilestones.resolution.actualAt = requestItem.slaMilestones.resolution.actualAt || now;
+      requestItem.slaMilestones.resolution.completedBy = actor;
+      requestItem.slaMilestones.resolution.completedByEventId = 'client_resolution_accepted';
+      eventType = 'client_resolution_accepted';
+      message = 'Client accepted the resolution and closed the request.';
+    } else if (action === 'not_resolved') {
+      const target = findStatus([/active/i, /in\s*progress/i, /assigned/i, /working/i]);
+      if (!target) return res.status(400).json({ message: 'The workflow has no valid reopen transition from the resolved state.' });
+      setWorkflowStatusWithV23Sync(requestItem, stage, target);
+      requestItem.lifecycleState = 'open';
+
+      // Reopen the resolution SLA milestone; keep the original SLA start time.
+      if (requestItem.slaMilestones?.resolution) {
+        requestItem.slaMilestones.resolution.actualAt = null;
+        requestItem.slaMilestones.resolution.completedBy = {};
+        requestItem.slaMilestones.resolution.completedByEventId = '';
+      }
+      addStageTasks(requestItem, stage, target);
+      eventType = 'client_resolution_rejected';
+      message = `Client marked the issue as not resolved; request returned to ${target.customerLabel || target.name}.`;
+    } else {
+      return res.status(400).json({ message: 'Unknown client action.' });
+    }
+
+    requestItem.comments = requestItem.comments || [];
+    const commentId = new mongoose.Types.ObjectId().toString();
+    requestItem.comments.push({
+      commentId,
+      body: comment,
+      visibility: 'client_visible',
+      author: actor,
+      attachments: Array.isArray(req.body.attachments) ? req.body.attachments : [],
+      countsAsResponse: false,
+      countsAsUpdate: false,
+      createdAt: now
+    });
+
+    requestItem.timeline = requestItem.timeline || [];
+    requestItem.timeline.push({ eventType, message: `${message} ${comment}`, actor, createdAt: now });
+
+    syncSlaState(requestItem);
+    const slaMessage = slaHistoryMessage(previousSla, requestItem.sla);
+    if (slaMessage) requestItem.timeline.push({ eventType: 'sla_recalculated', message: slaMessage, actor, createdAt: now });
+
+    await requestItem.save();
+    res.json({ request: requestItem, action });
+  } catch (error) { next(error); }
+});
+
+
+app.post('/api/organizations/:organizationId/requests/sla-notification-candidates', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId)) return res.status(400).json({ message: 'Invalid organization id.' });
+
+    const requests = await ServiceRequest.find({
+      organizationId: req.params.organizationId,
+      lifecycleState: { $in: ['open', 'resolved'] }
+    }).sort({ updatedAt: -1 });
+
+    const notifications = [];
+    for (const requestItem of requests) {
+      const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+      syncSlaState(requestItem);
+
+      const state = String(requestItem.sla?.state || '');
+      const rag = String(requestItem.sla?.rag || '');
+      const shouldNotify = state === 'at_risk' || state === 'breached' || rag === 'amber' || rag === 'red';
+
+      if (!shouldNotify) {
+        if (slaHistoryMessage(previousSla, requestItem.sla)) await requestItem.save();
+        continue;
+      }
+
+      const eventType = (state === 'breached' || rag === 'red') ? 'sla_breach_notified' : 'sla_warning_notified';
+      const dueMarker = requestItem.sla?.nextDueAt || requestItem.sla?.resolutionDueAt || requestItem.sla?.responseDueAt || '';
+      const marker = `${eventType}:${dueMarker ? new Date(dueMarker).toISOString() : 'no-due'}:${requestItem.sla?.ruleLabel || ''}`;
+
+      const alreadyClaimed = (requestItem.timeline || []).some((event) =>
+        String(event.eventType || '') === eventType && String(event.message || '').includes(marker)
+      );
+
+      if (!alreadyClaimed) {
+        requestItem.timeline = requestItem.timeline || [];
+        requestItem.timeline.push({
+          eventType,
+          message: `${marker} · ${requestItem.sla?.reason || (eventType === 'sla_breach_notified' ? 'SLA breached.' : 'SLA at risk.')}`,
+          actor: { name: 'Service Desk', userType: 'system', portal: 'system' },
+          createdAt: new Date()
+        });
+        notifications.push({ request: requestItem, state: eventType === 'sla_breach_notified' ? 'breached' : 'at_risk' });
+      }
+
+      await requestItem.save();
+    }
+
+    res.json({ notifications });
+  } catch (error) { next(error); }
+});
+
+
+
+async function serveSaasFormDefinition(req, res, next, serviceModelKey) {
+  try {
+    const binding = await resolveTypeBindingForServiceModelKey(
+      serviceModelKey,
+      req.params.organizationId,
+      { id: req.query.level1TypeId },
+      { id: req.query.level2TypeId },
+      { id: req.query.level3TypeId }
+    );
+    if (!binding) return res.json({ serviceModelKey, binding: null, form: null, fields: [] });
+    const collection = mongoose.connection.collection(serviceModelCollectionForKey(serviceModelKey));
+    const formDoc = await collection.findOne({ serviceModelKey, kind: 'form_definitions', key: 'forms' });
+    const fieldDoc = await collection.findOne({ serviceModelKey, kind: 'field_registry', key: 'fields' });
+    const form = formDoc?.payload?.forms?.find((item) => String(item.key || '') === String(binding.formKey || '')) || null;
+    if (!form) return res.status(404).json({ message: `${serviceModelKey} form definition not found.` });
+    const registry = new Map((fieldDoc?.payload?.fields || []).map((field) => [String(field.key || ''), field]));
+    const resolvedFields = (form.fields || []).map((ref) => {
+      const base = registry.get(String(ref.key || ''));
+      return base ? { ...base, ...ref, key: String(ref.key || base.key || '') } : null;
+    }).filter(Boolean);
+    res.json({ serviceModelKey, binding, form, fields: resolvedFields });
+  } catch (error) { next(error); }
+}
+
+app.get('/api/organizations/:organizationId/v24/form-definition', (req, res, next) =>
+  serveSaasFormDefinition(req, res, next, V24_SAAS_SERVICE_MODEL_KEY)
+);
+
+app.get('/api/organizations/:organizationId/v23/form-definition', (req, res, next) =>
+  serveSaasFormDefinition(req, res, next, V23_SAAS_SERVICE_MODEL_KEY)
+);
+
+app.post('/api/organizations/:organizationId/requests/:requestId/v23/visibility', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+
+    // Endpoint name retained for backward compatibility with v23 clients. The capability
+    // is request-level and is also used by v24. Visibility may only become broader.
+    const actor = cleanActor(req.body.actor || {});
+    if (actor.portal === 'client' || actor.userType === 'clientUser') return res.status(403).json({ message: 'Client cannot change request visibility.' });
+
+    const labels = {
+      internal_only: 'L3 · SunTec only',
+      partner_visible: 'L2 + L3 · Partner + SunTec',
+      client_visible: 'L1 + L2 + L3 · Client visible'
+    };
+    const rank = { internal_only: 0, partner_visible: 1, client_visible: 2 };
+    const previous = String(requestItem.visibilityScope || 'client_visible');
+    const target = String(req.body.visibilityScope || '').trim();
+    const reason = String(req.body.reason || '').trim();
+
+    if (!(target in rank)) return res.status(400).json({ message: 'Invalid visibility scope.' });
+    if (!(previous in rank)) return res.status(409).json({ message: 'Unsupported current visibility scope.' });
+    if (rank[target] < rank[previous]) return res.status(409).json({ message: 'Request visibility can only be expanded after creation.' });
+    if (previous === target) return res.json({ request: requestItem, noChange: true });
+    if (reason.length < 3) return res.status(400).json({ message: 'Reason is required when expanding visibility.' });
+
+    requestItem.visibilityScope = target;
+    requestItem.timeline = requestItem.timeline || [];
+    requestItem.timeline.push({
+      eventType: 'visibility_changed',
+      message: `Visibility expanded: ${labels[previous]} → ${labels[target]}. ${reason}`,
+      visibility: target,
+      actor,
+      createdAt: new Date()
+    });
+    await requestItem.save();
+    res.json({ request: requestItem, noChange: false });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/requests/:requestId/v23/approval', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    if (!isV23SaasRequest(requestItem)) return res.status(409).json({ message: 'v23 approval controls apply only to the marked SaaS service model.' });
+    const actor = cleanActor(req.body.actor || {});
+    if (actor.portal === 'client' || actor.userType === 'clientUser') return res.status(403).json({ message: 'Client cannot approve this request.' });
+    const action = String(req.body.action || '').trim().toLowerCase();
+    if (!['approve','reject','request_information'].includes(action)) return res.status(400).json({ message: 'Unknown approval action.' });
+    const stage = (requestItem.activeStages || []).find((item) => item.isPrimary) || (requestItem.activeStages || [])[0];
+    if (!stage) return res.status(400).json({ message: 'No active workflow stage.' });
+    const currentId = String(stage.currentStatus?.localId || '');
+    const transitions = (stage.workflowDefinition?.transitions || []).filter((transition) => String(transition.fromStatusId || '') === currentId);
+    const patterns = action === 'approve' ? [/approve/i] : action === 'reject' ? [/reject/i] : [/information/i, /need info/i];
+    const transition = transitions.find((item) => patterns.some((pattern) => pattern.test(String(item.name || ''))));
+    if (!transition) return res.status(400).json({ message: 'No matching approval transition is configured from the current status.' });
+    const target = (stage.workflowDefinition?.statuses || []).find((status) => String(status.localId || '') === String(transition.toStatusId || ''));
+    if (!target) return res.status(400).json({ message: 'Approval target status is missing.' });
+    setWorkflowStatusWithV23Sync(requestItem, stage, target);
+    requestItem.timeline = requestItem.timeline || [];
+    requestItem.timeline.push({ eventType: `approval_${action}`, message: `Approval action ${action}: ${String(req.body.comment || '').trim()}`, actor, createdAt: new Date() });
+    await requestItem.save();
+    res.json({ request: requestItem, action });
+  } catch (error) { next(error); }
+});
+
+function normalizedWorkflowRole(actor = {}) {
+  const portal = String(actor.portal || '').toLowerCase();
+  const userType = String(actor.userType || '').toLowerCase();
+  if (portal === 'admin' || userType.includes('admin')) return 'admin';
+  if (portal === 'client' || userType.includes('client')) return 'client';
+  if (userType.includes('partner')) return 'partner';
+  if (userType.includes('manager') || userType.includes('head')) return 'manager';
+  return 'agent';
+}
+
+function normalizeWorkflowToken(value = '') {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function workflowRequestTypeCandidates(requestItem = {}) {
+  const family = String(requestItem.level2Type?.name || requestItem.level2Type?.code || '').trim();
+  const subtype = String(requestItem.level3Type?.name || requestItem.level3Type?.code || '').trim();
+  const candidates = [family, subtype, `${subtype} ${family}`, `${family} ${subtype}`]
+    .map(normalizeWorkflowToken)
+    .filter(Boolean);
+  const withoutRequest = candidates.map((value) => value.replace(/\brequest\b/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  return [...new Set([...candidates, ...withoutRequest])];
+}
+
+function workflowConditionTypeMatches(expected = '', candidates = []) {
+  const wanted = normalizeWorkflowToken(expected);
+  if (!wanted) return true;
+  const wantedLoose = wanted.replace(/\brequest\b/g, '').replace(/\s+/g, ' ').trim();
+  return candidates.some((candidate) => candidate === wanted || candidate === wantedLoose || candidate.includes(wantedLoose) || wantedLoose.includes(candidate));
+}
+
+function originSupportLevelForRequest(requestItem = {}) {
+  const explicit = String(requestItem.originSupportLevel || '').trim().toUpperCase();
+  if (['L1','L2','L3'].includes(explicit)) return explicit;
+  const source = String(requestItem.source || '').trim().toLowerCase();
+  if (['client_portal','client_asked_agent'].includes(source)) return 'L1';
+  if (source === 'partner_observed') return 'L2';
+  if (['internal_observed','system_alert'].includes(source)) return 'L3';
+  const visibility = String(requestItem.visibilityScope || '').trim().toLowerCase();
+  if (visibility === 'client_visible') return 'L1';
+  if (visibility === 'partner_visible') return 'L2';
+  return String(requestItem.currentSupportLevel || 'L3').trim().toUpperCase();
+}
+
+function actorIsReporter(actor = {}, requestItem = {}) {
+  const actorId = String(actor.actorId || '').trim();
+  const actorEmail = String(actor.email || '').trim().toLowerCase();
+  const candidates = [requestItem.requester || {}, requestItem.raisedOnBehalfOf || {}];
+  return candidates.some((item) => (actorId && String(item.actorId || '').trim() === actorId)
+    || (actorEmail && String(item.email || '').trim().toLowerCase() === actorEmail));
+}
+
+function transitionConditionAllowed(condition = {}, actor = {}, requestItem = {}, stage = null) {
+  if (!condition || typeof condition !== 'object') return true;
+  const candidates = workflowRequestTypeCandidates(requestItem);
+  const requestTypes = Array.isArray(condition.requestTypes) ? condition.requestTypes : [];
+  if (requestTypes.length && !requestTypes.some((value) => workflowConditionTypeMatches(value, candidates))) return false;
+  const excludedTypes = Array.isArray(condition.excludedRequestTypes) ? condition.excludedRequestTypes : [];
+  if (excludedTypes.some((value) => workflowConditionTypeMatches(value, candidates))) return false;
+
+  const originLevel = originSupportLevelForRequest(requestItem);
+  const allowedOrigins = Array.isArray(condition.originSupportLevels) ? condition.originSupportLevels.map((v) => String(v || '').toUpperCase()) : [];
+  if (allowedOrigins.length && !allowedOrigins.includes(originLevel)) return false;
+  const deniedOrigins = Array.isArray(condition.excludedOriginSupportLevels) ? condition.excludedOriginSupportLevels.map((v) => String(v || '').toUpperCase()) : [];
+  if (deniedOrigins.includes(originLevel)) return false;
+
+  const currentLevel = String(stage?.localId || requestItem.currentSupportLevel || '').trim().toUpperCase();
+  const allowedCurrent = Array.isArray(condition.currentSupportLevels) ? condition.currentSupportLevels.map((v) => String(v || '').toUpperCase()) : [];
+  if (allowedCurrent.length && !allowedCurrent.includes(currentLevel)) return false;
+
+  const previousIds = Array.isArray(condition.previousStatusIds) ? condition.previousStatusIds.map((v) => String(v || '').toUpperCase()) : [];
+  if (previousIds.length) {
+    const previous = String(stage?.previousStatusId || '').trim().toUpperCase();
+    if (!previous || !previousIds.includes(previous)) return false;
+  }
+
+  const role = normalizedWorkflowRole(actor);
+  if (condition.reporterOnly === true && role === 'client' && !actorIsReporter(actor, requestItem)) return false;
+  return true;
+}
+
+function customFieldMap(requestItem = {}) {
+  return new Map((requestItem.customFieldValues || []).map((field) => [String(field.fieldKey || '').trim().toUpperCase(), field]));
+}
+
+function hasWorkflowFieldValue(field = {}) {
+  const value = field?.value ?? field?.displayValue ?? '';
+  if (Array.isArray(value)) return value.some((item) => String(item ?? '').trim());
+  if (typeof value === 'boolean') return true;
+  if (value && typeof value === 'object') return Object.keys(value).length > 0;
+  return String(value ?? '').trim().length > 0;
+}
+
+function mergeTransitionFieldValues(requestItem, values = []) {
+  const incoming = cleanCustomFields(values || []);
+  if (!incoming.length) return;
+  const map = customFieldMap(requestItem);
+  for (const field of incoming) map.set(String(field.fieldKey || '').trim().toUpperCase(), field);
+  requestItem.customFieldValues = [...map.values()];
+}
+
+function missingRequiredTransitionFields(transition = {}, requestItem = {}, stage = null) {
+  const required = Array.isArray(transition.requiredFields) ? transition.requiredFields : [];
+  const fields = customFieldMap(requestItem);
+  const missing = [];
+  for (const field of required) {
+    const key = String(field.key || '').trim().toUpperCase();
+    if (!key || ['COMMENT','RESOLUTION'].includes(key)) continue;
+    if (key === 'ASSIGNEE') {
+      const organizationOwnedL1 = stage?.ownerSide === 'client' && String(stage?.localId || requestItem.currentSupportLevel || '').toUpperCase() === 'L1';
+      if (!organizationOwnedL1 && !(stage?.assignedTo?.actorId || stage?.assignedTo?.email)) missing.push(field);
+      continue;
+    }
+    if (!hasWorkflowFieldValue(fields.get(key))) missing.push(field);
+  }
+  return missing;
+}
+
+function transitionAllowedForActor(transition = {}, actor = {}, requestItem = {}, stage = null) {
+  if (!transition) return false;
+  const role = normalizedWorkflowRole(actor);
+  // Jira Service Management approvals are portal approval controls, not ordinary customer
+  // transitions. Translate active approvalConfiguration into local governance: Bank approval
+  // is client/admin; other active approval gates are manager/admin.
+  const approvalActive = String(stage?.currentStatus?.approvalConfiguration?.active || '').toLowerCase() === 'true';
+  const approvalKind = String(transition.kind || transition.transitionType || '').toLowerCase() === 'approval';
+  const approvalForBank = approvalKind && approvalActive && /bank/i.test(String(stage?.currentStatus?.name || ''));
+  if (approvalKind && approvalActive) {
+    if (approvalForBank && !['client', 'admin'].includes(role)) return false;
+    if (!approvalForBank && !['manager', 'admin'].includes(role)) return false;
+  }
+  const clientEnabled = approvalForBank || (transition.clientEnabled !== undefined ? transition.clientEnabled === true : transition.customerEnabled === true);
+  if (role === 'client' && !clientEnabled) return false;
+  const allowedSupportLevels = Array.isArray(transition.allowedSupportLevels)
+    ? transition.allowedSupportLevels.map((item) => String(item || '').toUpperCase()).filter(Boolean)
+    : [];
+  if (allowedSupportLevels.length) {
+    const currentLevel = String(stage?.localId || requestItem.currentSupportLevel || '').toUpperCase();
+    if (!allowedSupportLevels.includes(currentLevel)) return false;
+  }
+  const roles = Array.isArray(transition.roles) ? transition.roles.map((item) => String(item || '').toLowerCase()) : [];
+  if (roles.length && !roles.includes(role) && !(approvalForBank && role === 'client')) return false;
+  if (!transitionConditionAllowed(transition.condition || {}, actor, requestItem, stage)) return false;
+  const severityCodes = Array.isArray(transition.condition?.severityCodes)
+    ? transition.condition.severityCodes.map((item) => String(item || '').toUpperCase())
+    : [];
+  if (severityCodes.length) {
+    const severityCode = String(requestItem.severity?.code || requestItem.severity?.name || '').toUpperCase();
+    if (!severityCodes.includes(severityCode)) return false;
+  }
+  return true;
+}
+
+function globalActionAllowedForActor(action = {}, actor = {}, requestItem = {}) {
+  if (!action) return false;
+  const role = normalizedWorkflowRole(actor);
+  const clientEnabled = action.clientEnabled !== undefined ? action.clientEnabled === true : action.customerEnabled === true;
+  if (role === 'client' && !clientEnabled) return false;
+  const roles = Array.isArray(action.roles) ? action.roles.map((item) => String(item || '').toLowerCase()) : [];
+  if (roles.length && !roles.includes(role)) return false;
+  const severityCodes = Array.isArray(action.condition?.severityCodes)
+    ? action.condition.severityCodes.map((item) => String(item || '').toUpperCase())
+    : [];
+  if (severityCodes.length) {
+    const severityCode = String(requestItem.severity?.code || requestItem.severity?.name || '').toUpperCase();
+    if (!severityCodes.includes(severityCode)) return false;
+  }
+  return true;
+}
+
+app.post('/api/organizations/:organizationId/requests/:requestId/status', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+
+    const requestedStageId = String(req.body.stageId || '').trim();
+    const activeStages = requestItem.activeStages || [];
+    if (requestedStageId && activeStages.length && !activeStages.some((item) => item.localId === requestedStageId)) {
+      return res.status(400).json({ message: 'The selected support stage is not active on this request.' });
+    }
+    const stage = activeStages.find((item) => item.localId === requestedStageId)
+      || activeStages.find((item) => item.isPrimary)
+      || activeStages[0]
+      || null;
+    const supplied = cleanWorkflowDefinition(req.body.workflowDefinition || {});
+    const stageDefinition = cleanWorkflowDefinition(stage?.workflowDefinition || {});
+    const storedDefinition = cleanWorkflowDefinition(requestItem.workflowDefinition || {});
+    const definition = stageDefinition.statuses.length ? stageDefinition : (storedDefinition.statuses.length ? storedDefinition : supplied);
+    if (stage && !stage.workflowDefinition?.statuses?.length && definition.statuses.length) stage.workflowDefinition = definition;
+    if ((!requestItem.workflowDefinition?.statuses?.length) && definition.statuses.length && (!stage || stage.isPrimary)) requestItem.workflowDefinition = definition;
+
+    const toStatusId = String(req.body.toStatusId || '').trim();
+    const target = (definition.statuses || []).find((item) => item.localId === toStatusId);
+    if (!target) return res.status(400).json({ message: 'Target status is not available in this workflow.' });
+    const currentStatus = stage?.currentStatus || requestItem.currentStatus || {};
+    const currentId = currentStatus.localId || '';
+    const expectedFromStatusId = String(req.body.expectedFromStatusId || '').trim();
+    const allowedNextStatuses = (definition.transitions || [])
+      .filter((item) => item.fromStatusId === currentId)
+      .map((item) => (definition.statuses || []).find((status) => status.localId === item.toStatusId))
+      .filter(Boolean)
+      .map(cleanStatus);
+
+    if (toStatusId === currentId) {
+      return res.json({
+        request: requestItem,
+        noChange: true,
+        message: `The ${stage?.label || stage?.localId || 'request'} stage is already at ${currentStatus.name || currentId}.`
+      });
+    }
+
+    if (expectedFromStatusId && expectedFromStatusId !== currentId) {
+      return res.status(409).json({
+        code: 'STALE_WORKFLOW_STATUS',
+        message: `This request changed after the page was opened. Its current status is ${currentStatus.name || currentId}. Refresh the request and choose one of the available next statuses.`,
+        currentStatus: cleanStatus(currentStatus),
+        allowedNextStatuses
+      });
+    }
+
+    const actor = cleanActor(req.body.actor || {});
+    const transitionKey = String(req.body.transitionKey || '').trim().toUpperCase();
+    const matchedTransition = transitionKey
+      ? (definition.transitions || []).find((item) =>
+          String(item.localId || '').trim().toUpperCase() === transitionKey
+            && item.fromStatusId === currentId
+            && item.toStatusId === toStatusId)
+      : (definition.transitions || []).find((item) => item.fromStatusId === currentId && item.toStatusId === toStatusId);
+    const allowed = matchedTransition && transitionAllowedForActor(matchedTransition, actor, requestItem, stage);
+    const adminOverride = actor.portal === 'admin';
+    if (matchedTransition?.supportEffect?.targetLevel && matchedTransition.supportEffect.targetLevel !== requestItem.currentSupportLevel) {
+      return res.status(409).json({
+        code: 'SUPPORT_MOVEMENT_ACTION_REQUIRED',
+        message: `${matchedTransition.name || target.name} changes support level and must be performed using the configured support action.`
+      });
+    }
+    if (!allowed && !adminOverride) {
+      return res.status(400).json({
+        code: 'WORKFLOW_TRANSITION_NOT_ALLOWED',
+        message: `The workflow does not allow ${currentStatus.name || currentId} → ${target.name}. Refresh the request and choose one of the configured next statuses.`,
+        currentStatus: cleanStatus(currentStatus),
+        allowedNextStatuses
+      });
+    }
+    const forceSaasIncident = SAAS_SERVICE_MODEL_KEYS.has(String(req.body.serviceModelKey || '').trim().toUpperCase())
+      && (req.body.saasIncident === true || String(req.body.saasIncident || '').toLowerCase() === 'true');
+    const effectiveSaasIncident = forceSaasIncident || isSaasIncidentRequest(requestItem) || isSeededV23IncidentPayload(requestItem);
+    if (stage) {
+      const blockers = blockingTasksForStageStatus(requestItem, stage.localId, currentId);
+      if (blockers.length) return res.status(400).json({ message: `Complete ${blockers.length} blocking task${blockers.length === 1 ? '' : 's'} before moving this stage.` });
+      if (req.body.assignedTo !== undefined) stage.assignedTo = cleanActor(req.body.assignedTo || {});
+      mergeTransitionFieldValues(requestItem, req.body.transitionFieldValues || []);
+      const missingRequired = missingRequiredTransitionFields(matchedTransition || {}, requestItem, stage);
+      if (missingRequired.length) {
+        return res.status(400).json({
+          code: 'WORKFLOW_REQUIRED_FIELD_MISSING',
+          message: `Complete the required workflow field${missingRequired.length === 1 ? '' : 's'}: ${missingRequired.map((field) => field.label || field.key).join(', ')}.`,
+          requiredFields: missingRequired
+        });
+      }
+      const organizationalClientOwnership = effectiveSaasIncident && stage.ownerSide === 'client';
+      if (isAssignedWorkflowStatus(target) && !(stage.assignedTo?.actorId || stage.assignedTo?.email) && !organizationalClientOwnership) {
+        return res.status(400).json({ message: `Assign ${stage.label || stage.localId} to an eligible user before moving it to Assigned.` });
+      }
+    }
+
+    if (!stage) {
+      mergeTransitionFieldValues(requestItem, req.body.transitionFieldValues || []);
+      const missingRequired = missingRequiredTransitionFields(matchedTransition || {}, requestItem, null);
+      if (missingRequired.length) {
+        return res.status(400).json({
+          code: 'WORKFLOW_REQUIRED_FIELD_MISSING',
+          message: `Complete the required workflow field${missingRequired.length === 1 ? '' : 's'}: ${missingRequired.map((field) => field.label || field.key).join(', ')}.`,
+          requiredFields: missingRequired
+        });
+      }
+    }
+    const comment = requireText(req.body.comment, 'Comment', 3);
+    const previousStatusName = currentStatus.name || currentId;
+    const cleanedTarget = cleanStatus(target);
+    if (forceSaasIncident && !requestItem.serviceModelKey) requestItem.serviceModelKey = String(req.body.serviceModelKey || activeSaasServiceModelKey(requestItem) || V24_SAAS_SERVICE_MODEL_KEY).trim().toUpperCase();
+    if (
+      effectiveSaasIncident
+      && String(cleanedTarget.statusType || '') === 'start'
+      && String(currentStatus.statusType || '') !== 'start'
+    ) {
+      return res.status(400).json({ message: 'SaaS incidents cannot be moved back to New after work has started.' });
+    }
+    if (stage) {
+      stage.previousStatusId = String(currentStatus.localId || '').trim();
+      stage.previousStatusName = String(currentStatus.name || currentStatus.localId || '').trim();
+      stage.currentStatus = cleanedTarget;
+      addStageTasks(requestItem, stage, cleanedTarget);
+      if (stage.isPrimary) {
+        const targetIsTerminal = ['resolved', 'final', 'cancelled'].includes(cleanedTarget.statusType);
+        const unfinishedAlternative = targetIsTerminal
+          ? activeStages.find((item) => item.localId !== stage.localId && !['resolved', 'final', 'cancelled'].includes(item.currentStatus?.statusType))
+          : null;
+        if (unfinishedAlternative) {
+          activeStages.forEach((item) => { item.isPrimary = item.localId === unfinishedAlternative.localId; });
+          requestItem.currentSupportLevel = unfinishedAlternative.localId;
+          requestItem.ownerSide = unfinishedAlternative.ownerSide;
+          requestItem.currentStatus = unfinishedAlternative.currentStatus;
+          requestItem.workflow = unfinishedAlternative.workflow?.id ? unfinishedAlternative.workflow : requestItem.workflow;
+          requestItem.workflowDefinition = unfinishedAlternative.workflowDefinition?.statuses?.length ? unfinishedAlternative.workflowDefinition : requestItem.workflowDefinition;
+        } else {
+          requestItem.currentStatus = cleanedTarget;
+          requestItem.workflow = stage.workflow?.id ? stage.workflow : requestItem.workflow;
+          requestItem.workflowDefinition = stage.workflowDefinition?.statuses?.length ? stage.workflowDefinition : requestItem.workflowDefinition;
+        }
+      }
+      requestItem.lifecycleState = lifecycleFromActiveStages(activeStages);
+    } else {
+      requestItem.currentStatus = cleanedTarget;
+      requestItem.lifecycleState = lifecycleFromStatus(target);
+    }
+    const stageLabel = stage ? ` in ${stage.label || stage.localId}` : '';
+    requestItem.timeline.push({ eventType: 'status_changed', message: `Status changed${stageLabel} from ${previousStatusName} to ${target.name}. ${comment}`, actor, createdAt: new Date() });
+    const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+    syncSlaState(requestItem);
+    const slaMessage = slaHistoryMessage(previousSla, requestItem.sla);
+    if (slaMessage) requestItem.timeline.push({ eventType: 'sla_calculated', message: slaMessage, actor, createdAt: new Date() });
+    await requestItem.save();
+    res.json({ request: requestItem });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/requests/:requestId/stages/:stageId/assignee', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    const stageId = String(req.params.stageId || '').trim();
+    const stage = (requestItem.activeStages || []).find((item) => item.localId === stageId);
+    if (!stage) return res.status(404).json({ message: 'Active support stage not found.' });
+    const actor = cleanActor(req.body.actor || {});
+    const assignedTo = cleanActor(req.body.assignedTo || {});
+    const previous = stage.assignedTo?.name || stage.assignedTo?.email || 'Unassigned';
+    stage.assignedTo = assignedTo;
+    const next = assignedTo.name || assignedTo.email || 'Unassigned';
+    requestItem.timeline.push({
+      eventType: assignedTo.actorId || assignedTo.email ? 'stage_assigned' : 'stage_unassigned',
+      message: `${stage.label || stage.localId} assignment changed from ${previous} to ${next}.`,
+      actor,
+      createdAt: new Date()
+    });
+    await requestItem.save();
+    res.json({ request: requestItem, stage });
+  } catch (error) { next(error); }
+});
+
+
+app.post('/api/organizations/:organizationId/requests/:requestId/global-action', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+
+    const stageId = String(req.body.stageId || requestItem.currentSupportLevel || '').trim();
+    const stage = (requestItem.activeStages || []).find((item) => item.localId === stageId)
+      || (requestItem.activeStages || []).find((item) => item.isPrimary)
+      || (requestItem.activeStages || [])[0]
+      || null;
+    const supplied = cleanWorkflowDefinition(req.body.workflowDefinition || {});
+    const stageDefinition = cleanWorkflowDefinition(stage?.workflowDefinition || {});
+    const storedDefinition = cleanWorkflowDefinition(requestItem.workflowDefinition || {});
+    const definition = stageDefinition.globalActions?.length ? stageDefinition
+      : storedDefinition.globalActions?.length ? storedDefinition
+        : supplied;
+
+    const actionKey = String(req.body.actionKey || '').trim();
+    const action = (definition.globalActions || []).find((item) => String(item.key || '') === actionKey);
+    if (!action) return res.status(400).json({ message: 'This escalation/action is not available in the current workflow.' });
+
+    const actor = cleanActor(req.body.actor || {});
+    if (!globalActionAllowedForActor(action, actor, requestItem)) return res.status(403).json({ message: `${action.label || 'This action'} is not available for your role.` });
+    if (String(action.statusEffect || 'KEEP').toUpperCase() !== 'KEEP') return res.status(409).json({ message: 'Only status-preserving global workflow actions are supported by this endpoint.' });
+
+    const comment = requireText(req.body.comment, 'Comment', 3);
+    requestItem.timeline = requestItem.timeline || [];
+    requestItem.timeline.push({
+      eventType: action.kind === 'escalation' ? 'manual_escalation' : 'workflow_global_action',
+      message: `${action.label}: ${comment}`,
+      actor,
+      createdAt: new Date()
+    });
+    await requestItem.save();
+    res.json({ request: requestItem, action, noChange: true });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/requests/:requestId/support-move', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+
+    const suppliedPath = cleanSupportPathDefinition(req.body.supportPathDefinition || {});
+    const storedPath = cleanSupportPathDefinition(requestItem.supportPathDefinition || {});
+    const definition = suppliedPath.levels.length ? suppliedPath : storedPath;
+    if (suppliedPath.levels.length) {
+      // Support paths are live configuration. Refresh the request snapshot when the
+      // workbench supplies a newer definition so existing requests can use newly
+      // configured return routes and current stage ownership without a migration.
+      requestItem.supportPathDefinition = suppliedPath;
+    }
+    const expectedFromLevelId = String(req.body.expectedFromLevelId || '').trim();
+    const activeStages = requestItem.activeStages || [];
+    const sourceStage = expectedFromLevelId
+      ? activeStages.find((item) => item.localId === expectedFromLevelId)
+      : (activeStages.find((item) => item.isPrimary) || activeStages[0] || null);
+    if (expectedFromLevelId && !sourceStage) {
+      return res.status(409).json({
+        code: 'STALE_SUPPORT_LEVEL',
+        message: `${expectedFromLevelId} is no longer an active support stage. Refresh the request before routing it.`,
+        currentSupportLevel: requestItem.currentSupportLevel || ''
+      });
+    }
+    const fromLevelId = sourceStage?.localId || requestItem.currentSupportLevel || '';
+    const ruleId = String(req.body.ruleId || '').trim();
+    const rule = (definition.movementRules || []).find((item) => item.localId === ruleId && item.fromLevelId === fromLevelId);
+    if (!rule) return res.status(400).json({ message: 'This support movement is not available from the selected active support stage. Refresh the request and try again.' });
+    const currentStage = sourceStage
+      || activeStages.find((item) => item.localId === requestItem.currentSupportLevel)
+      || activeStages.find((item) => item.isPrimary)
+      || null;
+    const actor = cleanActor(req.body.actor || {});
+    const currentStatusId = String(currentStage?.currentStatus?.localId || requestItem.currentStatus?.localId || '').trim();
+    if (rule.allowedFromStatusIds?.length && !rule.allowedFromStatusIds.includes(currentStatusId)) {
+      return res.status(409).json({ message: `${rule.actionLabel} is not available from ${currentStage?.currentStatus?.name || currentStatusId || 'the current status'}.` });
+    }
+    if (String(actor.portal || '').toLowerCase() === 'client' && rule.customerEnabled !== true) {
+      return res.status(403).json({ message: `${rule.actionLabel} is a support-side action.` });
+    }
+    const ruleRole = normalizedWorkflowRole(actor);
+    const ruleRoles = Array.isArray(rule.roles) ? rule.roles.map((item) => String(item || '').toLowerCase()) : [];
+    if (ruleRoles.length && !ruleRoles.includes(ruleRole)) {
+      return res.status(403).json({ message: `${rule.actionLabel} is not available for your role.` });
+    }
+    const severityCodes = Array.isArray(rule.condition?.severityCodes) ? rule.condition.severityCodes.map((code) => String(code).toUpperCase()) : [];
+    if (severityCodes.length) {
+      const severityCode = String(requestItem.severity?.code || requestItem.severity?.name || '').toUpperCase();
+      if (!severityCodes.includes(severityCode)) return res.status(409).json({ message: `${rule.actionLabel} is not available for the current severity.` });
+    }
+    const currentStageForMove = currentStage;
+    if (currentStageForMove) {
+      const blockers = blockingTasksForStageStatus(requestItem, currentStageForMove.localId, currentStageForMove.currentStatus?.localId || '');
+      if (blockers.length) return res.status(400).json({ message: `Complete ${blockers.length} blocking task${blockers.length === 1 ? '' : 's'} before moving this stage.` });
+    }
+    const targetLevelIds = rule.movementType === 'parallel' && rule.toLevelIds?.length ? rule.toLevelIds : [rule.toLevelId];
+    const targetLevels = targetLevelIds.map((levelId) => (definition.levels || []).find((item) => item.localId === levelId)).filter(Boolean);
+    if (!targetLevels.length) return res.status(400).json({ message: 'Target support level is not configured.' });
+    const comment = rule.commentRequired ? requireText(req.body.comment, 'Comment', 3) : String(req.body.comment || '').trim();
+    const reason = rule.reasonRequired ? requireText(req.body.reason, 'Reason', 2) : String(req.body.reason || '').trim();
+    const fromLevel = fromLevelId;
+    const forceSaasIncident = (SAAS_SERVICE_MODEL_KEYS.has(String(req.body.serviceModelKey || '').trim().toUpperCase())
+      && (req.body.saasIncident === true || String(req.body.saasIncident || '').toLowerCase() === 'true'))
+      || isSeededV23IncidentPayload(requestItem);
+    if (forceSaasIncident && !requestItem.serviceModelKey) requestItem.serviceModelKey = String(req.body.serviceModelKey || activeSaasServiceModelKey(requestItem) || V24_SAAS_SERVICE_MODEL_KEY).trim().toUpperCase();
+    const primaryLevel = targetLevels.find((level) => level.localId === rule.primaryLevelId) || targetLevels[0];
+    const newStages = targetLevels.map((level) => {
+      const levelDefinition = cleanWorkflowDefinition(level.workflowDefinition || level.workflow || {});
+      const fallbackDefinition = cleanWorkflowDefinition(requestItem.workflowDefinition || {});
+      const workflowDefinition = levelDefinition.statuses.length ? levelDefinition : fallbackDefinition;
+      const stageStatus = supportMoveTargetStatus(requestItem, currentStageForMove, workflowDefinition, rule.targetStatusBehavior, forceSaasIncident, rule.targetStatusId);
+      return cleanActiveStage({
+        ...level,
+        workflow: level.workflow?.id ? level.workflow : { id: level.workflowId || '', name: level.workflowName || '' },
+        workflowDefinition,
+        currentStatus: stageStatus,
+        isPrimary: level.localId === primaryLevel.localId
+      });
+    });
+    requestItem.activeStages = newStages;
+    newStages.forEach((stage) => addStageTasks(requestItem, stage));
+    requestItem.currentSupportLevel = primaryLevel.localId;
+    requestItem.ownerSide = primaryLevel.ownerSide;
+    const primaryStage = newStages.find((stage) => stage.isPrimary) || newStages[0];
+    requestItem.workflow = primaryStage.workflow?.id ? primaryStage.workflow : requestItem.workflow;
+    requestItem.workflowDefinition = primaryStage.workflowDefinition?.statuses?.length ? primaryStage.workflowDefinition : requestItem.workflowDefinition;
+    requestItem.currentStatus = primaryStage.currentStatus || requestItem.currentStatus;
+    requestItem.lifecycleState = 'open';
+    const movementLabel = targetLevels.map((level) => level.localId).join(rule.movementType === 'parallel' ? ' + ' : ', ');
+    requestItem.timeline.push({ eventType: rule.movementType === 'parallel' ? 'parallel_support_started' : 'support_level_changed', message: `${rule.actionLabel}: ${fromLevel} → ${movementLabel}. Reason: ${reason}.${comment ? ` ${comment}` : ''}`, actor, createdAt: new Date() });
+    const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+    syncSlaState(requestItem);
+    const slaMessage = slaHistoryMessage(previousSla, requestItem.sla);
+    if (slaMessage) requestItem.timeline.push({ eventType: 'sla_calculated', message: slaMessage, actor, createdAt: new Date() });
+    await requestItem.save();
+    res.json({ request: requestItem });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/requests/:requestId/tasks/:taskId/status', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    const task = (requestItem.tasks || []).find((item) => item.localId === String(req.params.taskId || '').trim());
+    if (!task) return res.status(404).json({ message: 'Task not found.' });
+    const nextStatus = pickEnum(req.body.status, ['open', 'in_progress', 'blocked', 'done', 'cancelled'], task.status || 'open');
+    const actor = cleanActor(req.body.actor || {});
+    const previousStatus = task.status;
+    const completionNote = String(req.body.note || '').trim().slice(0, 1200);
+    if (['done', 'cancelled'].includes(nextStatus) && completionNote.length < 3) {
+      return res.status(400).json({ message: 'A completion note of at least 3 characters is required to complete or cancel a task.' });
+    }
+    ensureTaskIds(requestItem);
+    task.status = nextStatus;
+    if (req.body.priority !== undefined) task.priority = pickEnum(req.body.priority, ['low', 'normal', 'high', 'critical'], task.priority || 'normal');
+    if (req.body.queue !== undefined) task.queue = String(req.body.queue || '').trim().slice(0, 140);
+    if (req.body.assignedTo !== undefined) task.assignedTo = cleanActor(req.body.assignedTo || {});
+    if (req.body.dueAt !== undefined) {
+      const due = req.body.dueAt ? new Date(req.body.dueAt) : null;
+      task.dueAt = due && !Number.isNaN(due.getTime()) ? due : null;
+    }
+    if (nextStatus === 'in_progress' && !task.startedAt) task.startedAt = new Date();
+    task.completedAt = ['done', 'cancelled'].includes(nextStatus) ? new Date() : null;
+    task.completionNote = completionNote;
+    task.completedBy = ['done', 'cancelled'].includes(nextStatus) ? actor : {};
+    task.activity = task.activity || [];
+    const noteSuffix = completionNote ? ` Note: ${completionNote}` : '';
+    const assignmentSuffix = task.assignedTo?.name || task.assignedTo?.email ? ` Assigned to ${task.assignedTo.name || task.assignedTo.email}.` : '';
+    task.activity.push({ eventType: 'status_changed', message: `Status changed from ${previousStatus} to ${nextStatus}.${assignmentSuffix}${noteSuffix}`, actor, createdAt: new Date() });
+    requestItem.timeline.push({ eventType: 'task_status_changed', message: `${task.taskId || task.title}: changed from ${previousStatus} to ${nextStatus}.${noteSuffix}`, actor, createdAt: new Date() });
+    await requestItem.save();
+    res.json({ request: requestItem, task });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/requests/:requestId/close', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    if (requestItem.lifecycleState === 'closed') return res.json({ request: requestItem });
+    const openBlockingTasks = (requestItem.tasks || []).filter((task) =>
+      task.isBlocking
+      && !['done', 'cancelled'].includes(task.status)
+      && (automaticWorkflowTasksEnabled(requestItem) || task.createdByAutomation !== true)
+    );
+    if (openBlockingTasks.length) return res.status(400).json({ message: `Complete ${openBlockingTasks.length} blocking task${openBlockingTasks.length === 1 ? '' : 's'} before closing this request.` });
+    if ((requestItem.activeStages || []).length > 1 || ['L2', 'L3'].includes(requestItem.currentSupportLevel)) {
+      const unfinishedStages = (requestItem.activeStages || []).filter((stage) => !['resolved', 'final', 'cancelled'].includes(stage.currentStatus?.statusType));
+      if (unfinishedStages.length) return res.status(400).json({ message: `Complete or resolve all active support stages before closing. Pending: ${unfinishedStages.map((stage) => stage.label || stage.localId).join(', ')}.` });
+    }
+    const comment = requireText(req.body.comment, 'Closure comment', 3);
+    const actor = cleanActor(req.body.actor || {});
+    const finalStatus = (requestItem.workflowDefinition?.statuses || []).find((item) => item.statusType === 'final')
+      || (requestItem.workflowDefinition?.statuses || []).find((item) => String(item.name || '').toLowerCase().includes('closed'))
+      || { localId: 'closed', name: 'Closed', customerLabel: 'Closed', statusType: 'final', isCustomerVisible: true };
+    const cleanedFinalStatus = cleanStatus(finalStatus);
+    requestItem.currentStatus = cleanedFinalStatus;
+    (requestItem.activeStages || []).forEach((stage) => {
+      const stageFinal = (stage.workflowDefinition?.statuses || []).find((item) => item.statusType === 'final') || cleanedFinalStatus;
+      stage.currentStatus = cleanStatus(stageFinal);
+    });
+    requestItem.lifecycleState = 'closed';
+    requestItem.timeline.push({ eventType: 'closed', message: `Request closed at ${requestItem.currentSupportLevel || 'current level'}. ${comment}`, actor, createdAt: new Date() });
+    const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+    syncSlaState(requestItem);
+    const slaMessage = slaHistoryMessage(previousSla, requestItem.sla);
+    if (slaMessage) requestItem.timeline.push({ eventType: 'sla_calculated', message: slaMessage, actor, createdAt: new Date() });
+    await requestItem.save();
+    res.json({ request: requestItem });
+  } catch (error) { next(error); }
+});
+
+
+
+app.post('/api/organizations/:organizationId/requests/:requestId/return', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    if (!['L2', 'L3'].includes(String(requestItem.currentSupportLevel || ''))) {
+      return res.status(400).json({ message: 'Only L2 or L3 requests can be returned by support.' });
+    }
+    const reason = requireText(req.body.reason, 'Return reason', 2);
+    const comment = requireText(req.body.comment, 'Return comment', 3);
+    const visibility = pickEnum(req.body.visibility, ['client_visible', 'partner_visible', 'internal_only'], 'client_visible');
+    const actor = cleanActor(req.body.actor || {});
+    const now = new Date();
+    requestItem.lifecycleState = 'returned';
+    requestItem.timeline.push({ eventType: 'returned', message: `Request returned. Reason: ${reason}. ${comment}`, actor, createdAt: now });
+    requestItem.comments.push({
+      commentId: new mongoose.Types.ObjectId().toString(),
+      body: `Returned request. Reason: ${reason}. ${comment}`,
+      visibility,
+      author: actor,
+      attachments: [],
+      countsAsResponse: false,
+      countsAsUpdate: visibility === 'client_visible',
+      createdAt: now
+    });
+    const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+    syncSlaState(requestItem);
+    const slaMessage = slaHistoryMessage(previousSla, requestItem.sla);
+    if (slaMessage) requestItem.timeline.push({ eventType: 'sla_calculated', message: slaMessage, actor, createdAt: new Date() });
+    await requestItem.save();
+    res.json({ request: requestItem });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/requests/:requestId/acknowledge', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    const actor = cleanActor(req.body.actor || {});
+    const comment = String(req.body.comment || '').trim();
+    const now = new Date();
+    if (requestItem.slaMilestones?.response?.actualAt) {
+      return res.json({ request: requestItem, message: 'Response already acknowledged.' });
+    }
+    markResponseMet(requestItem, actor, 'acknowledge', now);
+    requestItem.timeline.push({ eventType: 'acknowledged', message: comment ? `Request acknowledged. ${comment}` : 'Request acknowledged.', actor, createdAt: now });
+    const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+    syncSlaState(requestItem);
+    const slaMessage = slaHistoryMessage(previousSla, requestItem.sla);
+    if (slaMessage) requestItem.timeline.push({ eventType: 'sla_calculated', message: slaMessage, actor, createdAt: new Date() });
+    await requestItem.save();
+    res.json({ request: requestItem });
+  } catch (error) { next(error); }
+});
+
+
+function taskVisibilityAllowed(task, visibilityScopes = []) {
+  if (!visibilityScopes.length) return true;
+  return visibilityScopes.includes(String(task.visibility || 'internal_only'));
+}
+
+function taskMatchesFilters(task, requestItem, query = {}) {
+  const search = String(query.search || '').trim().toLowerCase();
+  const status = String(query.status || '').trim();
+  const supportLevel = String(query.supportLevel || '').trim().toUpperCase();
+  const clientId = String(query.clientId || '').trim();
+  const blocking = String(query.blocking || '').trim();
+  const visibilityScopes = String(query.visibilityScopes || '').split(',').map((value) => value.trim()).filter(Boolean);
+  if (status && task.status !== status) return false;
+  if (supportLevel && String(task.sourceStageId || '').toUpperCase() !== supportLevel) return false;
+  if (clientId && String(requestItem.client?.id || '') !== clientId) return false;
+  if (blocking === 'true' && task.isBlocking !== true) return false;
+  if (blocking === 'false' && task.isBlocking === true) return false;
+  if (!taskVisibilityAllowed(task, visibilityScopes)) return false;
+  if (search) {
+    const haystack = [task.taskId, task.title, task.description, task.queue, task.assignedTo?.name, task.assignedTo?.email, requestItem.requestNumber, requestItem.subject, requestItem.client?.name, task.sourceStageId, task.sourceStatusName].join(' ').toLowerCase();
+    if (!haystack.includes(search)) return false;
+  }
+  return true;
+}
+
+function taskListItem(requestItem, task) {
+  return {
+    ...cleanTask(task),
+    requestId: String(requestItem._id),
+    requestNumber: requestItem.requestNumber,
+    requestSubject: requestItem.subject,
+    client: cleanRef(requestItem.client || {}),
+    lifecycleState: requestItem.lifecycleState,
+    requestVisibilityScope: requestItem.visibilityScope,
+    currentSupportLevel: requestItem.currentSupportLevel,
+    workflow: cleanRef(requestItem.workflow || {})
+  };
+}
+
+app.get('/api/organizations/:organizationId/tasks', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId)) return res.status(400).json({ message: 'Invalid organization id.' });
+    const requests = await ServiceRequest.find({ organizationId: req.params.organizationId, 'tasks.0': { $exists: true } }).sort({ updatedAt: -1 });
+    const items = [];
+    for (const requestItem of requests) {
+      const changed = ensureTaskIds(requestItem);
+      for (const task of requestItem.tasks || []) {
+        if (taskMatchesFilters(task, requestItem, req.query)) items.push(taskListItem(requestItem, task));
+      }
+      if (changed) await requestItem.save();
+    }
+    items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(200, Math.max(1, Number(req.query.pageSize) || 50));
+    const start = (page - 1) * pageSize;
+    res.json({ tasks: items.slice(start, start + pageSize), pagination: { page, pageSize, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / pageSize)) } });
+  } catch (error) { next(error); }
+});
+
+app.get('/api/organizations/:organizationId/tasks/:taskId', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId)) return res.status(400).json({ message: 'Invalid organization id.' });
+    const publicTaskId = String(req.params.taskId || '').trim().toUpperCase();
+    let requestItem = await ServiceRequest.findOne({ organizationId: req.params.organizationId, 'tasks.taskId': publicTaskId });
+    if (!requestItem) {
+      const legacy = await ServiceRequest.find({ organizationId: req.params.organizationId, 'tasks.0': { $exists: true } });
+      for (const candidate of legacy) {
+        const changed = ensureTaskIds(candidate);
+        if (changed) await candidate.save();
+        if ((candidate.tasks || []).some((task) => task.taskId === publicTaskId)) { requestItem = candidate; break; }
+      }
+    }
+    if (!requestItem) return res.status(404).json({ message: 'Task not found.' });
+    const task = (requestItem.tasks || []).find((item) => item.taskId === publicTaskId);
+    if (!task) return res.status(404).json({ message: 'Task not found.' });
+    res.json({ request: requestItem, task });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/tasks/:taskId/comments', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId)) return res.status(400).json({ message: 'Invalid organization id.' });
+    const publicTaskId = String(req.params.taskId || '').trim().toUpperCase();
+    const requestItem = await ServiceRequest.findOne({ organizationId: req.params.organizationId, 'tasks.taskId': publicTaskId });
+    if (!requestItem) return res.status(404).json({ message: 'Task not found.' });
+    const task = (requestItem.tasks || []).find((item) => item.taskId === publicTaskId);
+    if (!task) return res.status(404).json({ message: 'Task not found.' });
+    const body = requireText(req.body.body, 'Comment', 3);
+    const visibility = pickEnum(req.body.visibility, ['client_visible', 'partner_visible', 'internal_only'], 'internal_only');
+    const actor = cleanActor(req.body.actor || {});
+    const createdAt = new Date();
+    const attachments = cleanAttachments(req.body.attachments || [], actor);
+    const comment = { commentId: new mongoose.Types.ObjectId().toString(), body, visibility, author: actor, attachments, createdAt };
+    task.comments = task.comments || [];
+    task.comments.push(comment);
+    task.activity = task.activity || [];
+    task.activity.push({ eventType: 'comment_added', message: `${actor.name || actor.email || 'User'} added a ${visibility.replaceAll('_', ' ')} comment.`, actor, createdAt });
+    requestItem.timeline.push({ eventType: 'task_comment_added', message: `${task.taskId}: task comment added.`, visibility, actor, createdAt });
+    if (req.body.alsoPostToRequest === true || req.body.alsoPostToRequest === 'true' || req.body.alsoPostToRequest === 'on') {
+      const requestCommentId = new mongoose.Types.ObjectId().toString();
+      const countsAsUpdate = visibility === 'client_visible' && actor.portal !== 'client' && actor.userType !== 'clientUser';
+      requestItem.comments = requestItem.comments || [];
+      requestItem.comments.push({ commentId: requestCommentId, body: `[${task.taskId}] ${body}`, visibility, author: actor, attachments, countsAsResponse: false, countsAsUpdate, createdAt });
+      if (countsAsUpdate) markPublicUpdate(requestItem, actor, requestCommentId, createdAt);
+      requestItem.timeline.push({ eventType: 'comment_added', message: `${task.taskId}: task update also posted to the parent request.`, visibility, actor, createdAt });
+    }
+    await requestItem.save();
+    res.status(201).json({ request: requestItem, task, comment });
+  } catch (error) { next(error); }
+});
+
+app.post('/api/organizations/:organizationId/requests/:requestId/comments', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) return res.status(400).json({ message: 'Invalid request id.' });
+    const requestItem = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!requestItem) return res.status(404).json({ message: 'Request not found.' });
+    const body = requireText(req.body.body, 'Comment', 2);
+    const actor = cleanActor(req.body.actor || {});
+    const visibility = pickEnum(req.body.visibility, ['client_visible', 'partner_visible', 'internal_only'], 'client_visible');
+    const now = new Date();
+    const supportSide = actor.portal !== 'client' && actor.userType !== 'clientUser';
+    const countsAsResponse = supportSide && visibility === 'client_visible' && !requestItem.slaMilestones?.response?.actualAt;
+    const countsAsUpdate = supportSide && visibility === 'client_visible';
+    const commentId = new mongoose.Types.ObjectId().toString();
+    const comment = {
+      commentId,
+      body,
+      visibility,
+      author: actor,
+      attachments: cleanAttachments(req.body.attachments || [], actor),
+      countsAsResponse,
+      countsAsUpdate,
+      createdAt: now
+    };
+    requestItem.comments.push(comment);
+    if (countsAsResponse) markResponseMet(requestItem, actor, commentId, now);
+    if (countsAsUpdate) markPublicUpdate(requestItem, actor, commentId, now);
+    const visibilityLabel = visibility === 'client_visible' ? 'public reply' : visibility === 'partner_visible' ? 'partner note' : 'internal note';
+    requestItem.timeline.push({ eventType: 'comment_added', message: `${actor.name || actor.email || 'User'} added a ${visibilityLabel}.`, visibility, actor, createdAt: now });
+    const previousSla = requestItem.sla ? requestItem.sla.toObject?.() || requestItem.sla : {};
+    syncSlaState(requestItem);
+    const slaMessage = slaHistoryMessage(previousSla, requestItem.sla);
+    if (slaMessage) requestItem.timeline.push({ eventType: 'sla_calculated', message: slaMessage, actor, createdAt: new Date() });
+    await requestItem.save();
+    res.status(201).json({ request: requestItem, comment });
+  } catch (error) { next(error); }
+});
+
+app.get('/api/organizations/:organizationId/requests/:requestId', async (req, res, next) => {
+  try {
+    if (!isValidId(req.params.organizationId) || !isValidId(req.params.requestId)) {
+      return res.status(400).json({ message: 'Invalid request id.' });
+    }
+    const request = await ServiceRequest.findOne({ _id: req.params.requestId, organizationId: req.params.organizationId });
+    if (!request) return res.status(404).json({ message: 'Request not found.' });
+    syncSlaState(request);
+    ensureTaskIds(request);
+    await request.save();
+    res.json({ request });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found.' });
+});
+
+app.use((error, req, res, next) => {
+  console.error({
+    requestId: req.context?.requestId,
+    message: error.message,
+    stack: config.env === 'development' ? error.stack : undefined
+  });
+
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({ message: Object.values(error.errors).map((item) => item.message).join(' ') });
+  }
+  if (error.code === 11000) {
+    return res.status(409).json({ message: 'A request with this unique value already exists.' });
+  }
+  if (error.status) return res.status(error.status).json({ message: error.message });
+  res.status(500).json({ message: 'Request service error.' });
+});
+
+const server = app.listen(config.port, async () => {
+  try {
+    await connectDatabase();
+    console.log(`Request service running on http://localhost:${config.port}`);
+  } catch (error) {
+    console.error('Request service failed to connect to MongoDB:', error.message);
+    process.exitCode = 1;
+    server.close();
+  }
+});
+
+async function shutdown() {
+  console.log('Request service shutting down...');
+  await disconnectDatabase();
+  server.close(() => process.exit(0));
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

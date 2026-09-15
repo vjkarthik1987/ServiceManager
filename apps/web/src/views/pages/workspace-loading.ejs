@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="workspace-loading-page">
+    <main class="workspace-loading-stage" data-next-path="<%= nextPath %>">
+      <section class="workspace-loading-card" aria-live="polite">
+        <div class="workspace-loader-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p class="eyebrow"><%= actorName ? `Welcome, ${actorName.split(/\s+/)[0]}` : 'Welcome' %></p>
+        <h1>Setting up your workspace…</h1>
+        <p id="workspaceLoadingMessage">Loading <strong><%= workspaceLabel %></strong></p>
+      </section>
+    </main>
+    <script>
+      (() => {
+        const stage = document.querySelector('.workspace-loading-stage');
+        const nextPath = stage?.dataset.nextPath || '/';
+        const message = document.getElementById('workspaceLoadingMessage');
+        const started = Date.now();
+        const minimumVisibleMs = 420;
+        const finish = () => {
+          const wait = Math.max(0, minimumVisibleMs - (Date.now() - started));
+          setTimeout(() => { document.body.classList.add('workspace-ready'); setTimeout(() => location.replace(nextPath), 160); }, wait);
+        };
+        fetch('/session/bootstrap', { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+          .then((response) => response.ok ? response.json() : Promise.reject(new Error('not ready')))
+          .then((payload) => {
+            if (payload?.workspaceLabel && message) message.innerHTML = `Loading <strong>${String(payload.workspaceLabel).replace(/[<>&]/g, '')}</strong>`;
+            finish();
+          })
+          .catch(() => finish());
+      })();
+    </script>
+  </body>
+</html>

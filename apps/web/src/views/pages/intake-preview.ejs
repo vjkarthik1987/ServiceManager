@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <% const client = selectedClient; %>
+    <div class="app-shell">
+      <%- include('../partials/sidebar') %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+
+        <section class="page-head unified-page-head">
+          <div>
+            <p class="eyebrow">Client intake preview</p>
+            <h2><%= client.name %></h2>
+            <p>This is what the client will see based on the client's effective Level 1 issue type availability.</p>
+          </div>
+          <a class="btn secondary" href="/admin/clients/<%= client._id %>">Back to client</a>
+        </section>
+
+        <section class="preview-shell card">
+          <div class="stepper">
+            <span class="active">1. Choose</span>
+            <span>2. Details</span>
+            <span>3. Review</span>
+          </div>
+
+          <% if (!activeTree.length) { %>
+            <div class="empty-box large-empty">
+              <strong>No issue types enabled for this client yet.</strong>
+              <p>Configure Level 1 issue type availability first. The intake cards appear from the client's effective Level 1 list.</p>
+              <a class="btn primary" href="/admin/clients/<%= client._id %>">Configure availability</a>
+            </div>
+          <% } else { %>
+            <div class="intake-banner">
+              <div>
+                <h2>What would you like to raise?</h2>
+                <p>Pick the closest match. This choice controls the questions, labels, and routing context.</p>
+              </div>
+            </div>
+
+            <div class="intake-cards">
+              <% activeTree.forEach((parent) => { %>
+                <% const selected = selectedType && String(selectedType._id) === String(parent._id); %>
+                <a class="intake-card <%= selected ? 'selected' : '' %>" href="/admin/clients/<%= client._id %>/preview?type=<%= parent._id %>">
+                  <span class="intake-icon"><%= parent.icon || '◌' %></span>
+                  <strong><%= parent.name %></strong>
+                  <p><%= parent.description || 'Configured request family.' %></p>
+                  <small><%= parent.children.length %> available subtypes</small>
+                </a>
+              <% }) %>
+            </div>
+
+            <% if (selectedType) { %>
+              <div class="details-preview">
+                <div>
+                  <p class="eyebrow">Step 2 preview</p>
+                  <h3>Details for <%= selectedType.name %></h3>
+                  <p>The next screen will ask the user to choose one of these Level 2 types. The selected Level 2 type will control the workflow and later the fields.</p>
+                </div>
+                <div class="subtype-grid">
+                  <% selectedType.children.forEach((child) => { %>
+                    <span class="subtype-pill stacked">
+                      <strong><%= child.name %></strong>
+                      <small>Configured subtype</small>
+                    </span>
+                  <% }) %>
+                </div>
+              </div>
+            <% } %>
+          <% } %>
+        </section>
+              <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,53 @@
+Service Manager v24.2.3 — Build Validation
+Date: 2026-09-11
+Release: PPT-faithful JSM workflow correction
+
+SOURCE WORKFLOW DECKS
+- Incident(4).pptx
+- Problem(3).pptx
+- CR Workflow(3).pptx
+- Maintenance Request(1).pptx
+
+FOCUSED v24.2.3 SOURCE-TRUTH TESTS
+Command: npm run test:v24.2.3
+Result: PASS
+Tests: 9
+Passed: 9
+Failed: 0
+
+FULL REGRESSION SUITE
+Command: npm run test:all
+Result: PASS
+Tests: 137
+Passed: 137
+Failed: 0
+
+V24 CONFIGURATION VALIDATION
+Command: npm run validate:v24
+Result: PASS
+Fields: 47
+Forms: 22
+Workflows: 8
+Support paths: 1
+Bindings: 22
+
+SYNTAX CHECKS
+- services/request-service/src/app.js: PASS
+- apps/web/src/app.js: PASS
+- services/organization-service/src/models/Workflow.js: PASS
+- services/request-service/src/models/ServiceRequest.js: PASS
+- scripts/migrate-suntecgroup-to-v24.2.3-workflows.mjs: PASS
+- scripts/sync-open-requests-to-v24.2.3-workflows.mjs: PASS
+
+CORRECTION-SPECIFIC ASSERTIONS
+- New -> Analysis is the normal Bank/L1 entry path: PASS
+- Direct normal Bank/L1 New -> L2 removed: PASS
+- Analysis menu contains the agreed 8 actions in source order: PASS
+- Invented assign_l2 support path removed: PASS
+- Exact JSM transition identity carried by transitionKey: PASS
+- Same-source/same-target JSM actions stay distinct: PASS
+- jiraCustomerEnabled separated from Service Manager clientEnabled: PASS
+- Legacy open-request snapshots retain backward-compatible customer action fallback: PASS
+- Existing open-request workflow sync is dry-run-first with backup: PASS
+
+PACKAGING STATUS: VALIDATED FOR UAT

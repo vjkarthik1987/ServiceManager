@@ -1,0 +1,91 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V24",
+  "supportPaths": [
+    {
+      "key": "PATH_INCIDENT_COMMON_V24",
+      "name": "Incident — live Jira API aligned L1/L2/L3 Support Path",
+      "issueType": "INCIDENT",
+      "inheritToSubtypes": true,
+      "description": "Support routing rebuilt from the live Incident Jira workflow. New -> L2/L3 direct paths are origin-specific workflow actions; L1 -> L2 and L2 -> L3 are explicit routing actions.",
+      "levels": [
+        {
+          "localId": "L1",
+          "label": "L1 · Bank",
+          "ownerSide": "client",
+          "slaApplicable": true,
+          "workflowKey": "WF_SAAS_INCIDENT"
+        },
+        {
+          "localId": "L2",
+          "label": "L2 · Partner",
+          "ownerSide": "partner",
+          "slaApplicable": true,
+          "workflowKey": "WF_SAAS_INCIDENT"
+        },
+        {
+          "localId": "L3",
+          "label": "L3 · SunTec",
+          "ownerSide": "suntec",
+          "slaApplicable": true,
+          "workflowKey": "WF_SAAS_INCIDENT"
+        }
+      ],
+      "movementRules": [
+        {
+          "localId": "request_l2",
+          "actionLabel": "Request to L2 Support",
+          "fromLevelId": "L1",
+          "toLevelId": "L2",
+          "movementType": "sequential",
+          "targetStatusBehavior": "explicit",
+          "targetStatusId": "L2_SUPPORT",
+          "allowedFromStatusIds": [
+            "NEW",
+            "ANALYSIS",
+            "IN_PREPRODUCTION",
+            "TEST_FAILED"
+          ],
+          "customerEnabled": true,
+          "roles": [
+            "client",
+            "partner",
+            "agent",
+            "manager",
+            "admin"
+          ],
+          "commentRequired": true,
+          "reasonRequired": false,
+          "displayOrder": 10,
+          "jiraTransitionId": "101"
+        },
+        {
+          "localId": "escalate_l3",
+          "actionLabel": "Escalate to L3",
+          "fromLevelId": "L2",
+          "toLevelId": "L3",
+          "movementType": "sequential",
+          "targetStatusBehavior": "explicit",
+          "targetStatusId": "L3_SUPPORT",
+          "allowedFromStatusIds": [
+            "L2_ANALYSIS",
+            "IN_BUILD",
+            "IN_QUALITY",
+            "IN_STAGE",
+            "INTERIM_RESOLUTION"
+          ],
+          "customerEnabled": false,
+          "roles": [
+            "partner",
+            "agent",
+            "manager",
+            "admin"
+          ],
+          "commentRequired": true,
+          "reasonRequired": true,
+          "displayOrder": 20,
+          "jiraTransitionId": "171"
+        }
+      ]
+    }
+  ]
+}

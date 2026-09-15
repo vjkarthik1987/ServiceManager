@@ -1,0 +1,32 @@
+{
+  "key": "SUNTEC_SAAS_V23",
+  "name": "SunTec SaaS Service Model v23",
+  "version": "23.0.0",
+  "scope": "SaaS only",
+  "guard": {
+    "normalIncidentUntouched": true,
+    "activation": "exact serviceModelKey only",
+    "markerFieldKey": "__v23_service_model_key",
+    "neverInferFromGenericIncidentName": true
+  },
+  "sla": {
+    "incident": {
+      "defaultApplicability": "configured_by_client_environment_and_support_level",
+      "startRule": "when severity assigned",
+      "classificationChange": "recalculate targets; preserve original startedAt"
+    },
+    "serviceRequest": {
+      "applicable": false
+    }
+  },
+  "routing": {
+    "supportLevelIndependentFromStatus": true,
+    "onMove": "PRESERVE_OR_MAP",
+    "neverResetToNew": true
+  },
+  "ui": {
+    "showSystemNarration": false,
+    "clientCanChoosePriority": false,
+    "clientCanChooseIncidentSeverity": true
+  }
+}

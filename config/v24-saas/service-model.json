@@ -1,0 +1,76 @@
+{
+  "key": "SUNTEC_SAAS_V24",
+  "name": "SunTec SaaS Service Model v25.0.0",
+  "version": "25.0.0",
+  "scope": "SaaS only",
+  "guard": {
+    "normalIncidentUntouched": true,
+    "activation": "exact serviceModelKey/type binding only",
+    "markerFieldKey": "__v24_service_model_key",
+    "neverInferFromGenericIncidentName": true
+  },
+  "taxonomy": {
+    "family": "Request",
+    "issueTypes": [
+      "Incident",
+      "Service Request",
+      "Maintenance Request",
+      "Problem",
+      "Change Request",
+      "Query"
+    ],
+    "incidentSubtypes": [
+      "Application",
+      "Security",
+      "Infrastructure",
+      "Operational"
+    ],
+    "furtherClassification": "form_field_not_taxonomy_level"
+  },
+  "sla": {
+    "incident": {
+      "attachedAt": "ISSUE_TYPE:INCIDENT",
+      "inheritToSubtypes": true,
+      "eligibility": "incident_level_bank_or_raised_for_bank",
+      "startRule": "configurable; default ON_ISSUE_CREATED for customer-backed incidents",
+      "classificationChange": "recalculate targets; preserve original startedAt",
+      "continuesAcrossSupportLevels": true,
+      "startTriggers": [
+        "ticket_created",
+        "severity_selected",
+        "priority_selected",
+        "l2_received",
+        "l3_received",
+        "status_reached"
+      ]
+    },
+    "serviceRequest": {
+      "applicable": false
+    },
+    "maintenanceRequest": {
+      "applicable": false,
+      "reason": "Maintenance Request follows its configured approval/workflow lifecycle and does not use Incident SLA."
+    }
+  },
+  "routing": {
+    "supportLevelIndependentFromStatus": true,
+    "onMove": "PRESERVE_OR_EXPLICIT_TARGET",
+    "neverResetToNew": true,
+    "clientDirectL3": false
+  },
+  "ui": {
+    "showSystemNarration": false,
+    "clientCanChoosePriority": false,
+    "clientCanChooseIncidentSeverity": true,
+    "incidentForms": "one_per_subtype",
+    "furtherClassification": "configured_LOV",
+    "statusChangeControl": "compact Change status button beside current stage",
+    "maintenanceForms": "one_per_subtype",
+    "workflowAlignment": "Live Jira REST workflow exports — Incident, Problem, Change Request, Maintenance Request"
+  },
+  "workflowSource": {
+    "authority": "Jira API JSON snapshots",
+    "directory": "config/v24-saas/jira-source",
+    "serviceRequest": "deferred"
+  }
+}

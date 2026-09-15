@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="<%= embedded ? 'embedded-builder' : '' %>">
+    <% const allStatuses = (workflow.statuses || []).slice().sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)); const statuses = allStatuses.filter((status) => status.isActive !== false); %>
+    <div class="app-shell">
+      <% if (!embedded) { %><%- include('../partials/sidebar') %><% } %>
+      <main class="main">
+        <% if (!embedded) { %><%- include('../partials/topbar', { organization }) %><% } %>
+
+        <section class="page-head unified-page-head">
+          <div>
+            <p class="eyebrow">Workflow builder</p>
+            <h2><%= workflow.name %></h2>
+            <p><%= workflow.description %></p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" type="button" data-open-modal="editWorkflowModal">Edit workflow</button>
+            <button class="btn primary" type="button" data-open-modal="statusModal" data-status-add-default>Add status</button>
+            <% if (!embedded) { %><a class="btn secondary" href="/admin/workflows">All workflows</a><% } %>
+          </div>
+        </section>
+
+        <% if (workflow.usageCount) { %>
+          <section class="note-box workflow-warning">
+            This workflow is currently used in <strong><%= workflow.usageCount %></strong> configuration<%= workflow.usageCount === 1 ? '' : 's' %>, including subtype defaults and support-path stages. Status, transition, and task changes affect every new request using those configurations.
+          </section>
+        <% } %>
+
+        <section class="card pad">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Visual path</p>
+              <h3>Internal movement and client labels</h3>
+            </div>
+            <span class="pill"><%= statuses.length %> statuses</span>
+          </div>
+
+          <% if (!statuses.length) { %>
+            <div class="empty-box">
+              <strong>No statuses yet.</strong>
+              <p>Add statuses to define how work moves.</p>
+            </div>
+          <% } else { %>
+            <div class="status-rail workflow-status-rail" data-status-rail>
+              <% statuses.forEach((status, index) => { const nextStatus = statuses[index + 1] || null; %>
+                <div class="rail-item <%= status.statusType %>">
+                  <span><%= status.name %></span>
+                  <small>Client: <%= status.isCustomerVisible ? status.customerLabel : 'Hidden' %></small>
+                </div>
+                <% if (nextStatus) { %>
+                  <div class="status-rail-connector" aria-label="Insert status between <%= status.name %> and <%= nextStatus.name %>">
+                    <span>→</span>
+                    <button class="status-insert-button" type="button" data-insert-status data-after-status-id="<%= status.localId %>" data-after-status-name="<%= status.name %>" data-before-status-id="<%= nextStatus.localId %>" data-before-status-name="<%= nextStatus.name %>" title="Add status between <%= status.name %> and <%= nextStatus.name %>">+</button>
+                  </div>
+                <% } else { %>
+                  <div class="status-rail-connector status-rail-end" aria-label="Add status after <%= status.name %>">
+                    <span>→</span>
+                    <button class="status-insert-button" type="button" data-insert-status data-after-status-id="<%= status.localId %>" data-after-status-name="<%= status.name %>" data-before-status-id="" data-before-status-name="" title="Add status after <%= status.name %>">+</button>
+                  </div>
+                <% } %>
+              <% }) %>
+            </div>
+          <% } %>
+        </section>
+
+        <section class="card pad">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Status catalog</p>
+              <h3>What each status means</h3>
+            </div>
+          </div>
+          <div class="status-list workflow-status-list">
+            <% allStatuses.forEach((status) => { %>
+              <article class="status-card <%= status.statusType %> <%= status.isActive === false ? 'is-inactive' : '' %>">
+                <div>
+                  <strong><%= status.name %></strong>
+                  <p><%= status.description %></p>
+                  <% if ((status.taskTemplates || []).length) { %>
+                    <div class="mini-task-list">
+                      <% [...(status.taskTemplates || [])].sort((a,b) => Number(a.displayOrder||0)-Number(b.displayOrder||0)).forEach((task) => { %>
+                        <span>□ <%= task.title %> <small><%= task.ownerSide %><%= task.isBlocking ? ' · blocking' : '' %></small></span>
+                      <% }) %>
+                    </div>
+                  <% } else { %>
+                    <p class="muted-small">No default tasks. Tasks may be added when work enters this status.</p>
+                  <% } %>
+                </div>
+                <div class="status-card-foot">
+                  <span><%= status.statusType %></span>
+                  <small><%= status.isActive === false ? 'Inactive' : 'Active' %> · Client sees: <%= status.isCustomerVisible ? status.customerLabel : 'Hidden' %></small>
+                  <button class="btn tiny secondary" type="button" data-open-modal="editStatus_<%= status.localId %>">Edit</button>
+                  <% if (status.isActive !== false) { %><button class="btn tiny secondary" type="button" data-open-modal="task_<%= status.localId %>">Add task</button><% } %>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        </section>
+
+        <section class="card pad transition-builder-card">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Allowed movement</p>
+              <h3>Transition builder</h3>
+              <p class="section-help">Tick the cells to allow movement from the row status to the column status. The top header and left status column stay fixed while you scroll.</p>
+            </div>
+            <span class="pill"><%= (workflow.transitions || []).length %> transitions</span>
+          </div>
+
+          <% if (statuses.length < 2) { %>
+            <div class="empty-box">
+              <strong>Add at least two statuses.</strong>
+              <p>Transitions become useful once the workflow has more than one status.</p>
+            </div>
+          <% } else { %>
+            <form method="post" action="/admin/workflows/<%= workflow._id %>/transitions" class="transition-form">
+              <input type="hidden" name="returnEmbedded" value="<%= embedded ? '1' : '0' %>" />
+              <div class="transition-toolbar">
+                <span class="muted-small">Rows are current statuses. Columns are allowed next statuses.</span>
+                <button class="btn primary small" type="submit">Save transitions</button>
+              </div>
+              <div class="transition-matrix-shell" role="region" aria-label="Workflow transition matrix" tabindex="0">
+                <div class="transition-grid transition-matrix" data-transition-matrix style="--status-count:<%= statuses.length %>">
+                  <div class="transition-cell corner">From ↓ / To →</div>
+                  <% statuses.forEach((toStatus) => { %>
+                    <div class="transition-cell head" data-col-header="<%= toStatus.localId %>" title="To <%= toStatus.name %>"><%= toStatus.name %></div>
+                  <% }) %>
+                  <% statuses.forEach((fromStatus) => { %>
+                    <div class="transition-cell row-head" data-row-header="<%= fromStatus.localId %>" title="From <%= fromStatus.name %>"><%= fromStatus.name %></div>
+                    <% statuses.forEach((toStatus) => { %>
+                      <% const key = `${fromStatus.localId}__${toStatus.localId}`; %>
+                      <label class="transition-cell checkable <%= fromStatus.localId === toStatus.localId ? 'disabled' : '' %>" data-transition-row="<%= fromStatus.localId %>" data-transition-col="<%= toStatus.localId %>" title="<%= fromStatus.name %> → <%= toStatus.name %>">
+                        <% if (fromStatus.localId !== toStatus.localId) { %>
+                          <input type="checkbox" name="transitions" value="<%= key %>" <%= transitionSet.has(key) ? 'checked' : '' %> />
+                          <span>✓</span>
+                        <% } else { %>
+                          <span>—</span>
+                        <% } %>
+                      </label>
+                    <% }) %>
+                  <% }) %>
+                </div>
+              </div>
+              <div class="form-footer transition-footer">
+                <span class="muted-small">Tip: use Shift + mouse wheel or the bottom scrollbar to move sideways.</span>
+                <button class="btn primary" type="submit">Save transitions</button>
+              </div>
+            </form>
+          <% } %>
+        </section>
+
+        <section class="card pad">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Usage</p>
+              <h3>Where this workflow is used</h3>
+            </div>
+            <a class="btn secondary small" href="/admin/issue-types">Assign more</a>
+          </div>
+          <% if ((!workflow.usedBy || !workflow.usedBy.length) && (!workflow.usedBySupportLevels || !workflow.usedBySupportLevels.length)) { %>
+            <div class="empty-box">
+              <strong>Not assigned yet.</strong>
+              <p>Assign it as a subtype default or to an L1/L2/L3 stage inside a support path.</p>
+            </div>
+          <% } else { %>
+            <% if ((workflow.usedBy || []).length) { %><p class="muted-small">Subtype defaults</p><div class="used-by-row large"><% workflow.usedBy.forEach((type) => { %><span class="chip"><%= type.name %></span><% }) %></div><% } %>
+            <% if ((workflow.usedBySupportLevels || []).length) { %><p class="muted-small">Support-path stages</p><div class="used-by-row large"><% workflow.usedBySupportLevels.forEach((usage) => { %><span class="chip"><%= usage.supportPathName %> · <%= usage.levelId %></span><% }) %></div><% } %>
+          <% } %>
+        </section>
+              <% if (!embedded) { %><%- include('../partials/footer', { organization }) %><% } %>
+      </main>
+    </div>
+
+
+    <dialog class="modal" id="editWorkflowModal">
+      <form method="post" action="/admin/workflows/<%= workflow._id %>/edit" class="modal-card form compact-form">
+        <input type="hidden" name="returnEmbedded" value="<%= embedded ? '1' : '0' %>" />
+        <div class="modal-head"><div><p class="eyebrow">Edit workflow</p><h3><%= workflow.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Name</span><input name="name" value="<%= workflow.name %>" required /></label>
+        <label><span>Description</span><textarea name="description" rows="3" required><%= workflow.description %></textarea></label>
+        <label><span>Status</span><select name="status"><option value="active" <%= workflow.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= workflow.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save workflow</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="statusModal">
+      <form method="post" action="/admin/workflows/<%= workflow._id %>/statuses" class="modal-card form compact-form" data-status-create-form>
+        <input type="hidden" name="returnEmbedded" value="<%= embedded ? '1' : '0' %>" />
+        <input type="hidden" name="insertAfterStatusId" data-insert-after-status />
+        <input type="hidden" name="insertBeforeStatusId" data-insert-before-status />
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Add status</p>
+            <h3 data-status-modal-title>New workflow status</h3>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+        </div>
+        <div class="status-insert-context" data-status-insert-context><strong>Adding at the end of the workflow.</strong><span>You can reposition it later by editing its display order.</span></div>
+        <label>
+          <span>Internal status name</span>
+          <input name="name" required placeholder="Bank to Verify" />
+        </label>
+        <label>
+          <span>Description <em>required</em></span>
+          <textarea name="description" required rows="3" placeholder="When does work enter this status?"></textarea>
+        </label>
+        <label>
+          <span>Client-visible label</span>
+          <input name="customerLabel" required placeholder="Waiting for Your Verification" />
+        </label>
+        <div class="two-col narrow">
+          <label>
+            <span>Status type</span>
+            <select name="statusType" required>
+              <option value="normal">Normal</option>
+              <option value="start">Start</option>
+              <option value="hold">Hold</option>
+              <option value="waiting">Waiting</option>
+              <option value="resolved">Resolved</option>
+              <option value="final">Final</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label>
+            <span>Display order</span>
+            <input type="number" name="displayOrder" placeholder="Calculated automatically" data-status-display-order />
+          </label>
+        </div>
+        <input type="hidden" name="isCustomerVisible" value="off" />
+        <label class="inline-check">
+          <input type="checkbox" name="isCustomerVisible" value="on" checked />
+          <span>Visible to client</span>
+        </label>
+        <label class="inline-check" data-auto-connect-wrap hidden>
+          <input type="checkbox" name="autoConnect" value="on" checked data-auto-connect />
+          <span>Connect the neighbouring statuses through this new status</span>
+        </label>
+        <p class="field-hint" data-auto-connect-hint hidden>The direct transition between the neighbouring statuses will be replaced by previous → new → next. Other workflow branches stay unchanged.</p>
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+          <button class="btn primary" type="submit">Add status</button>
+        </div>
+      </form>
+    </dialog>
+
+
+    <% allStatuses.forEach((status) => { %>
+      <dialog class="modal" id="editStatus_<%= status.localId %>">
+        <form method="post" action="/admin/workflows/<%= workflow._id %>/statuses/<%= status.localId %>/edit" class="modal-card form compact-form">
+          <div class="modal-head"><div><p class="eyebrow">Edit status</p><h3><%= status.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+          <input type="hidden" name="returnEmbedded" value="<%= embedded ? '1' : '0' %>" />
+          <label><span>Internal name</span><input name="name" value="<%= status.name %>" required /></label>
+          <label><span>Description</span><textarea name="description" rows="3" required><%= status.description %></textarea></label>
+          <label><span>Client-visible label</span><input name="customerLabel" value="<%= status.customerLabel %>" required /></label>
+          <div class="two-col"><label><span>Status type</span><select name="statusType"><% ['start','normal','hold','waiting','resolved','final','cancelled'].forEach((type) => { %><option value="<%= type %>" <%= status.statusType === type ? 'selected' : '' %>><%= type %></option><% }) %></select></label><label><span>Display order</span><input type="number" name="displayOrder" value="<%= status.displayOrder || 100 %>" /></label></div>
+          <input type="hidden" name="isCustomerVisible" value="off" /><label class="check-line"><input type="checkbox" name="isCustomerVisible" value="on" <%= status.isCustomerVisible !== false ? 'checked' : '' %> /><span>Visible to client</span></label>
+          <label><span>Availability</span><select name="isActive"><option value="true" <%= status.isActive !== false ? 'selected' : '' %>>Active for new work</option><option value="false" <%= status.isActive === false ? 'selected' : '' %>>Inactive — preserve history only</option></select></label>
+          <div class="note-box small-note"><strong>Safe status editing</strong><p>The internal ID remains <code><%= status.localId %></code>, so renaming does not break transitions, tasks or historical requests. Inactive statuses remain visible in history but are removed from new workflow movement.</p></div>
+          <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save status</button></div>
+        </form>
+      </dialog>
+    <% }) %>
+
+
+    <% statuses.forEach((status) => { %>
+      <dialog class="modal" id="task_<%= status.localId %>">
+        <form method="post" action="/admin/workflows/<%= workflow._id %>/statuses/<%= status.localId %>/tasks" class="modal-card form compact-form">
+          <input type="hidden" name="returnEmbedded" value="<%= embedded ? '1' : '0' %>" />
+          <div class="modal-head"><div><p class="eyebrow">Default task</p><h3><%= status.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+          <p class="muted">This task is created whenever a request enters this workflow status, including independent L2 and L3 stages.</p>
+          <label><span>Task title</span><input name="title" required placeholder="Collect logs" /></label>
+          <label><span>Description</span><textarea name="description" rows="2" placeholder="What should the owner do?"></textarea></label>
+          <div class="two-col"><label><span>Owner side</span><select name="ownerSide"><option value="client">Client / Bank</option><option value="partner">Partner</option><option value="suntec">SunTec</option><option value="internal">Internal</option></select></label><label><span>Visibility</span><select name="visibility"><option value="internal_only">Internal only</option><option value="partner_visible">Partner + SunTec</option><option value="client_visible">Client visible</option></select></label></div>
+          <div class="two-col"><label><span>Queue / team</span><input name="queue" placeholder="SaaS CoE / L2 Ops / Release Team" /></label><label><span>Display order</span><input type="number" name="displayOrder" min="1" value="100" /></label></div>
+          <label class="check-line"><input type="checkbox" name="isBlocking" /><span>This task must be completed before the stage can move to its next status</span></label>
+          <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Add task</button></div>
+        </form>
+      </dialog>
+    <% }) %>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>

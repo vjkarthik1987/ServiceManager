@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal: 'admin' }) %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+
+        <section class="page-head unified-page-head">
+          <div>
+            <p class="eyebrow">Client hierarchy</p>
+            <h2>Clients</h2>
+            <p>Manage parent and child client nodes from one clean list.</p>
+          </div>
+          <div class="actions"><button class="btn primary" type="button" data-open-modal="clientModal">+ Add Client</button></div>
+        </section>
+
+        <section class="card client-table-card">
+          <div class="table-toolbar better-toolbar">
+            <label class="search-line table-search"><input type="search" placeholder="Search clients by code, name, parent or domain..." data-table-search="clients-table" /></label>
+            <div class="table-toolbar-meta"><span><%= clients.length %> clients</span></div>
+          </div>
+          <% if (!clients.length) { %>
+            <div class="empty-box roomy"><strong>No clients yet.</strong><p>Add the first client to begin configuring Issue Families, products, SLA, and users.</p></div>
+          <% } else { %>
+            <div class="table-wrap">
+              <table class="clean-table client-table" id="clients-table">
+                <thead><tr><th>Code</th><th>Client</th><th>Parent</th><th>Children</th><th>Issue Families</th><th>SLA</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  <% clients.forEach((client) => { %>
+                    <% const parent = clients.find((item) => String(item._id) === String(client.parentClientId || '')); %>
+                    <tr class="<%= String(client._id) === String(createdClientId || '') ? 'newly-created-row' : '' %>" data-search-text="<%= `${client.shortCode} ${client.name} ${client.primaryDomain || ''} ${parent ? parent.name : ''}`.toLowerCase() %>">
+                      <td><a class="code-inline table-primary-link" href="/admin/clients/<%= client._id %>"><%= client.shortCode %></a></td>
+                      <td><a class="table-primary-link client-tree-name" style="--tree-depth:<%= client.depth || 0 %>" href="/admin/clients/<%= client._id %>"><strong><% if (client.depth) { %><span class="tree-hook">↳</span><% } %><%= client.name %></strong><small><%= client.depth ? `Level ${client.depth} child` : 'Root client' %></small></a></td>
+                      <td><%= parent ? parent.name : '—' %></td>
+                      <td><%= client.childCount || 0 %></td>
+                      <td><div class="client-family-cell"><span class="table-pill"><%= client.issueTypeMode === 'inherit' ? 'Inherited' : 'Custom' %></span><small><%= (client.enabledFamilyNames || []).join(' · ') || 'None' %></small></div></td>
+                      <td><span class="table-pill"><%= client.slaMode === 'inherit' ? 'Inherited' : 'Custom' %></span></td>
+                      <td><span class="status-dot <%= client.status === 'active' ? 'active' : '' %>"></span><%= client.status %></td>
+                      <td><div class="table-actions"><a href="/admin/clients/<%= client._id %>">View</a><button type="button" data-open-modal="clientModal" data-parent-id="<%= client._id %>" data-parent-name="<%= client.name %>">Add child</button><a href="/admin/clients/<%= client._id %>/preview">Preview</a></div></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </section>
+              <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <dialog class="modal" id="clientModal">
+      <form method="post" action="/admin/clients" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Create client</p><h3 id="clientModalTitle">New client</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <input type="hidden" id="clientParentId" name="parentClientId" value="" />
+        <div class="parent-context" id="clientParentLabel" hidden></div>
+        <label><span>Client name</span><input id="clientName" name="name" required placeholder="Example: Acme Bank India" data-client-code-name="clientShortCode" data-code-status="clientCodeStatus" /></label>
+        <div class="two-col narrow"><label><span>Short code</span><input id="clientShortCode" name="shortCode" minlength="6" maxlength="6" pattern="[A-Za-z]{6}" required placeholder="ACMIND" data-client-code-input data-code-status="clientCodeStatus" /></label><label><span>Domain</span><input name="primaryDomain" placeholder="acmebank.com" /></label></div>
+        <p class="field-hint" id="clientCodeStatus">Exactly 6 unique letters.</p>
+        <label><span>Description</span><textarea name="description" rows="2" placeholder="Short client context"></textarea></label>
+        <div class="three-col geography-fields" data-client-geography>
+          <label><span>Region</span><select name="regionId" data-geography-region><option value="">No region yet</option><% regions.filter((region) => region.status === 'active').forEach((region) => { %><option value="<%= region._id %>" data-timezone="<%= region.timezone || '' %>"><%= region.name %></option><% }) %></select></label>
+          <label><span>Subregion <small>(optional)</small></span><select name="subregionId" data-geography-subregion><option value="">No subregion</option><% subregions.filter((item) => item.status === 'active').forEach((item) => { %><option value="<%= item._id %>" data-region-id="<%= item.regionId %>" data-timezone="<%= item.timezone || '' %>"><%= item.name %></option><% }) %></select></label>
+          <label><span>Timezone</span><select name="timezone" data-context-timezone><option value="">Select region first</option></select><small class="field-hint">Filtered by the selected region and optional subregion.</small></label>
+        </div>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Create client</button></div>
+      </form>
+    </dialog>
+    <script src="/js/app.js"></script>
+  </body>
+</html>

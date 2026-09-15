@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+    <script src="/js/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal: 'admin' }) %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+        <section class="page-head unified-page-head thin-head">
+          <div>
+            <p class="eyebrow">Form configuration</p>
+            <h2><%= issueType.name %></h2>
+            <p><%= family?.name ? `${family.name} / ` : '' %><%= parentType?.name || 'Issue Type' %> · Configure fields for this <%= Number(issueType.level) === 3 ? 'Subtype' : 'Issue Type' %>.</p>
+          </div>
+          <div class="actions">
+            <a class="btn secondary" href="/admin/issue-types">Back to Issue Families</a>
+            <button class="btn primary" type="button" data-open-modal="addCustomFieldModal">Add custom field</button>
+          </div>
+        </section>
+
+        <section class="grid two-one fields-page-grid">
+          <div class="stacked-panel">
+            <section class="card pad">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Standard fields</p>
+                  <h3>Choose what this <%= Number(issueType.level) === 3 ? 'subtype' : 'issue type' %> needs</h3>
+                  <p>Summary and description are always present. These fields are configurable per Issue Type or Subtype.</p>
+                </div>
+              </div>
+              <form method="post" action="/admin/issue-types/<%= issueType._id %>/fields-config" class="standard-fields-form">
+                <input type="hidden" name="name" value="<%= issueType.name %>" />
+                <input type="hidden" name="description" value="<%= issueType.description %>" />
+                <input type="hidden" name="status" value="<%= issueType.status || 'active' %>" />
+                <input type="hidden" name="resetMissingFields" value="true" />
+                <%- include('../partials/issue-type-fields', { fieldsConfig: issueType.fieldsConfig || {} }) %>
+                <div class="modal-actions left-actions"><button class="btn primary">Save standard fields</button></div>
+              </form>
+            </section>
+
+            <section class="card pad">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Custom fields</p>
+                  <h3>Admin-defined fields</h3>
+                  <p>Add short text, long text, dropdowns, dates, URLs, and other fields specific to this subtype.</p>
+                </div>
+              </div>
+              <% const fields = [...(issueType.customFields || [])].sort((a,b) => Number(a.displayOrder||0)-Number(b.displayOrder||0)); %>
+              <% if (fields.length) { %>
+                <div class="table-wrap custom-field-table-wrap open-table">
+                  <table class="clean-table compact-table">
+                    <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Status</th><th>Order</th><th></th></tr></thead>
+                    <tbody>
+                      <% fields.forEach((field) => { %>
+                        <tr>
+                          <td><strong><%= field.label %></strong><small><%= field.fieldKey %><% if (field.helpText) { %> · <%= field.helpText %><% } %></small></td>
+                          <td><%= String(field.fieldType || '').replace('_', ' ') %></td>
+                          <td><%= field.required ? 'Yes' : 'No' %></td>
+                          <td><span class="status-pill"><%= field.status || 'active' %></span></td>
+                          <td><%= field.displayOrder || 100 %></td>
+                          <td><button class="table-link-button" data-open-modal="editField_<%= field.fieldKey %>" type="button">Edit</button></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } else { %>
+                <div class="empty-box roomy"><strong>No custom fields yet.</strong><p>Add fields that are unique to this request subtype.</p></div>
+              <% } %>
+            </section>
+          </div>
+
+          <aside class="card pad sticky-card">
+            <p class="eyebrow">Preview logic</p>
+            <h3>What users will see</h3>
+            <div class="plain-list compact-plain-list">
+              <span>Summary</span>
+              <span>Description</span>
+              <% const fc = Object.assign({ severity:true, priority:true, product:true, module:true, region:true, environment:true }, issueType.fieldsConfig || {}); %>
+              <% Object.entries(fc).filter(([,v]) => v).forEach(([key]) => { %><span><%= key.charAt(0).toUpperCase() + key.slice(1) %></span><% }) %>
+              <% fields.filter((field) => (field.status || 'active') === 'active').forEach((field) => { %><span><%= field.label %><%= field.required ? ' *' : '' %></span><% }) %>
+            </div>
+          </aside>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <dialog class="modal" id="addCustomFieldModal">
+      <form method="post" action="/admin/issue-types/<%= issueType._id %>/custom-fields" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">New field</p><h3>Add custom field</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <label><span>Label</span><input name="label" required placeholder="Affected component" /></label>
+        <label><span>Field key <small>(optional)</small></span><input name="fieldKey" placeholder="AFFECTED_COMPONENT" /></label>
+        <div class="two-col"><label><span>Field type</span><select name="fieldType"><option value="short_text">Short text</option><option value="long_text">Long text</option><option value="number">Number</option><option value="date">Date</option><option value="dropdown">Dropdown</option><option value="multi_select">Multi-select</option><option value="checkbox">Checkbox</option><option value="url">URL</option></select></label><label><span>Display order</span><input name="displayOrder" type="number" value="100" /></label></div>
+        <label><span>Help text</span><input name="helpText" placeholder="Small guidance for the user" /></label>
+        <label><span>Options <small>for dropdown/multi-select, one per line</small></span><textarea name="optionsText" rows="4"></textarea></label>
+        <label class="check-line"><input type="checkbox" name="required" /><span>Required field</span></label>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Create field</button></div>
+      </form>
+    </dialog>
+
+    <% fields.forEach((field) => { %>
+      <dialog class="modal" id="editField_<%= field.fieldKey %>">
+        <form method="post" action="/admin/issue-types/<%= issueType._id %>/custom-fields/<%= encodeURIComponent(field.fieldKey) %>" class="modal-card form compact-form">
+          <div class="modal-head"><div><p class="eyebrow">Edit field</p><h3><%= field.label %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+          <label><span>Label</span><input name="label" value="<%= field.label %>" required /></label>
+          <label><span>Field key</span><input name="fieldKey" value="<%= field.fieldKey %>" /></label>
+          <div class="two-col"><label><span>Field type</span><select name="fieldType"><% ['short_text','long_text','number','date','dropdown','multi_select','checkbox','url'].forEach((type) => { %><option value="<%= type %>" <%= field.fieldType === type ? 'selected' : '' %>><%= type.replace('_', ' ') %></option><% }) %></select></label><label><span>Display order</span><input name="displayOrder" type="number" value="<%= field.displayOrder || 100 %>" /></label></div>
+          <label><span>Help text</span><input name="helpText" value="<%= field.helpText || '' %>" /></label>
+          <label><span>Options</span><textarea name="optionsText" rows="4"><%= field.optionsText || '' %></textarea></label>
+          <div class="two-col"><label class="check-line"><input type="checkbox" name="required" <%= field.required ? 'checked' : '' %> /><span>Required</span></label><label><span>Status</span><select name="status"><option value="active" <%= (field.status || 'active') === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= field.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label></div>
+          <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save field</button></div>
+        </form>
+      </dialog>
+    <% }) %>
+  </body>
+</html>

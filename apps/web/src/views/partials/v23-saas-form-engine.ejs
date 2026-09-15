@@ -1,0 +1,286 @@
+<section id="v24SaasDynamicFields" class="v24-saas-fields" hidden aria-label="Configured request details"></section>
+<input type="hidden" name="v23ServiceModelKey" id="v24ServiceModelKey" value="" />
+<input type="hidden" name="v23FormKey" id="v24FormKey" value="" />
+<input type="hidden" name="v23AllowRaisedOnBehalfOf" id="v24AllowRaisedOnBehalfOf" value="0" />
+<script>
+(() => {
+  const MODELS = ['SUNTEC_SAAS_V24', 'SUNTEC_SAAS_V23'];
+  const PORTAL = <%- JSON.stringify(typeof portal !== 'undefined' ? portal : '') %>;
+  const target = document.getElementById('v24SaasDynamicFields');
+  if (!target) return;
+
+  // HARD GUARD: configuration activates only when the server confirms an exact
+  // database type binding. Labels such as "Incident" never activate v24 by themselves.
+  let renderGeneration = 0;
+  const changedHiddenState = new Map();
+  const coreKeys = new Set([
+    'SUMMARY','DESCRIPTION','INCIDENT_LEVEL','SERVICE_REQUEST_LEVEL','SERVICE_REQUEST_SUBTYPE',
+    'SEVERITY','PRIORITY','RAISED_ENVIRONMENT'
+  ]);
+  const lifecycleOnlyKeys = new Set([
+    'TEST_RELEASE','RELEASE_ID','RELEASE_TYPE','RCA_CATEGORY','ROOT_CAUSE',
+    'CORRECTIVE_ACTION','PREVENTIVE_ACTION','RCA_STATUS','APPROVER',
+    'EXCEPTION_APPROVER','TEST_CASE_LINK'
+  ]);
+  const norm = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+
+  function fieldValue(kind) {
+    const selectors = kind === 'l1'
+      ? ['[name="level1TypeId"]','[name="level1Type"]','[name="l1TypeId"]','[name="issueTypeLevel1Id"]','[name="requestFamilyId"]']
+      : kind === 'l2'
+        ? ['[name="level2TypeId"]','[name="level2Type"]','[name="l2TypeId"]','[name="issueTypeLevel2Id"]']
+        : ['[name="level3TypeId"]','[name="level3Type"]','[name="l3TypeId"]','[name="issueSubtypeId"]','[name="subtypeId"]'];
+    for (const selector of selectors) {
+      const node = document.querySelector(selector);
+      if (!node) continue;
+      if ((node.type === 'radio' || node.type === 'checkbox') && !node.checked) continue;
+      if (String(node.value || '').trim()) return String(node.value).trim();
+    }
+    return '';
+  }
+
+  function routeCandidates(version) {
+    const parts = location.pathname.split('/').filter(Boolean);
+    const portalNames = new Set(['admin','client','agent']);
+    const out = [];
+    if (parts.length >= 2 && portalNames.has(parts[1])) out.push(`/${encodeURIComponent(parts[0])}/${parts[1]}/${version}/form-definition`);
+    if (parts.length && portalNames.has(parts[0])) out.push(`/${parts[0]}/${version}/form-definition`);
+    if (parts.length) out.push(`/${encodeURIComponent(parts[0])}/${version}/form-definition`);
+    out.push(`/${version}/form-definition`);
+    return [...new Set(out)];
+  }
+
+  async function fetchExactBinding(level1TypeId, level2TypeId, level3TypeId) {
+    if (!level1TypeId && !level2TypeId && !level3TypeId) return null;
+    const query = new URLSearchParams();
+    if (level1TypeId) query.set('level1TypeId', level1TypeId);
+    if (level2TypeId) query.set('level2TypeId', level2TypeId);
+    if (level3TypeId) query.set('level3TypeId', level3TypeId);
+
+    // v24 first. v23 is a compatibility fallback until suntecgroup is migrated.
+    for (const version of ['v24', 'v23']) {
+      for (const route of routeCandidates(version)) {
+        try {
+          const response = await fetch(`${route}?${query.toString()}`, {
+            headers: { Accept: 'application/json' }, credentials: 'same-origin'
+          });
+          if (response.status === 404) continue;
+          if (!response.ok) continue;
+          const payload = await response.json();
+          if (MODELS.includes(payload?.serviceModelKey)
+              && payload?.binding?.serviceModelKey === payload.serviceModelKey
+              && payload?.form?.serviceModelKey === payload.serviceModelKey) return payload;
+        } catch (_) {
+          // Failure never falls back to label matching. Try the next exact-binding route only.
+        }
+      }
+    }
+    return null;
+  }
+
+  function findFieldContainerByLabel(labelText) {
+    const wanted = norm(labelText).replace(/ required$/, '');
+    for (const node of document.querySelectorAll('label, dt, .field-label, .form-label, .config-label, span')) {
+      const own = norm(node.textContent || '').replace(/ required$/, '');
+      if (!own || own.length > 120) continue;
+      if (own === wanted || own.startsWith(wanted + ' ')) {
+        return node.closest('label, .field, .form-field, .config-field, .input-row, .form-row, .details-field, div') || node;
+      }
+    }
+    return null;
+  }
+
+  function findFieldContainerByControlName(name) {
+    const control = document.querySelector(`[name="${name}"]`);
+    return control?.closest('label, .field, .form-field, .config-field, .input-row, .form-row, .details-field, div') || null;
+  }
+
+  function applyExistingFieldConfig(field, controlName) {
+    const control = document.querySelector(`[name="${controlName}"]`);
+    if (!control || !field) return;
+    if (field.required) control.required = true;
+    else control.removeAttribute('required');
+    if (!field.required && controlName === 'description') control.removeAttribute('minlength');
+    if (field.maxLength) control.maxLength = field.maxLength;
+    if (field.default && control.tagName === 'SELECT' && !control.value) {
+      const wanted = String(field.default).toLowerCase();
+      const match = [...control.options].find((option) => String(option.value || '').toLowerCase() === wanted || String(option.textContent || '').trim().toLowerCase().startsWith(wanted));
+      if (match) match.selected = true;
+    }
+  }
+
+  function collapseEmptyFormSections() {
+    for (const section of document.querySelectorAll('.form-section-block')) {
+      if (section.querySelector('#v24SaasDynamicFields')) continue;
+      const visibleControls = [...section.querySelectorAll('label, .custom-field')].some((node) => !node.hidden && getComputedStyle(node).display !== 'none');
+      if (!visibleControls) hideTemporarily(section);
+    }
+  }
+
+  function hideTemporarily(node) {
+    if (!node) return;
+    if (!changedHiddenState.has(node)) changedHiddenState.set(node, Boolean(node.hidden));
+    node.hidden = true;
+  }
+
+  function restoreBaselineUi() {
+    for (const [node, wasHidden] of changedHiddenState.entries()) {
+      if (node?.isConnected) node.hidden = wasHidden;
+    }
+    changedHiddenState.clear();
+    target.innerHTML = '';
+    target.hidden = true;
+    document.getElementById('v24ServiceModelKey').value = '';
+    document.getElementById('v24FormKey').value = '';
+    document.getElementById('v24AllowRaisedOnBehalfOf').value = '0';
+  }
+
+  function inputFor(field, model) {
+    const wrap = document.createElement('label');
+    wrap.className = 'v24-saas-field';
+    const caption = document.createElement('span');
+    caption.textContent = field.label + (field.required ? ' *' : '');
+    wrap.appendChild(caption);
+    const prefix = model === 'SUNTEC_SAAS_V24' ? 'v24Field__' : 'v23Field__';
+    let control;
+
+    if (field.type === 'textarea') {
+      control = document.createElement('textarea'); control.rows = 4;
+    } else if ((field.type === 'select' || field.type === 'multiselect') && Array.isArray(field.options)) {
+      control = document.createElement('select');
+      if (field.type === 'multiselect') { control.multiple = true; control.size = Math.min(5, Math.max(3, field.options.length)); }
+      else { const blank = document.createElement('option'); blank.value=''; blank.textContent='Select'; control.appendChild(blank); }
+      field.options.forEach((item) => {
+        const option = document.createElement('option');
+        option.value = item.value ?? item.label ?? item;
+        option.textContent = item.label ?? item.value ?? item;
+        control.appendChild(option);
+      });
+    } else if (field.type === 'date') {
+      control = document.createElement('input'); control.type='date';
+    } else if (field.type === 'datetime') {
+      control = document.createElement('input'); control.type='datetime-local';
+    } else if (field.type === 'number') {
+      control = document.createElement('input'); control.type='number';
+      if (field.validation?.min != null) control.min=String(field.validation.min);
+    } else if (field.type === 'url') {
+      control = document.createElement('input'); control.type='url'; control.placeholder='https://';
+    } else if (field.type === 'approval_ref' || field.type === 'user') {
+      control = document.createElement('input'); control.type='text';
+    } else {
+      control = document.createElement('input'); control.type='text';
+    }
+
+    control.name = `${prefix}${field.key}`;
+    control.dataset.saasFieldKey = field.key;
+    if (field.required) control.required = true;
+    if (field.maxLength) control.maxLength = field.maxLength;
+    if (field.validation?.pattern) control.pattern = field.validation.pattern;
+    wrap.appendChild(control);
+    if (field.helpText) {
+      const hint = document.createElement('small');
+      hint.className = 'field-hint'; hint.textContent = field.helpText; wrap.appendChild(hint);
+    }
+    return wrap;
+  }
+
+  function sectionLabel(key) {
+    return ({
+      what_happened: 'Further classification',
+      impact: 'Impact',
+      service_context: 'Service context',
+      security_context: 'Security context',
+      evidence: 'Evidence',
+      origin: 'Incident context'
+    })[key] || 'Additional details';
+  }
+
+  function renderBoundForm(payload) {
+    restoreBaselineUi();
+    if (!payload) return;
+    const form = payload.form;
+    const fields = payload.fields || [];
+    const model = payload.serviceModelKey;
+    document.getElementById('v24ServiceModelKey').value = model;
+    document.getElementById('v24FormKey').value = form.key;
+    document.getElementById('v24AllowRaisedOnBehalfOf').value = form.allowRaisedOnBehalfOf ? '1' : '0';
+
+    // Client priority stays support-controlled. Lifecycle-only fields never return
+    // to the creation screen. Severity and S3 evidence intentionally remain.
+    const fieldByKey = new Map(fields.map((field) => [String(field?.key || '').toUpperCase(), field]));
+    if (PORTAL === 'client') hideTemporarily(findFieldContainerByLabel('Priority'));
+    hideTemporarily(findFieldContainerByLabel('Trigger'));
+    if (form.family === 'INCIDENT') {
+      ['Release ID','Release Type','RCA Category','Root Cause','Corrective Action','Preventive Action','RCA Status','Test Release','Test Case Link','Approver','Exception Approver']
+        .forEach((label) => hideTemporarily(findFieldContainerByLabel(label)));
+
+      // v24 Incident forms are authoritative. Product/Module/Region are not part of the
+      // four JSM intake forms supplied for Application/Security/Infrastructure/Operational.
+      // Keeping them out here avoids reintroducing fields merely because an older taxonomy
+      // node happened to have them enabled.
+      if (model === 'SUNTEC_SAAS_V24') {
+        hideTemporarily(findFieldContainerByControlName('productId'));
+        hideTemporarily(findFieldContainerByControlName('moduleIds'));
+        hideTemporarily(findFieldContainerByControlName('regionId'));
+      }
+
+      applyExistingFieldConfig(fieldByKey.get('SUMMARY'), 'subject');
+      applyExistingFieldConfig(fieldByKey.get('DESCRIPTION'), 'description');
+      applyExistingFieldConfig(fieldByKey.get('SEVERITY'), 'severityId');
+      applyExistingFieldConfig(fieldByKey.get('PRIORITY'), 'priorityId');
+      applyExistingFieldConfig(fieldByKey.get('RAISED_ENVIRONMENT'), 'environmentId');
+      applyExistingFieldConfig(fieldByKey.get('INCIDENT_LEVEL'), 'currentSupportLevel');
+    }
+
+    const groups = new Map();
+    for (const field of fields) {
+      if (!field || field.key === 'PRIORITY' || coreKeys.has(field.key)) continue;
+      if (form.family === 'INCIDENT' && lifecycleOnlyKeys.has(String(field.key || '').toUpperCase())) continue;
+      if (field.key === 'RAISED_ON_BEHALF_OF') continue; // handled by the origin panel
+      const existing = findFieldContainerByLabel(field.label);
+      if (existing) { existing.hidden = false; continue; }
+      const section = field.section || 'additional';
+      if (!groups.has(section)) groups.set(section, []);
+      groups.get(section).push(field);
+    }
+
+    const preferredOrder = ['what_happened','service_context','security_context','evidence','additional'];
+    for (const section of preferredOrder) {
+      const sectionFields = groups.get(section) || [];
+      if (!sectionFields.length) continue;
+      const block = document.createElement('div'); block.className = `v24-form-section v24-section-${section}`;
+      const heading = document.createElement('p'); heading.className='eyebrow'; heading.textContent=sectionLabel(section); block.appendChild(heading);
+      const grid = document.createElement('div'); grid.className='v24-saas-grid';
+      sectionFields.forEach((field) => grid.appendChild(inputFor(field, model)));
+      block.appendChild(grid); target.appendChild(block);
+    }
+    target.hidden = target.children.length === 0;
+    collapseEmptyFormSections();
+  }
+
+  async function refresh() {
+    const generation = ++renderGeneration;
+    const l1 = fieldValue('l1'), l2 = fieldValue('l2'), l3 = fieldValue('l3');
+    restoreBaselineUi();
+    const payload = await fetchExactBinding(l1, l2, l3);
+    if (generation !== renderGeneration) return;
+    renderBoundForm(payload);
+  }
+
+  document.addEventListener('change', (event) => {
+    if (event.target.matches('select,input[type="radio"],input[type="hidden"]')) queueMicrotask(refresh);
+  });
+  refresh();
+})();
+</script>
+<style>
+.v24-saas-fields{display:grid;gap:14px;margin-top:14px}
+.v24-saas-fields[hidden]{display:none}
+.v24-form-section{padding:16px;border:1px solid var(--border,#E6E0D4);border-radius:16px;background:rgba(255,255,255,.62)}
+.v24-saas-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.v24-saas-field{display:grid;gap:6px}
+.v24-saas-field>span{font-size:12px;font-weight:700;color:var(--text-main,#1F2933)}
+.v24-saas-field input,.v24-saas-field textarea,.v24-saas-field select{width:100%;box-sizing:border-box}
+.v24-section-what_happened .v24-saas-field:first-child,.v24-section-evidence .v24-saas-field:first-child{grid-column:1/-1}
+@media(max-width:700px){.v24-saas-grid{grid-template-columns:1fr}.v24-saas-field{grid-column:auto!important}}
+</style>

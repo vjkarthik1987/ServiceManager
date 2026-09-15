@@ -1,0 +1,81 @@
+{
+  "migratedAt": "2026-09-15T07:00:51.986Z",
+  "workspace": "suntecgroup",
+  "organizationId": "6a97cb978b3b714cad3cbcb4",
+  "serviceModelKey": "SUNTEC_SAAS_V24",
+  "version": "25.0.0",
+  "workflow": {
+    "id": "6aa34152a9f0687c544cc93a",
+    "key": "WF_SAAS_INCIDENT"
+  },
+  "supportPath": {
+    "id": "6aa34152a9f0687c544cc93f",
+    "key": "PATH_INCIDENT_COMMON_V24"
+  },
+  "incidentIssueTypeId": "6a980d09e79897e54c56a03d",
+  "incidentSlaPolicyId": "",
+  "forms": [
+    {
+      "id": "6a980d09e79897e54c56a042",
+      "name": "Application",
+      "formDefinitionKey": "SAAS_INCIDENT_APPLICATION"
+    },
+    {
+      "id": "6a980d09e79897e54c56a049",
+      "name": "Security",
+      "formDefinitionKey": "SAAS_INCIDENT_SECURITY"
+    },
+    {
+      "id": "6a980d09e79897e54c56a04e",
+      "name": "Infrastructure",
+      "formDefinitionKey": "SAAS_INCIDENT_INFRASTRUCTURE"
+    },
+    {
+      "id": "6a980d09e79897e54c56a052",
+      "name": "Operational",
+      "formDefinitionKey": "SAAS_INCIDENT_OPERATIONAL"
+    }
+  ],
+  "maintenance": {
+    "issueTypeId": "6a980d0be79897e54c56a094",
+    "workflow": {
+      "id": "6aa78e529fe34ed5e1f9606b",
+      "key": "WF_SAAS_MAINTENANCE"
+    },
+    "slaApplicable": false,
+    "forms": [
+      {
+        "id": "6a980d0be79897e54c56a097",
+        "name": "Scheduled Maintenance",
+        "formDefinitionKey": "SAAS_MR_SCHEDULED"
+      },
+      {
+        "id": "6a980d0be79897e54c56a09a",
+        "name": "Proactive Maintenance",
+        "formDefinitionKey": "SAAS_MR_PROACTIVE"
+      },
+      {
+        "id": "6a980d0be79897e54c56a09d",
+        "name": "Emergency Maintenance",
+        "formDefinitionKey": "SAAS_MR_EMERGENCY"
+      },
+      {
+        "id": "6a980d0be79897e54c56a0a0",
+        "name": "Vulnerability Run",
+        "formDefinitionKey": "SAAS_MR_VULNERABILITY"
+      },
+      {
+        "id": "6a980d0be79897e54c56a0a3",
+        "name": "Penetration Test Run",
+        "formDefinitionKey": "SAAS_MR_PEN_TEST"
+      },
+      {
+        "id": "6a980d0ce79897e54c56a0a6",
+        "name": "Actual DR",
+        "formDefinitionKey": "SAAS_MR_ACTUAL_DR"
+      }
+    ]
+  },
+  "existingRequestsMigrated": false,
+  "oldWorkflowsDeleted": false
+}

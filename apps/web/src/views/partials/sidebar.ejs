@@ -1,0 +1,133 @@
+<%
+  const currentPortal = typeof portal !== 'undefined' && portal ? portal : (session?.portal || 'admin');
+  const tenantSlug = session?.tenantSlug || organization?.workspaceSlug || '';
+  const portalBase = currentPortal === 'admin' ? '/admin' : (tenantSlug ? `/${tenantSlug}` : `/${currentPortal}`);
+  const profile = typeof uiProfile !== 'undefined' && uiProfile ? uiProfile : (currentPortal === 'admin' ? 'tenantAdmin' : 'clientUser');
+  const profileLabel = typeof uiProfileLabel !== 'undefined' && uiProfileLabel ? uiProfileLabel : (profile === 'tenantAdmin' ? 'Tenant Admin' : 'Service Desk User');
+  const orgLetters = String(organization?.shortCode || organization?.name || 'SD').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase() || 'SD';
+  const portalTitle = profile === 'tenantAdmin' ? 'Admin Workspace'
+    : profile === 'clientUser' ? 'Client Workspace'
+    : profile === 'partnerUser' ? 'Partner Workspace'
+    : profile === 'agentManager' ? 'Manager Workspace'
+    : profile === 'engagementManager' ? 'Engagement Workspace'
+    : 'SunTec Support';
+  const requestHref = `${portalBase}/requests`;
+  const newRequestHref = `${portalBase}/requests/new`;
+  const taskHref = `${portalBase}/tasks`;
+%>
+<script>document.documentElement.dataset.uiProfile = '<%= profile %>';</script>
+<aside class="sidebar profile-<%= profile %> <%= currentPortal %>-sidebar" data-ui-profile="<%= profile %>">
+  <a class="brand" href="<%= portalBase %>/home">
+    <span class="brand-mark"><%= orgLetters %></span>
+    <span><strong><%= portalTitle %></strong><small><%= organization?.name || 'Service Desk' %></small></span>
+  </a>
+
+  <div class="sidebar-profile-chip">
+    <span class="profile-dot"></span>
+    <div><strong><%= profileLabel %></strong><small><%= session?.actorName || 'Service Desk user' %></small></div>
+  </div>
+
+  <nav class="nav grouped-nav" aria-label="Main navigation">
+    <% if (profile === 'tenantAdmin') { %>
+      <div class="nav-group"><span class="nav-section-label">Overview</span>
+        <a class="nav-link <%= currentPath === '/admin/home' ? 'active' : '' %>" href="/admin/home"><span>⌂</span>Home</a>
+        <a class="nav-link <%= currentPath === '/admin/dashboard' ? 'active' : '' %>" href="/admin/dashboard"><span>◈</span>Dashboard</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">Operations</span>
+        <a class="nav-link <%= currentPath.startsWith('/admin/requests') ? 'active' : '' %>" href="/admin/requests"><span>□</span>Requests</a>
+        <a class="nav-link <%= currentPath.startsWith('/admin/tasks') || currentPath.startsWith('/tasks') ? 'active' : '' %>" href="/admin/tasks"><span>☑</span>Tasks</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">Customers</span>
+        <a class="nav-link <%= currentPath.startsWith('/admin/clients') || currentPath.startsWith('/clients') ? 'active' : '' %>" href="/admin/clients"><span>◌</span>Clients</a>
+        <a class="nav-link <%= currentPath.startsWith('/admin/users') || currentPath.startsWith('/users') ? 'active' : '' %>" href="/admin/users"><span>♟</span>Users</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">Service Design</span>
+        <a class="nav-link <%= currentPath.includes('issue-types') ? 'active' : '' %>" href="/admin/issue-types"><span>◇</span>Issue Families</a>
+        <a class="nav-link <%= currentPath.includes('workflows') ? 'active' : '' %>" href="/admin/workflows"><span>↻</span>Workflows</a>
+        <a class="nav-link <%= currentPath.includes('support-paths') ? 'active' : '' %>" href="/admin/support-paths"><span>⇢</span>Support Paths</a>
+        <a class="nav-link <%= currentPath.includes('/sla') ? 'active' : '' %>" href="/admin/sla"><span>◷</span>SLA Policies</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">Configuration</span>
+        <a class="nav-link <%= currentPath.includes('severities-priorities') ? 'active' : '' %>" href="/admin/severities-priorities"><span>◆</span>Severity & Priority</a>
+        <a class="nav-link <%= currentPath.includes('products-modules') ? 'active' : '' %>" href="/admin/products-modules"><span>▣</span>Products & Modules</a>
+        <a class="nav-link <%= currentPath.includes('/regions') ? 'active' : '' %>" href="/admin/regions"><span>◎</span>Regions & Subregions</a>
+        <a class="nav-link <%= currentPath.includes('/environments') ? 'active' : '' %>" href="/admin/environments"><span>▤</span>Environments</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">Administration</span>
+        <a class="nav-link <%= currentPath.startsWith('/admin/health') ? 'active' : '' %>" href="/admin/health"><span>✓</span>Health</a>
+        <a class="nav-link <%= currentPath.startsWith('/admin/activity') ? 'active' : '' %>" href="/admin/activity"><span>≡</span>Activity</a>
+      </div>
+    <% } else if (profile === 'clientUser') { %>
+      <div class="nav-group"><span class="nav-section-label">Home</span>
+        <a class="nav-link <%= currentPath === `${portalBase}/home` ? 'active' : '' %>" href="<%= portalBase %>/home"><span>⌂</span>Home</a>
+        <a class="nav-link <%= currentPath === `${portalBase}/dashboard` ? 'active' : '' %>" href="<%= portalBase %>/dashboard"><span>◈</span>My Dashboard</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">My Work</span>
+        <a class="nav-link <%= currentPath === newRequestHref ? 'active' : '' %>" href="<%= newRequestHref %>"><span>＋</span>Raise Request</a>
+        <a class="nav-link <%= currentPath.startsWith(requestHref) && currentPath !== newRequestHref ? 'active' : '' %>" href="<%= requestHref %>"><span>□</span>Requests</a>
+      </div>
+    <% } else if (profile === 'partnerUser') { %>
+      <div class="nav-group"><span class="nav-section-label">Partner Operations</span>
+        <a class="nav-link <%= currentPath === `${portalBase}/home` ? 'active' : '' %>" href="<%= portalBase %>/home"><span>⌂</span>Home</a>
+        <a class="nav-link <%= currentPath === `${portalBase}/dashboard` ? 'active' : '' %>" href="<%= portalBase %>/dashboard"><span>◈</span>L2 Dashboard</a>
+        <a class="nav-link <%= currentPath.startsWith(requestHref) ? 'active' : '' %>" href="<%= requestHref %>?supportLevel=L2"><span>□</span>Requests</a>
+        <a class="nav-link" href="<%= requestHref %>?sla=amber"><span>△</span>SLA At Risk</a>
+        <a class="nav-link" href="<%= requestHref %>?supportLevel=L3"><span>⇢</span>With SunTec L3</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">Create</span>
+        <a class="nav-link <%= currentPath === newRequestHref ? 'active' : '' %>" href="<%= newRequestHref %>"><span>＋</span>Raise Request</a>
+      </div>
+    <% } else if (profile === 'agentUser') { %>
+      <div class="nav-group"><span class="nav-section-label">SunTec Support</span>
+        <a class="nav-link <%= currentPath === `${portalBase}/home` ? 'active' : '' %>" href="<%= portalBase %>/home"><span>⌂</span>Home</a>
+        <a class="nav-link <%= currentPath === `${portalBase}/dashboard` ? 'active' : '' %>" href="<%= portalBase %>/dashboard"><span>◈</span>L3 Dashboard</a>
+        <a class="nav-link <%= currentPath.startsWith(requestHref) ? 'active' : '' %>" href="<%= requestHref %>?supportLevel=L3"><span>□</span>Requests</a>
+        <a class="nav-link" href="<%= requestHref %>?sla=red"><span>!</span>Breached SLA</a>
+        <a class="nav-link" href="<%= requestHref %>?sla=amber"><span>△</span>SLA At Risk</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">Create</span>
+        <a class="nav-link <%= currentPath === newRequestHref ? 'active' : '' %>" href="<%= newRequestHref %>"><span>＋</span>Raise Request</a>
+      </div>
+    <% } else if (profile === 'agentManager') { %>
+      <div class="nav-group"><span class="nav-section-label">Team Operations</span>
+        <a class="nav-link <%= currentPath === `${portalBase}/home` ? 'active' : '' %>" href="<%= portalBase %>/home"><span>⌂</span>Home</a>
+        <a class="nav-link <%= currentPath === `${portalBase}/dashboard` ? 'active' : '' %>" href="<%= portalBase %>/dashboard"><span>◈</span>Manager Dashboard</a>
+        <a class="nav-link <%= currentPath.startsWith(requestHref) ? 'active' : '' %>" href="<%= requestHref %>?supportLevel=L3"><span>□</span>Requests</a>
+      </div>
+      <div class="nav-group"><span class="nav-section-label">Attention</span>
+        <a class="nav-link" href="<%= requestHref %>?sla=red"><span>!</span>SLA Breaches</a>
+        <a class="nav-link" href="<%= requestHref %>?sla=amber"><span>△</span>SLA At Risk</a>
+        <a class="nav-link" href="<%= requestHref %>?attention=escalation"><span>⇡</span>Open Escalations</a>
+      </div>
+    <% } else { %>
+      <div class="nav-group"><span class="nav-section-label">Client Portfolio</span>
+        <a class="nav-link <%= currentPath === `${portalBase}/home` ? 'active' : '' %>" href="<%= portalBase %>/home"><span>⌂</span>Home</a>
+        <a class="nav-link <%= currentPath === `${portalBase}/dashboard` ? 'active' : '' %>" href="<%= portalBase %>/dashboard"><span>◈</span>Service Dashboard</a>
+        <a class="nav-link <%= currentPath.startsWith(requestHref) ? 'active' : '' %>" href="<%= requestHref %>"><span>□</span>Requests</a>
+        <a class="nav-link" href="<%= requestHref %>?sla=amber"><span>△</span>SLA Risk</a>
+        <a class="nav-link" href="<%= requestHref %>?sla=red"><span>!</span>Breaches</a>
+      </div>
+    <% } %>
+
+    <% if (profile !== 'tenantAdmin') { %>
+      <div class="nav-group"><span class="nav-section-label">Personal</span>
+        <a class="nav-link <%= currentPath.startsWith(`${portalBase}/filters`) ? 'active' : '' %>" href="<%= portalBase %>/filters"><span>⌕</span>Filters</a>
+        <a class="nav-link <%= currentPath.startsWith(`${portalBase}/saved-filters`) ? 'active' : '' %>" href="<%= portalBase %>/saved-filters"><span>★</span>Saved Filters</a>
+      </div>
+    <% } else { %>
+      <div class="nav-group"><span class="nav-section-label">Personal</span>
+        <a class="nav-link <%= currentPath.startsWith('/admin/filters') ? 'active' : '' %>" href="/admin/filters"><span>⌕</span>Filters</a>
+        <a class="nav-link <%= currentPath.startsWith('/admin/saved-filters') ? 'active' : '' %>" href="/admin/saved-filters"><span>★</span>Saved Filters</a>
+      </div>
+    <% } %>
+
+    <div class="nav-group"><span class="nav-section-label">Help</span>
+      <a class="nav-link <%= currentPath.endsWith('/help') ? 'active' : '' %>" href="<%= portalBase %>/help"><span>?</span>Help & FAQ</a>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user"><strong><%= session?.actorName || 'Service Desk user' %></strong><small><%= profileLabel %></small></div>
+    <form method="post" action="/logout"><button class="sidebar-logout" type="submit">Logout</button></form>
+  </div>
+</aside>

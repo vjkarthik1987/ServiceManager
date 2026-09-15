@@ -1,0 +1,3202 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V23",
+  "workflows": [
+    {
+      "key": "WF_SAAS_INCIDENT",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "SaaS Incident v23",
+      "family": "INCIDENT",
+      "startStatus": "NEW",
+      "supportStatusMode": "SHARED",
+      "supportMovePolicy": "PRESERVE_OR_MAP",
+      "newIsCreationOnly": true,
+      "statuses": [
+        {
+          "key": "NEW",
+          "name": "New",
+          "category": "start",
+          "jiraStatusId": "10020",
+          "statusType": "start"
+        },
+        {
+          "key": "ANALYSIS",
+          "name": "Analysis",
+          "category": "active",
+          "jiraStatusId": "10021",
+          "statusType": "active"
+        },
+        {
+          "key": "INTERIM_RESOLUTION",
+          "name": "Interim Resolution",
+          "category": "active",
+          "jiraStatusId": "10083",
+          "statusType": "active"
+        },
+        {
+          "key": "BANK_TO_VERIFY",
+          "name": "Bank to Verify",
+          "category": "active",
+          "jiraStatusId": "10170",
+          "statusType": "active"
+        },
+        {
+          "key": "UNDER_MONITORING",
+          "name": "Under Monitoring",
+          "category": "active",
+          "jiraStatusId": "10203",
+          "statusType": "active"
+        },
+        {
+          "key": "ON_HOLD",
+          "name": "On Hold",
+          "category": "active",
+          "jiraStatusId": "10204",
+          "statusType": "active"
+        },
+        {
+          "key": "VENDOR_TICKET_RAISED",
+          "name": "Vendor Ticket Raised",
+          "category": "active",
+          "jiraStatusId": "10052",
+          "statusType": "active"
+        },
+        {
+          "key": "DEVELOPMENT",
+          "name": "Development",
+          "category": "active",
+          "jiraStatusId": "10047",
+          "statusType": "active"
+        },
+        {
+          "key": "RELEASE",
+          "name": "Release",
+          "category": "active",
+          "jiraStatusId": "10048",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_BUILD",
+          "name": "In Build",
+          "category": "active",
+          "jiraStatusId": "10041",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_QUALITY",
+          "name": "In Quality",
+          "category": "active",
+          "jiraStatusId": "10042",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_STAGE",
+          "name": "In Stage",
+          "category": "active",
+          "jiraStatusId": "10043",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_PREPRODUCTION",
+          "name": "In Preproduction",
+          "category": "active",
+          "jiraStatusId": "10034",
+          "statusType": "active"
+        },
+        {
+          "key": "VERIFICATION_COMPLETE",
+          "name": "Verification complete",
+          "category": "resolved",
+          "jiraStatusId": "10035",
+          "statusType": "resolved"
+        },
+        {
+          "key": "VERIFY_AND_RESOLVE",
+          "name": "Verify and Resolve",
+          "category": "resolved",
+          "jiraStatusId": "10089",
+          "statusType": "resolved"
+        },
+        {
+          "key": "RESOLVED",
+          "name": "Resolved",
+          "category": "resolved",
+          "jiraStatusId": "5",
+          "statusType": "resolved"
+        },
+        {
+          "key": "TEST_FAILED",
+          "name": "Test Failed",
+          "category": "active",
+          "jiraStatusId": "10029",
+          "statusType": "active"
+        },
+        {
+          "key": "DUPLICATE",
+          "name": "Duplicate",
+          "category": "final",
+          "jiraStatusId": "10036",
+          "statusType": "final"
+        },
+        {
+          "key": "DEFERRED",
+          "name": "Deferred",
+          "category": "active",
+          "jiraStatusId": "10037",
+          "statusType": "active"
+        },
+        {
+          "key": "NOT_AN_ISSUE",
+          "name": "Not an Issue",
+          "category": "final",
+          "jiraStatusId": "10082",
+          "statusType": "final"
+        },
+        {
+          "key": "PROBLEM_CREATED",
+          "name": "Problem Created",
+          "category": "resolved",
+          "jiraStatusId": "10049",
+          "statusType": "resolved"
+        },
+        {
+          "key": "CLOSED",
+          "name": "Closed",
+          "category": "final",
+          "jiraStatusId": "6",
+          "statusType": "final"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "START_ANALYSIS",
+          "from": "NEW",
+          "to": "ANALYSIS",
+          "label": "Start Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DUPLICATE",
+          "from": "ANALYSIS",
+          "to": "DUPLICATE",
+          "label": "Duplicate",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DEFER",
+          "from": "ANALYSIS",
+          "to": "DEFERRED",
+          "label": "Deferred",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "NOT_AN_ISSUE",
+          "from": "ANALYSIS",
+          "to": "NOT_AN_ISSUE",
+          "label": "Not an Issue",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "INTERIM_RESOLUTION",
+          "from": "ANALYSIS",
+          "to": "INTERIM_RESOLUTION",
+          "label": "Interim Resolution",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BANK_VERIFY",
+          "from": "ANALYSIS",
+          "to": "BANK_TO_VERIFY",
+          "label": "Bank to Verify",
+          "kind": "status",
+          "syncAcrossSupportLevels": true,
+          "condition": {
+            "subtypes": [
+              "Application Incident"
+            ]
+          }
+        },
+        {
+          "key": "MONITOR",
+          "from": "ANALYSIS",
+          "to": "UNDER_MONITORING",
+          "label": "Under Monitoring",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "HOLD",
+          "from": "ANALYSIS",
+          "to": "ON_HOLD",
+          "label": "On Hold",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RAISE_VENDOR",
+          "from": "ANALYSIS",
+          "to": "VENDOR_TICKET_RAISED",
+          "label": "Vendor Ticket Raised",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "SEND_DEVELOPMENT",
+          "from": "ANALYSIS",
+          "to": "DEVELOPMENT",
+          "label": "Send for Development",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RESOLVE",
+          "from": "ANALYSIS",
+          "to": "RESOLVED",
+          "label": "Resolve",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BANK_VERIFY_RETURN",
+          "from": "BANK_TO_VERIFY",
+          "to": "ANALYSIS",
+          "label": "Return to Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "MONITOR_RETURN",
+          "from": "UNDER_MONITORING",
+          "to": "ANALYSIS",
+          "label": "Return to Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "HOLD_RETURN",
+          "from": "ON_HOLD",
+          "to": "ANALYSIS",
+          "label": "Return to Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "INTERIM_MONITOR",
+          "from": "INTERIM_RESOLUTION",
+          "to": "UNDER_MONITORING",
+          "label": "Under Monitoring",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "INTERIM_HOLD",
+          "from": "INTERIM_RESOLUTION",
+          "to": "ON_HOLD",
+          "label": "On Hold",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "INTERIM_RESOLVE",
+          "from": "INTERIM_RESOLUTION",
+          "to": "RESOLVED",
+          "label": "Resolve",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VENDOR_RESOLVED",
+          "from": "VENDOR_TICKET_RAISED",
+          "to": "RESOLVED",
+          "label": "Vendor resolution received",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VENDOR_DEVELOPMENT",
+          "from": "VENDOR_TICKET_RAISED",
+          "to": "DEVELOPMENT",
+          "label": "Send for Development",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DEVELOPMENT_RELEASE",
+          "from": "DEVELOPMENT",
+          "to": "RELEASE",
+          "label": "Send for Release",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RELEASE_BUILD",
+          "from": "RELEASE",
+          "to": "IN_BUILD",
+          "label": "Send to Build",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BUILD_QUALITY",
+          "from": "IN_BUILD",
+          "to": "IN_QUALITY",
+          "label": "Test passed in Build",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "QUALITY_STAGE",
+          "from": "IN_QUALITY",
+          "to": "IN_STAGE",
+          "label": "Test passed in Quality",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "STAGE_PREPROD",
+          "from": "IN_STAGE",
+          "to": "IN_PREPRODUCTION",
+          "label": "Test passed in Stage",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PREPROD_VERIFY",
+          "from": "IN_PREPRODUCTION",
+          "to": "VERIFICATION_COMPLETE",
+          "label": "Test passed in Preproduction",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BUILD_FAIL",
+          "from": "IN_BUILD",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "QUALITY_FAIL",
+          "from": "IN_QUALITY",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "STAGE_FAIL",
+          "from": "IN_STAGE",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PREPROD_FAIL",
+          "from": "IN_PREPRODUCTION",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "TEST_REANALYSE",
+          "from": "TEST_FAILED",
+          "to": "ANALYSIS",
+          "label": "Re-Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VERIFY_RESOLVE",
+          "from": "VERIFICATION_COMPLETE",
+          "to": "VERIFY_AND_RESOLVE",
+          "label": "Verify and Resolve",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VERIFY_FAILED",
+          "from": "VERIFICATION_COMPLETE",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VERIFY_CLOSE",
+          "from": "VERIFY_AND_RESOLVE",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RESOLVED_VERIFY",
+          "from": "RESOLVED",
+          "to": "VERIFICATION_COMPLETE",
+          "label": "Verification Complete",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RESOLVED_BUILD",
+          "from": "RESOLVED",
+          "to": "IN_BUILD",
+          "label": "Send to Build",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RESOLVED_QUALITY",
+          "from": "RESOLVED",
+          "to": "IN_QUALITY",
+          "label": "Send to Quality",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RESOLVED_STAGE",
+          "from": "RESOLVED",
+          "to": "IN_STAGE",
+          "label": "Send to Stage",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RESOLVED_PREPROD",
+          "from": "RESOLVED",
+          "to": "IN_PREPRODUCTION",
+          "label": "Send to Preproduction",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM",
+          "from": "RESOLVED",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PROBLEM_CLOSE",
+          "from": "PROBLEM_CREATED",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        }
+      ],
+      "globalActions": [
+        {
+          "key": "ESCALATE_SUPPORT_MANAGER",
+          "label": "Escalate to Support Manager",
+          "kind": "escalation",
+          "statusEffect": "KEEP"
+        },
+        {
+          "key": "ESCALATE_HEAD_SUPPORT",
+          "label": "Escalate to Head of Support",
+          "kind": "escalation",
+          "statusEffect": "KEEP"
+        },
+        {
+          "key": "ESCALATE_GLOBAL_SUPPORT_HEAD",
+          "label": "Escalate to Global Support Head",
+          "kind": "escalation",
+          "statusEffect": "KEEP"
+        }
+      ],
+      "legacyJiraStatusMappings": [
+        {
+          "jiraStatusId": "10039",
+          "jiraName": "L2 Support",
+          "normalizedStatus": "ANALYSIS",
+          "supportLevel": "L2"
+        },
+        {
+          "jiraStatusId": "10040",
+          "jiraName": "L2 Analysis",
+          "normalizedStatus": "ANALYSIS",
+          "supportLevel": "L2"
+        },
+        {
+          "jiraStatusId": "10045",
+          "jiraName": "L3 Support",
+          "normalizedStatus": "ANALYSIS",
+          "supportLevel": "L3"
+        },
+        {
+          "jiraStatusId": "10046",
+          "jiraName": "L3 Analysis",
+          "normalizedStatus": "ANALYSIS",
+          "supportLevel": "L3"
+        },
+        {
+          "jiraStatusId": "10044",
+          "jiraName": "L2 Test Failed",
+          "normalizedStatus": "TEST_FAILED",
+          "supportLevel": "L2"
+        }
+      ]
+    },
+    {
+      "key": "WF_SAAS_CHANGE",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "SaaS Change Request v23",
+      "family": "CHANGE",
+      "startStatus": "NEW",
+      "newIsCreationOnly": true,
+      "supportStatusMode": "SHARED",
+      "supportMovePolicy": "PRESERVE",
+      "statuses": [
+        {
+          "key": "NEW",
+          "name": "New",
+          "category": "start",
+          "jiraStatusId": "10020",
+          "statusType": "start"
+        },
+        {
+          "key": "ANALYSIS",
+          "name": "Analysis",
+          "category": "active",
+          "jiraStatusId": "10021",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_REQUIREMENT_ANALYSIS",
+          "name": "In Requirement Analysis",
+          "category": "active",
+          "jiraStatusId": "10055",
+          "statusType": "active"
+        },
+        {
+          "key": "PRODUCT_CUSTOM",
+          "name": "Product/Custom",
+          "category": "active",
+          "jiraStatusId": "10051",
+          "statusType": "active"
+        },
+        {
+          "key": "REQUIREMENT_GROOMING",
+          "name": "Requirement Grooming",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "PRODUCT_REQUIREMENT_GROOMING",
+          "name": "Product Requirement Grooming",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "CUSTOM_REQUIREMENT_GROOMING",
+          "name": "Custom Requirement Grooming",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "CR_FORM",
+          "name": "CR Form",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "APPROVAL_BY_BANK",
+          "name": "Approval by Bank",
+          "category": "active",
+          "jiraStatusId": "10054",
+          "statusType": "active"
+        },
+        {
+          "key": "MANAGEMENT_APPROVAL",
+          "name": "Management approval",
+          "category": "active",
+          "jiraStatusId": "10076",
+          "statusType": "active"
+        },
+        {
+          "key": "APPROVED",
+          "name": "Approved",
+          "category": "active",
+          "jiraStatusId": "10056",
+          "statusType": "active"
+        },
+        {
+          "key": "MANAGEMENT_APPROVED",
+          "name": "Management Approved",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "DEVELOPMENT",
+          "name": "Development",
+          "category": "active",
+          "jiraStatusId": "10047",
+          "statusType": "active"
+        },
+        {
+          "key": "RELEASE",
+          "name": "Release",
+          "category": "active",
+          "jiraStatusId": "10048",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_BUILD",
+          "name": "In Build",
+          "category": "active",
+          "jiraStatusId": "10041",
+          "statusType": "active"
+        },
+        {
+          "key": "TEST_PASSED_BUILD",
+          "name": "Test Passed in Build",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_QUALITY",
+          "name": "In Quality",
+          "category": "active",
+          "jiraStatusId": "10042",
+          "statusType": "active"
+        },
+        {
+          "key": "TEST_PASSED_QUALITY",
+          "name": "Test Passed in Quality",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_STAGE",
+          "name": "In Stage",
+          "category": "active",
+          "jiraStatusId": "10043",
+          "statusType": "active"
+        },
+        {
+          "key": "TEST_PASSED_STAGE",
+          "name": "Test Passed in Stage",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "IN_PREPRODUCTION",
+          "name": "In Preproduction",
+          "category": "active",
+          "jiraStatusId": "10034",
+          "statusType": "active"
+        },
+        {
+          "key": "TEST_PASSED_PREPRODUCTION",
+          "name": "Test Passed in Preproduction",
+          "category": "active",
+          "statusType": "active"
+        },
+        {
+          "key": "VERIFICATION_COMPLETE",
+          "name": "Verification complete",
+          "category": "resolved",
+          "jiraStatusId": "10035",
+          "statusType": "resolved"
+        },
+        {
+          "key": "TEST_FAILED",
+          "name": "Test Failed",
+          "category": "active",
+          "jiraStatusId": "10029",
+          "statusType": "active"
+        },
+        {
+          "key": "INCIDENT_CREATED",
+          "name": "Incident Created",
+          "category": "resolved",
+          "jiraStatusId": "10061",
+          "statusType": "resolved"
+        },
+        {
+          "key": "DUPLICATE",
+          "name": "Duplicate",
+          "category": "final",
+          "jiraStatusId": "10036",
+          "statusType": "final"
+        },
+        {
+          "key": "DEFERRED",
+          "name": "Deferred",
+          "category": "active",
+          "jiraStatusId": "10037",
+          "statusType": "active"
+        },
+        {
+          "key": "NOT_A_CHANGE",
+          "name": "Not a Change",
+          "category": "final",
+          "statusType": "final"
+        },
+        {
+          "key": "CLOSED",
+          "name": "Closed",
+          "category": "final",
+          "jiraStatusId": "6",
+          "statusType": "final"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "START_ANALYSIS",
+          "from": "NEW",
+          "to": "ANALYSIS",
+          "label": "Start Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REQUIREMENT_ANALYSIS",
+          "from": "ANALYSIS",
+          "to": "IN_REQUIREMENT_ANALYSIS",
+          "label": "Requirement Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DUPLICATE",
+          "from": "ANALYSIS",
+          "to": "DUPLICATE",
+          "label": "Duplicate",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DEFERRED",
+          "from": "ANALYSIS",
+          "to": "DEFERRED",
+          "label": "Deferred",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "NOT_CHANGE",
+          "from": "ANALYSIS",
+          "to": "NOT_A_CHANGE",
+          "label": "Not a Change",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLASSIFY",
+          "from": "IN_REQUIREMENT_ANALYSIS",
+          "to": "PRODUCT_CUSTOM",
+          "label": "Classify Product/Custom",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REQ_GROOM",
+          "from": "IN_REQUIREMENT_ANALYSIS",
+          "to": "REQUIREMENT_GROOMING",
+          "label": "Send for Requirement Grooming",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PRODUCT_GROOM",
+          "from": "PRODUCT_CUSTOM",
+          "to": "PRODUCT_REQUIREMENT_GROOMING",
+          "label": "Send for Product Grooming",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CUSTOM_GROOM",
+          "from": "PRODUCT_CUSTOM",
+          "to": "CUSTOM_REQUIREMENT_GROOMING",
+          "label": "Send for Custom Grooming",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CR_FORM",
+          "from": "PRODUCT_REQUIREMENT_GROOMING",
+          "to": "CR_FORM",
+          "label": "Fill CR Form",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BANK_APPROVAL_PRODUCT",
+          "from": "CR_FORM",
+          "to": "APPROVAL_BY_BANK",
+          "label": "Send for Bank Approval",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BANK_APPROVAL_GENERIC",
+          "from": "REQUIREMENT_GROOMING",
+          "to": "APPROVAL_BY_BANK",
+          "label": "Send for Bank Approval",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BANK_APPROVE",
+          "from": "APPROVAL_BY_BANK",
+          "to": "APPROVED",
+          "label": "Approve",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BANK_REJECT",
+          "from": "APPROVAL_BY_BANK",
+          "to": "IN_REQUIREMENT_ANALYSIS",
+          "label": "Reject",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "MGMT_APPROVAL",
+          "from": "REQUIREMENT_GROOMING",
+          "to": "MANAGEMENT_APPROVAL",
+          "label": "Send for Effort and Cost Approval",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "MGMT_APPROVE",
+          "from": "MANAGEMENT_APPROVAL",
+          "to": "MANAGEMENT_APPROVED",
+          "label": "Approve",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "MGMT_REJECT",
+          "from": "MANAGEMENT_APPROVAL",
+          "to": "IN_REQUIREMENT_ANALYSIS",
+          "label": "Reject",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DEV_APPROVED",
+          "from": "APPROVED",
+          "to": "DEVELOPMENT",
+          "label": "Send for Development",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DEV_MGMT",
+          "from": "MANAGEMENT_APPROVED",
+          "to": "DEVELOPMENT",
+          "label": "Send for Development",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RELEASE",
+          "from": "DEVELOPMENT",
+          "to": "RELEASE",
+          "label": "Send for Release",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BUILD",
+          "from": "RELEASE",
+          "to": "IN_BUILD",
+          "label": "Send to Build",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BUILD_PASS",
+          "from": "IN_BUILD",
+          "to": "TEST_PASSED_BUILD",
+          "label": "Test Passed in Build",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BUILD_FAIL",
+          "from": "IN_BUILD",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "QUALITY",
+          "from": "TEST_PASSED_BUILD",
+          "to": "IN_QUALITY",
+          "label": "Send to Quality",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "QUALITY_PASS",
+          "from": "IN_QUALITY",
+          "to": "TEST_PASSED_QUALITY",
+          "label": "Test Passed in Quality",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "QUALITY_FAIL",
+          "from": "IN_QUALITY",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "STAGE",
+          "from": "TEST_PASSED_QUALITY",
+          "to": "IN_STAGE",
+          "label": "Send to Stage",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "STAGE_PASS",
+          "from": "IN_STAGE",
+          "to": "TEST_PASSED_STAGE",
+          "label": "Test Passed in Stage",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "STAGE_FAIL",
+          "from": "IN_STAGE",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PREPROD",
+          "from": "TEST_PASSED_STAGE",
+          "to": "IN_PREPRODUCTION",
+          "label": "Send to Preproduction",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PREPROD_PASS",
+          "from": "IN_PREPRODUCTION",
+          "to": "TEST_PASSED_PREPRODUCTION",
+          "label": "Test Passed in Preproduction",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PREPROD_FAIL",
+          "from": "IN_PREPRODUCTION",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VERIFY",
+          "from": "TEST_PASSED_PREPRODUCTION",
+          "to": "VERIFICATION_COMPLETE",
+          "label": "Deploy to Production/DR",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VERIFY_FAIL",
+          "from": "VERIFICATION_COMPLETE",
+          "to": "TEST_FAILED",
+          "label": "Test Failure",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE",
+          "from": "VERIFICATION_COMPLETE",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REANALYSE",
+          "from": "TEST_FAILED",
+          "to": "DEVELOPMENT",
+          "label": "Re-Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT",
+          "from": "TEST_FAILED",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "INCIDENT_BACK_DEV",
+          "from": "INCIDENT_CREATED",
+          "to": "DEVELOPMENT",
+          "label": "Continue Development",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        }
+      ],
+      "globalActions": [
+        {
+          "key": "ESCALATE_HEAD_SUPPORT",
+          "label": "Escalate to Head of Support",
+          "kind": "escalation",
+          "statusEffect": "KEEP"
+        }
+      ]
+    },
+    {
+      "key": "WF_SAAS_PROBLEM",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "SaaS Problem v23",
+      "family": "PROBLEM",
+      "startStatus": "OPEN",
+      "newIsCreationOnly": false,
+      "supportStatusMode": "SHARED",
+      "supportMovePolicy": "PRESERVE",
+      "statuses": [
+        {
+          "key": "OPEN",
+          "name": "Open",
+          "category": "start",
+          "jiraStatusId": "1",
+          "statusType": "start"
+        },
+        {
+          "key": "UNDER_REVIEW",
+          "name": "Under Review",
+          "category": "active",
+          "jiraStatusId": "10017",
+          "statusType": "active"
+        },
+        {
+          "key": "UNDER_INVESTIGATION",
+          "name": "Under Investigation",
+          "category": "active",
+          "jiraStatusId": "10016",
+          "statusType": "active"
+        },
+        {
+          "key": "PENDING",
+          "name": "Pending",
+          "category": "active",
+          "jiraStatusId": "10003",
+          "statusType": "active"
+        },
+        {
+          "key": "COMPLETED",
+          "name": "Completed",
+          "category": "resolved",
+          "jiraStatusId": "10011",
+          "statusType": "resolved"
+        },
+        {
+          "key": "CANCELLED",
+          "name": "Canceled",
+          "category": "final",
+          "jiraStatusId": "10004",
+          "statusType": "final"
+        },
+        {
+          "key": "CLOSED",
+          "name": "Closed",
+          "category": "final",
+          "jiraStatusId": "6",
+          "statusType": "final"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "REVIEW",
+          "from": "OPEN",
+          "to": "UNDER_REVIEW",
+          "label": "Review",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "INVESTIGATE_REVIEW",
+          "from": "UNDER_REVIEW",
+          "to": "UNDER_INVESTIGATION",
+          "label": "Investigate",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PENDING_REVIEW",
+          "from": "UNDER_REVIEW",
+          "to": "PENDING",
+          "label": "Pending",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PENDING_INVESTIGATION",
+          "from": "UNDER_INVESTIGATION",
+          "to": "PENDING",
+          "label": "Pending",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "INVESTIGATE_PENDING",
+          "from": "PENDING",
+          "to": "UNDER_INVESTIGATION",
+          "label": "Investigate",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BACK_REVIEW",
+          "from": "PENDING",
+          "to": "UNDER_REVIEW",
+          "label": "Back to under review",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "COMPLETE",
+          "from": "UNDER_INVESTIGATION",
+          "to": "COMPLETED",
+          "label": "Complete",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REOPEN_WORK",
+          "from": "COMPLETED",
+          "to": "UNDER_INVESTIGATION",
+          "label": "Back to work in progress",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CANCEL_OPEN",
+          "from": "OPEN",
+          "to": "CANCELLED",
+          "label": "Cancel",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CANCEL_REVIEW",
+          "from": "UNDER_REVIEW",
+          "to": "CANCELLED",
+          "label": "Cancel",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CANCEL_INVESTIGATION",
+          "from": "UNDER_INVESTIGATION",
+          "to": "CANCELLED",
+          "label": "Cancel",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE_COMPLETED",
+          "from": "COMPLETED",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE_CANCELLED",
+          "from": "CANCELLED",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        }
+      ]
+    },
+    {
+      "key": "WF_SAAS_MAINTENANCE",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "SaaS Maintenance Request v23",
+      "family": "MAINTENANCE",
+      "startStatus": "NEW",
+      "newIsCreationOnly": true,
+      "supportStatusMode": "SHARED",
+      "supportMovePolicy": "PRESERVE",
+      "statuses": [
+        {
+          "key": "NEW",
+          "name": "New",
+          "category": "start",
+          "jiraStatusId": "10020",
+          "statusType": "start"
+        },
+        {
+          "key": "ANALYSIS",
+          "name": "Analysis",
+          "category": "active",
+          "jiraStatusId": "10021",
+          "statusType": "active"
+        },
+        {
+          "key": "APPROVED",
+          "name": "Approved",
+          "category": "active",
+          "jiraStatusId": "10056",
+          "statusType": "active"
+        },
+        {
+          "key": "REJECTED",
+          "name": "Rejected",
+          "category": "active",
+          "jiraStatusId": "4",
+          "statusType": "active"
+        },
+        {
+          "key": "CANCELLED",
+          "name": "Canceled",
+          "category": "final",
+          "jiraStatusId": "10004",
+          "statusType": "final"
+        },
+        {
+          "key": "COMPLETED",
+          "name": "Completed",
+          "category": "resolved",
+          "jiraStatusId": "10011",
+          "statusType": "resolved"
+        },
+        {
+          "key": "CLOSED",
+          "name": "Closed",
+          "category": "final",
+          "jiraStatusId": "6",
+          "statusType": "final"
+        },
+        {
+          "key": "SNAPSHOT_REVERT",
+          "name": "Snapshot Revert",
+          "category": "active",
+          "jiraStatusId": "10084",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_SWITCH_DR",
+          "name": "Initiate Switch to DR Site",
+          "category": "active",
+          "jiraStatusId": "10094",
+          "statusType": "active"
+        },
+        {
+          "key": "SWITCHED_DR",
+          "name": "Switched to DR",
+          "category": "active",
+          "jiraStatusId": "10092",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_REVERSE_PRIMARY",
+          "name": "Initiate Reverse Sync to Primary",
+          "category": "active",
+          "jiraStatusId": "10138",
+          "statusType": "active"
+        },
+        {
+          "key": "REVERSE_PRIMARY_ENABLED",
+          "name": "Reverse Sync to Primary Enabled",
+          "category": "active",
+          "jiraStatusId": "10139",
+          "statusType": "active"
+        },
+        {
+          "key": "PRIMARY_PRECHECK",
+          "name": "Switchback to Primary: Pre-check",
+          "category": "active",
+          "jiraStatusId": "10140",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_SWITCH_PRIMARY",
+          "name": "Initiate Switch to Primary",
+          "category": "active",
+          "jiraStatusId": "10141",
+          "statusType": "active"
+        },
+        {
+          "key": "SWITCHED_PRIMARY",
+          "name": "Switched to Primary",
+          "category": "active",
+          "jiraStatusId": "10142",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_REVERSE_DR",
+          "name": "Initiate Reverse Sync to DR",
+          "category": "active",
+          "jiraStatusId": "10143",
+          "statusType": "active"
+        },
+        {
+          "key": "REVERSE_DR_ENABLED",
+          "name": "Reverse Sync to DR Enabled",
+          "category": "active",
+          "jiraStatusId": "10144",
+          "statusType": "active"
+        },
+        {
+          "key": "BCP_REPORT_PREP",
+          "name": "BCP Report Preparation",
+          "category": "active",
+          "jiraStatusId": "10145",
+          "statusType": "active"
+        },
+        {
+          "key": "PUBLISH_BCP_REPORT",
+          "name": "Publish BCP Report",
+          "category": "active",
+          "jiraStatusId": "10108",
+          "statusType": "active"
+        },
+        {
+          "key": "VA_REPORT",
+          "name": "VA Report",
+          "category": "resolved",
+          "jiraStatusId": "10067",
+          "statusType": "resolved"
+        },
+        {
+          "key": "PT_REPORT",
+          "name": "PT Report",
+          "category": "resolved",
+          "jiraStatusId": "10068",
+          "statusType": "resolved"
+        },
+        {
+          "key": "INCIDENT_CREATED",
+          "name": "Incident Created",
+          "category": "resolved",
+          "jiraStatusId": "10061",
+          "statusType": "resolved"
+        },
+        {
+          "key": "PROBLEM_CREATED",
+          "name": "Problem Created",
+          "category": "resolved",
+          "jiraStatusId": "10049",
+          "statusType": "resolved"
+        },
+        {
+          "key": "SERVICE_REQUEST_CREATED",
+          "name": "Service Request",
+          "category": "resolved",
+          "jiraStatusId": "10237",
+          "statusType": "resolved"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "START_ANALYSIS",
+          "from": "NEW",
+          "to": "ANALYSIS",
+          "label": "Start Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "APPROVE",
+          "from": "ANALYSIS",
+          "to": "APPROVED",
+          "label": "Approve",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REJECT",
+          "from": "ANALYSIS",
+          "to": "REJECTED",
+          "label": "Reject",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REOPEN",
+          "from": "REJECTED",
+          "to": "NEW",
+          "label": "Reopen Request",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CANCEL",
+          "from": "ANALYSIS",
+          "to": "CANCELLED",
+          "label": "Cancel Request",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "COMPLETE",
+          "from": "APPROVED",
+          "to": "COMPLETED",
+          "label": "Complete",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "SNAPSHOT_REVERT",
+          "from": "APPROVED",
+          "to": "SNAPSHOT_REVERT",
+          "label": "Snapshot Revert",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "START_DR",
+          "from": "APPROVED",
+          "to": "INITIATE_SWITCH_DR",
+          "label": "Initiate Switch to DR Site",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DR_SWITCHED",
+          "from": "INITIATE_SWITCH_DR",
+          "to": "SWITCHED_DR",
+          "label": "Switched to DR",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVERSE_PRIMARY",
+          "from": "SWITCHED_DR",
+          "to": "INITIATE_REVERSE_PRIMARY",
+          "label": "Initiate Reverse Sync to Primary",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVERSE_PRIMARY_ENABLED",
+          "from": "INITIATE_REVERSE_PRIMARY",
+          "to": "REVERSE_PRIMARY_ENABLED",
+          "label": "Reverse Sync to Primary Enabled",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PRIMARY_PRECHECK",
+          "from": "REVERSE_PRIMARY_ENABLED",
+          "to": "PRIMARY_PRECHECK",
+          "label": "Switchback to Primary: Pre-check",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PRIMARY_APPROVED",
+          "from": "PRIMARY_PRECHECK",
+          "to": "INITIATE_SWITCH_PRIMARY",
+          "label": "Approve switchback",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PRIMARY_SWITCHED",
+          "from": "INITIATE_SWITCH_PRIMARY",
+          "to": "SWITCHED_PRIMARY",
+          "label": "Switched to Primary",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVERSE_DR",
+          "from": "SWITCHED_PRIMARY",
+          "to": "INITIATE_REVERSE_DR",
+          "label": "Initiate Reverse Sync to DR",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVERSE_DR_ENABLED",
+          "from": "INITIATE_REVERSE_DR",
+          "to": "REVERSE_DR_ENABLED",
+          "label": "Reverse Sync to DR Enabled",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BCP_PREP",
+          "from": "REVERSE_DR_ENABLED",
+          "to": "BCP_REPORT_PREP",
+          "label": "BCP Report Preparation",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PUBLISH_BCP",
+          "from": "BCP_REPORT_PREP",
+          "to": "PUBLISH_BCP_REPORT",
+          "label": "Publish BCP Report",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BCP_COMPLETE",
+          "from": "PUBLISH_BCP_REPORT",
+          "to": "COMPLETED",
+          "label": "Complete",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VA_REPORT",
+          "from": "COMPLETED",
+          "to": "VA_REPORT",
+          "label": "VA Report",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PT_REPORT",
+          "from": "COMPLETED",
+          "to": "PT_REPORT",
+          "label": "PT Report",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE_COMPLETED",
+          "from": "COMPLETED",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE_VA",
+          "from": "VA_REPORT",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE_PT",
+          "from": "PT_REPORT",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_VA",
+          "from": "VA_REPORT",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_PT",
+          "from": "PT_REPORT",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_SWITCH_DR",
+          "from": "INITIATE_SWITCH_DR",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_SWITCH_DR",
+          "from": "INITIATE_SWITCH_DR",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_SWITCH_DR",
+          "from": "INITIATE_SWITCH_DR",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_SWITCHED_DR",
+          "from": "SWITCHED_DR",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_SWITCHED_DR",
+          "from": "SWITCHED_DR",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_SWITCHED_DR",
+          "from": "SWITCHED_DR",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_REVERSE_PRIMARY",
+          "from": "INITIATE_REVERSE_PRIMARY",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_REVERSE_PRIMARY",
+          "from": "INITIATE_REVERSE_PRIMARY",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_REVERSE_PRIMARY",
+          "from": "INITIATE_REVERSE_PRIMARY",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_REVERSE_PRIMARY_ENABLED",
+          "from": "REVERSE_PRIMARY_ENABLED",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_REVERSE_PRIMARY_ENABLED",
+          "from": "REVERSE_PRIMARY_ENABLED",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_REVERSE_PRIMARY_ENABLED",
+          "from": "REVERSE_PRIMARY_ENABLED",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_PRIMARY_PRECHECK",
+          "from": "PRIMARY_PRECHECK",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_PRIMARY_PRECHECK",
+          "from": "PRIMARY_PRECHECK",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_PRIMARY_PRECHECK",
+          "from": "PRIMARY_PRECHECK",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_SWITCH_PRIMARY",
+          "from": "INITIATE_SWITCH_PRIMARY",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_SWITCH_PRIMARY",
+          "from": "INITIATE_SWITCH_PRIMARY",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_SWITCH_PRIMARY",
+          "from": "INITIATE_SWITCH_PRIMARY",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_SWITCHED_PRIMARY",
+          "from": "SWITCHED_PRIMARY",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_SWITCHED_PRIMARY",
+          "from": "SWITCHED_PRIMARY",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_SWITCHED_PRIMARY",
+          "from": "SWITCHED_PRIMARY",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_REVERSE_DR",
+          "from": "INITIATE_REVERSE_DR",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_REVERSE_DR",
+          "from": "INITIATE_REVERSE_DR",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_REVERSE_DR",
+          "from": "INITIATE_REVERSE_DR",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_REVERSE_DR_ENABLED",
+          "from": "REVERSE_DR_ENABLED",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_REVERSE_DR_ENABLED",
+          "from": "REVERSE_DR_ENABLED",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_REVERSE_DR_ENABLED",
+          "from": "REVERSE_DR_ENABLED",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        }
+      ]
+    },
+    {
+      "key": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "SaaS Generic Service Request v23",
+      "family": "SERVICE_REQUEST",
+      "startStatus": "NEW",
+      "newIsCreationOnly": true,
+      "slaApplicable": false,
+      "supportStatusMode": "SHARED",
+      "supportMovePolicy": "PRESERVE",
+      "statuses": [
+        {
+          "key": "NEW",
+          "name": "New",
+          "category": "start",
+          "jiraStatusId": "10020",
+          "statusType": "start"
+        },
+        {
+          "key": "ANALYSIS",
+          "name": "Analysis",
+          "category": "active",
+          "jiraStatusId": "10021",
+          "statusType": "active"
+        },
+        {
+          "key": "APPROVED",
+          "name": "Approved",
+          "category": "active",
+          "jiraStatusId": "10056",
+          "statusType": "active"
+        },
+        {
+          "key": "REJECTED",
+          "name": "Rejected",
+          "category": "active",
+          "jiraStatusId": "4",
+          "statusType": "active"
+        },
+        {
+          "key": "COMPLETED",
+          "name": "Completed",
+          "category": "resolved",
+          "jiraStatusId": "10011",
+          "statusType": "resolved"
+        },
+        {
+          "key": "DUPLICATE",
+          "name": "Duplicate",
+          "category": "final",
+          "jiraStatusId": "10036",
+          "statusType": "final"
+        },
+        {
+          "key": "DEFERRED",
+          "name": "Deferred",
+          "category": "active",
+          "jiraStatusId": "10037",
+          "statusType": "active"
+        },
+        {
+          "key": "CANCELLED",
+          "name": "Canceled",
+          "category": "final",
+          "jiraStatusId": "10004",
+          "statusType": "final"
+        },
+        {
+          "key": "CLOSED",
+          "name": "Closed",
+          "category": "final",
+          "jiraStatusId": "6",
+          "statusType": "final"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "START_ANALYSIS",
+          "from": "NEW",
+          "to": "ANALYSIS",
+          "label": "Start Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "APPROVE",
+          "from": "ANALYSIS",
+          "to": "APPROVED",
+          "label": "Approve",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REJECT",
+          "from": "ANALYSIS",
+          "to": "REJECTED",
+          "label": "Reject",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REOPEN",
+          "from": "REJECTED",
+          "to": "ANALYSIS",
+          "label": "Return for correction",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "COMPLETE",
+          "from": "APPROVED",
+          "to": "COMPLETED",
+          "label": "Complete",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DUPLICATE",
+          "from": "ANALYSIS",
+          "to": "DUPLICATE",
+          "label": "Duplicate",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DEFER",
+          "from": "ANALYSIS",
+          "to": "DEFERRED",
+          "label": "Deferred",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CANCEL",
+          "from": "ANALYSIS",
+          "to": "CANCELLED",
+          "label": "Cancel Request",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE",
+          "from": "COMPLETED",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        }
+      ]
+    },
+    {
+      "key": "WF_SAAS_ACCESS_REQUEST",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "SaaS Access Request v23",
+      "family": "SERVICE_REQUEST",
+      "startStatus": "NEW",
+      "newIsCreationOnly": true,
+      "slaApplicable": false,
+      "supportStatusMode": "SHARED",
+      "supportMovePolicy": "PRESERVE",
+      "statuses": [
+        {
+          "key": "NEW",
+          "name": "New",
+          "category": "start",
+          "jiraStatusId": "10020",
+          "statusType": "start"
+        },
+        {
+          "key": "ANALYSIS",
+          "name": "Analysis",
+          "category": "active",
+          "jiraStatusId": "10021",
+          "statusType": "active"
+        },
+        {
+          "key": "APPROVED",
+          "name": "Approved",
+          "category": "active",
+          "jiraStatusId": "10056",
+          "statusType": "active"
+        },
+        {
+          "key": "REJECTED",
+          "name": "Rejected",
+          "category": "active",
+          "jiraStatusId": "4",
+          "statusType": "active"
+        },
+        {
+          "key": "COMPLETED",
+          "name": "Completed",
+          "category": "resolved",
+          "jiraStatusId": "10011",
+          "statusType": "resolved"
+        },
+        {
+          "key": "DUPLICATE",
+          "name": "Duplicate",
+          "category": "final",
+          "jiraStatusId": "10036",
+          "statusType": "final"
+        },
+        {
+          "key": "DEFERRED",
+          "name": "Deferred",
+          "category": "active",
+          "jiraStatusId": "10037",
+          "statusType": "active"
+        },
+        {
+          "key": "CANCELLED",
+          "name": "Canceled",
+          "category": "final",
+          "jiraStatusId": "10004",
+          "statusType": "final"
+        },
+        {
+          "key": "CLOSED",
+          "name": "Closed",
+          "category": "final",
+          "jiraStatusId": "6",
+          "statusType": "final"
+        },
+        {
+          "key": "UPDATED",
+          "name": "Updated",
+          "category": "active",
+          "jiraStatusId": "10057",
+          "statusType": "active"
+        },
+        {
+          "key": "PENDING_APPROVAL",
+          "name": "Pending Approval",
+          "category": "active",
+          "jiraStatusId": "10062",
+          "statusType": "active"
+        },
+        {
+          "key": "ACCESS_APPROVED",
+          "name": "Access Approved",
+          "category": "active",
+          "jiraStatusId": "10063",
+          "statusType": "active"
+        },
+        {
+          "key": "REVOKED",
+          "name": "Revoked",
+          "category": "resolved",
+          "jiraStatusId": "10058",
+          "statusType": "resolved"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "START_ANALYSIS",
+          "from": "NEW",
+          "to": "ANALYSIS",
+          "label": "Start Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "MODIFY",
+          "from": "ANALYSIS",
+          "to": "UPDATED",
+          "label": "Modify User Request",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "SEND_APPROVAL_ANALYSIS",
+          "from": "ANALYSIS",
+          "to": "PENDING_APPROVAL",
+          "label": "Send for Approval",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "SEND_APPROVAL_UPDATED",
+          "from": "UPDATED",
+          "to": "PENDING_APPROVAL",
+          "label": "Send for Approval",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "ACCESS_APPROVE",
+          "from": "PENDING_APPROVAL",
+          "to": "ACCESS_APPROVED",
+          "label": "Approve",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "ACCESS_REJECT",
+          "from": "PENDING_APPROVAL",
+          "to": "REJECTED",
+          "label": "Reject",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REOPEN_REJECTED",
+          "from": "REJECTED",
+          "to": "ANALYSIS",
+          "label": "Return for correction",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVOKE",
+          "from": "ACCESS_APPROVED",
+          "to": "REVOKED",
+          "label": "Revoke Request",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE_ACCESS",
+          "from": "ACCESS_APPROVED",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE_REVOKED",
+          "from": "REVOKED",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DUPLICATE",
+          "from": "ANALYSIS",
+          "to": "DUPLICATE",
+          "label": "Duplicate",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DEFER",
+          "from": "ANALYSIS",
+          "to": "DEFERRED",
+          "label": "Deferred",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CANCEL",
+          "from": "ANALYSIS",
+          "to": "CANCELLED",
+          "label": "Cancel Request",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        }
+      ]
+    },
+    {
+      "key": "WF_SAAS_DR_BCP_REQUEST",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "SaaS DR / BCP Service Request v23",
+      "family": "SERVICE_REQUEST",
+      "startStatus": "NEW",
+      "newIsCreationOnly": true,
+      "slaApplicable": false,
+      "supportStatusMode": "SHARED",
+      "supportMovePolicy": "PRESERVE",
+      "statuses": [
+        {
+          "key": "NEW",
+          "name": "New",
+          "category": "start",
+          "jiraStatusId": "10020",
+          "statusType": "start"
+        },
+        {
+          "key": "ANALYSIS",
+          "name": "Analysis",
+          "category": "active",
+          "jiraStatusId": "10021",
+          "statusType": "active"
+        },
+        {
+          "key": "APPROVED",
+          "name": "Approved",
+          "category": "active",
+          "jiraStatusId": "10056",
+          "statusType": "active"
+        },
+        {
+          "key": "REJECTED",
+          "name": "Rejected",
+          "category": "active",
+          "jiraStatusId": "4",
+          "statusType": "active"
+        },
+        {
+          "key": "COMPLETED",
+          "name": "Completed",
+          "category": "resolved",
+          "jiraStatusId": "10011",
+          "statusType": "resolved"
+        },
+        {
+          "key": "DUPLICATE",
+          "name": "Duplicate",
+          "category": "final",
+          "jiraStatusId": "10036",
+          "statusType": "final"
+        },
+        {
+          "key": "DEFERRED",
+          "name": "Deferred",
+          "category": "active",
+          "jiraStatusId": "10037",
+          "statusType": "active"
+        },
+        {
+          "key": "CANCELLED",
+          "name": "Canceled",
+          "category": "final",
+          "jiraStatusId": "10004",
+          "statusType": "final"
+        },
+        {
+          "key": "CLOSED",
+          "name": "Closed",
+          "category": "final",
+          "jiraStatusId": "6",
+          "statusType": "final"
+        },
+        {
+          "key": "DR_DRILL_ANALYSIS",
+          "name": "DR Drill Analysis",
+          "category": "active",
+          "jiraStatusId": "10137",
+          "statusType": "active"
+        },
+        {
+          "key": "PRE_CHECK",
+          "name": "Pre-Check",
+          "category": "active",
+          "jiraStatusId": "10109",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_SWITCH_DR",
+          "name": "Initiate Switch to DR",
+          "category": "active",
+          "jiraStatusId": "10090",
+          "statusType": "active"
+        },
+        {
+          "key": "SWITCHED_DR",
+          "name": "Switched to DR",
+          "category": "active",
+          "jiraStatusId": "10092",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_REVERSE_PRIMARY",
+          "name": "Initiate Reverse Sync to Primary",
+          "category": "active",
+          "jiraStatusId": "10138",
+          "statusType": "active"
+        },
+        {
+          "key": "REVERSE_PRIMARY_ENABLED",
+          "name": "Reverse Sync to Primary Enabled",
+          "category": "active",
+          "jiraStatusId": "10139",
+          "statusType": "active"
+        },
+        {
+          "key": "PRIMARY_PRECHECK",
+          "name": "Switchback to Primary: Pre-check",
+          "category": "active",
+          "jiraStatusId": "10140",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_SWITCH_PRIMARY",
+          "name": "Initiate Switch to Primary",
+          "category": "active",
+          "jiraStatusId": "10141",
+          "statusType": "active"
+        },
+        {
+          "key": "SWITCHED_PRIMARY",
+          "name": "Switched to Primary",
+          "category": "active",
+          "jiraStatusId": "10142",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_REVERSE_DR",
+          "name": "Initiate Reverse Sync to DR",
+          "category": "active",
+          "jiraStatusId": "10143",
+          "statusType": "active"
+        },
+        {
+          "key": "REVERSE_DR_ENABLED",
+          "name": "Reverse Sync to DR Enabled",
+          "category": "active",
+          "jiraStatusId": "10144",
+          "statusType": "active"
+        },
+        {
+          "key": "BCP_REPORT_PREP",
+          "name": "BCP Report Preparation",
+          "category": "active",
+          "jiraStatusId": "10145",
+          "statusType": "active"
+        },
+        {
+          "key": "PUBLISH_BCP_REPORT",
+          "name": "Publish BCP Report",
+          "category": "active",
+          "jiraStatusId": "10108",
+          "statusType": "active"
+        },
+        {
+          "key": "INCIDENT_CREATED",
+          "name": "Incident Created",
+          "category": "resolved",
+          "jiraStatusId": "10061",
+          "statusType": "resolved"
+        },
+        {
+          "key": "PROBLEM_CREATED",
+          "name": "Problem Created",
+          "category": "resolved",
+          "jiraStatusId": "10049",
+          "statusType": "resolved"
+        },
+        {
+          "key": "SERVICE_REQUEST_CREATED",
+          "name": "Service Request",
+          "category": "resolved",
+          "jiraStatusId": "10237",
+          "statusType": "resolved"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "START_DR_ANALYSIS",
+          "from": "NEW",
+          "to": "DR_DRILL_ANALYSIS",
+          "label": "DR Drill Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "APPROVE_DR",
+          "from": "DR_DRILL_ANALYSIS",
+          "to": "APPROVED",
+          "label": "Approve",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REJECT_DR",
+          "from": "DR_DRILL_ANALYSIS",
+          "to": "REJECTED",
+          "label": "Reject",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "START_DR",
+          "from": "APPROVED",
+          "to": "INITIATE_SWITCH_DR",
+          "label": "Initiate Switch to DR",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "SWITCHED_DR",
+          "from": "INITIATE_SWITCH_DR",
+          "to": "SWITCHED_DR",
+          "label": "Switched to DR",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVERSE_PRIMARY",
+          "from": "SWITCHED_DR",
+          "to": "INITIATE_REVERSE_PRIMARY",
+          "label": "Initiate Reverse Sync to Primary",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVERSE_PRIMARY_ENABLED",
+          "from": "INITIATE_REVERSE_PRIMARY",
+          "to": "REVERSE_PRIMARY_ENABLED",
+          "label": "Reverse Sync to Primary Enabled",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PRIMARY_PRECHECK",
+          "from": "REVERSE_PRIMARY_ENABLED",
+          "to": "PRIMARY_PRECHECK",
+          "label": "Switchback to Primary: Pre-check",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "SWITCH_PRIMARY",
+          "from": "PRIMARY_PRECHECK",
+          "to": "INITIATE_SWITCH_PRIMARY",
+          "label": "Initiate Switch to Primary",
+          "kind": "approval",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "SWITCHED_PRIMARY",
+          "from": "INITIATE_SWITCH_PRIMARY",
+          "to": "SWITCHED_PRIMARY",
+          "label": "Switched to Primary",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVERSE_DR",
+          "from": "SWITCHED_PRIMARY",
+          "to": "INITIATE_REVERSE_DR",
+          "label": "Initiate Reverse Sync to DR",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REVERSE_DR_ENABLED",
+          "from": "INITIATE_REVERSE_DR",
+          "to": "REVERSE_DR_ENABLED",
+          "label": "Reverse Sync to DR Enabled",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "BCP_PREP",
+          "from": "REVERSE_DR_ENABLED",
+          "to": "BCP_REPORT_PREP",
+          "label": "BCP Report Preparation",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PUBLISH_BCP",
+          "from": "BCP_REPORT_PREP",
+          "to": "PUBLISH_BCP_REPORT",
+          "label": "Publish BCP Report",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "COMPLETE",
+          "from": "PUBLISH_BCP_REPORT",
+          "to": "COMPLETED",
+          "label": "Complete",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE",
+          "from": "COMPLETED",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_SWITCH_DR",
+          "from": "INITIATE_SWITCH_DR",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_SWITCH_DR",
+          "from": "INITIATE_SWITCH_DR",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_SWITCH_DR",
+          "from": "INITIATE_SWITCH_DR",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_SWITCHED_DR",
+          "from": "SWITCHED_DR",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_SWITCHED_DR",
+          "from": "SWITCHED_DR",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_SWITCHED_DR",
+          "from": "SWITCHED_DR",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_REVERSE_PRIMARY",
+          "from": "INITIATE_REVERSE_PRIMARY",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_REVERSE_PRIMARY",
+          "from": "INITIATE_REVERSE_PRIMARY",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_REVERSE_PRIMARY",
+          "from": "INITIATE_REVERSE_PRIMARY",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_REVERSE_PRIMARY_ENABLED",
+          "from": "REVERSE_PRIMARY_ENABLED",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_REVERSE_PRIMARY_ENABLED",
+          "from": "REVERSE_PRIMARY_ENABLED",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_REVERSE_PRIMARY_ENABLED",
+          "from": "REVERSE_PRIMARY_ENABLED",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_PRIMARY_PRECHECK",
+          "from": "PRIMARY_PRECHECK",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_PRIMARY_PRECHECK",
+          "from": "PRIMARY_PRECHECK",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_PRIMARY_PRECHECK",
+          "from": "PRIMARY_PRECHECK",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_SWITCH_PRIMARY",
+          "from": "INITIATE_SWITCH_PRIMARY",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_SWITCH_PRIMARY",
+          "from": "INITIATE_SWITCH_PRIMARY",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_SWITCH_PRIMARY",
+          "from": "INITIATE_SWITCH_PRIMARY",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_SWITCHED_PRIMARY",
+          "from": "SWITCHED_PRIMARY",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_SWITCHED_PRIMARY",
+          "from": "SWITCHED_PRIMARY",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_SWITCHED_PRIMARY",
+          "from": "SWITCHED_PRIMARY",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_REVERSE_DR",
+          "from": "INITIATE_REVERSE_DR",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_REVERSE_DR",
+          "from": "INITIATE_REVERSE_DR",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_REVERSE_DR",
+          "from": "INITIATE_REVERSE_DR",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_REVERSE_DR_ENABLED",
+          "from": "REVERSE_DR_ENABLED",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_REVERSE_DR_ENABLED",
+          "from": "REVERSE_DR_ENABLED",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_REVERSE_DR_ENABLED",
+          "from": "REVERSE_DR_ENABLED",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        }
+      ]
+    },
+    {
+      "key": "WF_SAAS_PITR_REQUEST",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "SaaS PITR Service Request v23",
+      "family": "SERVICE_REQUEST",
+      "startStatus": "NEW",
+      "newIsCreationOnly": true,
+      "slaApplicable": false,
+      "supportStatusMode": "SHARED",
+      "supportMovePolicy": "PRESERVE",
+      "statuses": [
+        {
+          "key": "NEW",
+          "name": "New",
+          "category": "start",
+          "jiraStatusId": "10020",
+          "statusType": "start"
+        },
+        {
+          "key": "PITR_DRILL_ANALYSIS",
+          "name": "PITR Drill Analysis",
+          "category": "active",
+          "jiraStatusId": "10270",
+          "statusType": "active"
+        },
+        {
+          "key": "PRE_CHECK",
+          "name": "Pre-Check",
+          "category": "active",
+          "jiraStatusId": "10109",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_PITR_DRILL",
+          "name": "Initiate PITR Drill",
+          "category": "active",
+          "jiraStatusId": "10271",
+          "statusType": "active"
+        },
+        {
+          "key": "VALIDATE_RESTORED_DB",
+          "name": "Validate Restored DB",
+          "category": "active",
+          "jiraStatusId": "10272",
+          "statusType": "active"
+        },
+        {
+          "key": "DB_RESTORATION_VALIDATED",
+          "name": "DB Restoration Validated",
+          "category": "active",
+          "jiraStatusId": "10273",
+          "statusType": "active"
+        },
+        {
+          "key": "ENABLE_INFRA_SNAPSHOT",
+          "name": "Enable Infra with PITR Snapshot",
+          "category": "active",
+          "jiraStatusId": "10274",
+          "statusType": "active"
+        },
+        {
+          "key": "POST_CHECK_RPO_RTO",
+          "name": "Post Check & RPO/RTO Validations",
+          "category": "active",
+          "jiraStatusId": "10275",
+          "statusType": "active"
+        },
+        {
+          "key": "PITR_COMPLETED",
+          "name": "PITR Completed",
+          "category": "resolved",
+          "jiraStatusId": "10276",
+          "statusType": "resolved"
+        },
+        {
+          "key": "ROLLBACK_ORIGINAL_DB",
+          "name": "Roll Back to Original DB",
+          "category": "active",
+          "jiraStatusId": "10277",
+          "statusType": "active"
+        },
+        {
+          "key": "PRECHECK_ROLLBACK",
+          "name": "Pre-Check for Rollback",
+          "category": "active",
+          "jiraStatusId": "10278",
+          "statusType": "active"
+        },
+        {
+          "key": "INITIATE_ROLLBACK",
+          "name": "Initiate Rollback",
+          "category": "active",
+          "jiraStatusId": "10279",
+          "statusType": "active"
+        },
+        {
+          "key": "VALIDATE_ROLLBACK_DB",
+          "name": "Validate Rollback DB",
+          "category": "active",
+          "jiraStatusId": "10280",
+          "statusType": "active"
+        },
+        {
+          "key": "POST_CHECK",
+          "name": "Post Check",
+          "category": "active",
+          "jiraStatusId": "10281",
+          "statusType": "active"
+        },
+        {
+          "key": "PITR_DRILL_COMPLETED",
+          "name": "PITR Drill Completed",
+          "category": "resolved",
+          "jiraStatusId": "10282",
+          "statusType": "resolved"
+        },
+        {
+          "key": "PITR_REPORT_PREP",
+          "name": "PITR Drill Report Preparation",
+          "category": "active",
+          "jiraStatusId": "10283",
+          "statusType": "active"
+        },
+        {
+          "key": "PUBLISH_PITR_REPORT",
+          "name": "Publish PITR Report",
+          "category": "active",
+          "jiraStatusId": "10284",
+          "statusType": "active"
+        },
+        {
+          "key": "INCIDENT_CREATED",
+          "name": "Incident Created",
+          "category": "resolved",
+          "jiraStatusId": "10061",
+          "statusType": "resolved"
+        },
+        {
+          "key": "PROBLEM_CREATED",
+          "name": "Problem Created",
+          "category": "resolved",
+          "jiraStatusId": "10049",
+          "statusType": "resolved"
+        },
+        {
+          "key": "SERVICE_REQUEST_CREATED",
+          "name": "Service Request",
+          "category": "resolved",
+          "jiraStatusId": "10237",
+          "statusType": "resolved"
+        },
+        {
+          "key": "CLOSED",
+          "name": "Closed",
+          "category": "final",
+          "jiraStatusId": "6",
+          "statusType": "final"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "START_PITR",
+          "from": "NEW",
+          "to": "PITR_DRILL_ANALYSIS",
+          "label": "PITR Drill Analysis",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PRECHECK",
+          "from": "PITR_DRILL_ANALYSIS",
+          "to": "PRE_CHECK",
+          "label": "Pre-Check",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "INITIATE",
+          "from": "PRE_CHECK",
+          "to": "INITIATE_PITR_DRILL",
+          "label": "Initiate PITR Drill",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "VALIDATE_RESTORED",
+          "from": "INITIATE_PITR_DRILL",
+          "to": "VALIDATE_RESTORED_DB",
+          "label": "Validate Restored DB",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "RESTORED_VALIDATED",
+          "from": "VALIDATE_RESTORED_DB",
+          "to": "DB_RESTORATION_VALIDATED",
+          "label": "DB Restoration Validated",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "ENABLE_INFRA",
+          "from": "DB_RESTORATION_VALIDATED",
+          "to": "ENABLE_INFRA_SNAPSHOT",
+          "label": "Enable Infra with PITR Snapshot",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "POSTCHECK_RPO",
+          "from": "ENABLE_INFRA_SNAPSHOT",
+          "to": "POST_CHECK_RPO_RTO",
+          "label": "Post Check & RPO/RTO Validations",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PITR_COMPLETE",
+          "from": "POST_CHECK_RPO_RTO",
+          "to": "PITR_COMPLETED",
+          "label": "PITR Completed",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "ROLLBACK",
+          "from": "PITR_COMPLETED",
+          "to": "ROLLBACK_ORIGINAL_DB",
+          "label": "Roll Back to Original DB",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "ROLLBACK_PRECHECK",
+          "from": "ROLLBACK_ORIGINAL_DB",
+          "to": "PRECHECK_ROLLBACK",
+          "label": "Pre-Check for Rollback",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "ROLLBACK_INIT",
+          "from": "PRECHECK_ROLLBACK",
+          "to": "INITIATE_ROLLBACK",
+          "label": "Initiate Rollback",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "ROLLBACK_VALIDATE",
+          "from": "INITIATE_ROLLBACK",
+          "to": "VALIDATE_ROLLBACK_DB",
+          "label": "Validate Rollback DB",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "POST_CHECK",
+          "from": "VALIDATE_ROLLBACK_DB",
+          "to": "POST_CHECK",
+          "label": "Post Check",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "DRILL_COMPLETE",
+          "from": "POST_CHECK",
+          "to": "PITR_DRILL_COMPLETED",
+          "label": "PITR Drill Completed",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "REPORT_PREP",
+          "from": "PITR_DRILL_COMPLETED",
+          "to": "PITR_REPORT_PREP",
+          "label": "PITR Drill Report Preparation",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "PUBLISH_REPORT",
+          "from": "PITR_REPORT_PREP",
+          "to": "PUBLISH_PITR_REPORT",
+          "label": "Publish PITR Report",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CLOSE",
+          "from": "PUBLISH_PITR_REPORT",
+          "to": "CLOSED",
+          "label": "Close",
+          "kind": "status",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_INITIATE_PITR_DRILL",
+          "from": "INITIATE_PITR_DRILL",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_INITIATE_PITR_DRILL",
+          "from": "INITIATE_PITR_DRILL",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_INITIATE_PITR_DRILL",
+          "from": "INITIATE_PITR_DRILL",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_VALIDATE_RESTORED_DB",
+          "from": "VALIDATE_RESTORED_DB",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_VALIDATE_RESTORED_DB",
+          "from": "VALIDATE_RESTORED_DB",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_VALIDATE_RESTORED_DB",
+          "from": "VALIDATE_RESTORED_DB",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_DB_RESTORATION_VALIDATED",
+          "from": "DB_RESTORATION_VALIDATED",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_DB_RESTORATION_VALIDATED",
+          "from": "DB_RESTORATION_VALIDATED",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_DB_RESTORATION_VALIDATED",
+          "from": "DB_RESTORATION_VALIDATED",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_ENABLE_INFRA_SNAPSHOT",
+          "from": "ENABLE_INFRA_SNAPSHOT",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_ENABLE_INFRA_SNAPSHOT",
+          "from": "ENABLE_INFRA_SNAPSHOT",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_ENABLE_INFRA_SNAPSHOT",
+          "from": "ENABLE_INFRA_SNAPSHOT",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_POST_CHECK_RPO_RTO",
+          "from": "POST_CHECK_RPO_RTO",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_POST_CHECK_RPO_RTO",
+          "from": "POST_CHECK_RPO_RTO",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_POST_CHECK_RPO_RTO",
+          "from": "POST_CHECK_RPO_RTO",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_VALIDATE_ROLLBACK_DB",
+          "from": "VALIDATE_ROLLBACK_DB",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_VALIDATE_ROLLBACK_DB",
+          "from": "VALIDATE_ROLLBACK_DB",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_VALIDATE_ROLLBACK_DB",
+          "from": "VALIDATE_ROLLBACK_DB",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_INCIDENT_POST_CHECK",
+          "from": "POST_CHECK",
+          "to": "INCIDENT_CREATED",
+          "label": "Create Incident",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_PROBLEM_POST_CHECK",
+          "from": "POST_CHECK",
+          "to": "PROBLEM_CREATED",
+          "label": "Create Problem",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        },
+        {
+          "key": "CREATE_SR_POST_CHECK",
+          "from": "POST_CHECK",
+          "to": "SERVICE_REQUEST_CREATED",
+          "label": "Create Service Request",
+          "kind": "linked_request",
+          "syncAcrossSupportLevels": true
+        }
+      ]
+    }
+  ]
+}

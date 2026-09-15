@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar') %>
+      <main class="main">
+        <%- include('../partials/topbar', { organization }) %>
+
+        <section class="page-head unified-page-head thin-head">
+          <div>
+            <p class="eyebrow">Impact and urgency scales</p>
+            <h2>Severities & Priorities</h2>
+            <p>Define impact separately from urgency. Severity is impact; priority is urgency.</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="button" data-open-modal="severityModal">Add severity</button>
+            <button class="btn secondary" type="button" data-open-modal="priorityModal">Add priority</button>
+            <form method="post" action="/config/seed"><input type="hidden" name="next" value="/admin/severities-priorities" /><button class="btn secondary" type="submit">Seed defaults</button></form>
+          </div>
+        </section>
+
+        <section class="config-anchor-row card pad compact-anchor-row">
+          <a href="/admin/sla">SLA Policies</a>
+          <a class="active-soft" href="/admin/severities-priorities">Severities & Priorities</a>
+          <a href="/admin/products-modules">Products & Modules</a>
+          <a href="/admin/regions">Regions &amp; Subregions</a>
+          <a href="/admin/environments">Environments</a>
+        </section>
+
+        <section class="grid two-col-grid equal-grid">
+          <article class="card client-table-card">
+            <div class="section-head"><div><p class="eyebrow">Severity library</p><h3>Impact scale</h3></div><button class="btn secondary small" type="button" data-open-modal="severityModal">Add</button></div>
+            <div class="table-wrap"><table class="clean-table compact-table"><thead><tr><th>Code</th><th>Name</th><th>Description</th><th>Order</th><th>Status</th><th></th></tr></thead><tbody>
+              <% severities.forEach((severity) => { %>
+                <tr><td><span class="code-badge"><%= severity.code %></span></td><td><strong><%= severity.name %></strong></td><td><%= severity.description %></td><td><%= severity.displayOrder %></td><td><%= severity.status %></td><td><div class="table-actions"><button class="table-link-button" type="button" data-open-modal="editSeverity<%= severity._id %>">Edit</button><form method="post" action="/config/severities/<%= severity._id %>/edit" class="inline-action-form"><input type="hidden" name="code" value="<%= severity.code %>"><input type="hidden" name="name" value="<%= severity.name %>"><input type="hidden" name="description" value="<%= severity.description %>"><input type="hidden" name="displayOrder" value="<%= severity.displayOrder %>"><input type="hidden" name="marker" value="<%= severity.marker || '' %>"><input type="hidden" name="status" value="<%= severity.status === 'active' ? 'inactive' : 'active' %>"><button class="table-link-button <%= severity.status === 'active' ? 'danger-text' : '' %>" type="submit"><%= severity.status === 'active' ? 'Deactivate' : 'Reactivate' %></button></form></div></td></tr>
+              <% }) %>
+              <% if (!severities.length) { %><tr><td colspan="6"><div class="empty-box">No severities yet. Seed defaults or add one.</div></td></tr><% } %>
+            </tbody></table></div>
+          </article>
+
+          <article class="card client-table-card">
+            <div class="section-head"><div><p class="eyebrow">Priority library</p><h3>Urgency scale</h3></div><button class="btn secondary small" type="button" data-open-modal="priorityModal">Add</button></div>
+            <div class="table-wrap"><table class="clean-table compact-table"><thead><tr><th>Code</th><th>Name</th><th>Description</th><th>Order</th><th>Status</th><th></th></tr></thead><tbody>
+              <% priorities.forEach((priority) => { %>
+                <tr><td><span class="code-badge"><%= priority.code %></span></td><td><strong><%= priority.name %></strong></td><td><%= priority.description %></td><td><%= priority.displayOrder %></td><td><%= priority.status %></td><td><div class="table-actions"><button class="table-link-button" type="button" data-open-modal="editPriority<%= priority._id %>">Edit</button><form method="post" action="/config/priorities/<%= priority._id %>/edit" class="inline-action-form"><input type="hidden" name="code" value="<%= priority.code %>"><input type="hidden" name="name" value="<%= priority.name %>"><input type="hidden" name="description" value="<%= priority.description %>"><input type="hidden" name="displayOrder" value="<%= priority.displayOrder %>"><input type="hidden" name="marker" value="<%= priority.marker || '' %>"><input type="hidden" name="status" value="<%= priority.status === 'active' ? 'inactive' : 'active' %>"><button class="table-link-button <%= priority.status === 'active' ? 'danger-text' : '' %>" type="submit"><%= priority.status === 'active' ? 'Deactivate' : 'Reactivate' %></button></form></div></td></tr>
+              <% }) %>
+              <% if (!priorities.length) { %><tr><td colspan="6"><div class="empty-box">No priorities yet. Seed defaults or add one.</div></td></tr><% } %>
+            </tbody></table></div>
+          </article>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+
+    <dialog class="modal" id="severityModal">
+      <form method="post" action="/config/severities" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Add severity</p><h3>Impact definition</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <div class="two-col narrow"><label><span>Code</span><input name="code" required placeholder="S1" /></label><label><span>Name</span><input name="name" required placeholder="Critical" /></label></div>
+        <label><span>Description <em>required</em></span><textarea name="description" required rows="3"></textarea></label>
+        <div class="two-col narrow"><label><span>Order</span><input name="displayOrder" type="number" value="100" /></label><label><span>Marker</span><input name="marker" placeholder="critical" /></label></div>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save severity</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="priorityModal">
+      <form method="post" action="/config/priorities" class="modal-card form compact-form">
+        <div class="modal-head"><div><p class="eyebrow">Add priority</p><h3>Urgency definition</h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <div class="two-col narrow"><label><span>Code</span><input name="code" required placeholder="P1" /></label><label><span>Name</span><input name="name" required placeholder="Critical" /></label></div>
+        <label><span>Description <em>required</em></span><textarea name="description" required rows="3"></textarea></label>
+        <div class="two-col narrow"><label><span>Order</span><input name="displayOrder" type="number" value="100" /></label><label><span>Marker</span><input name="marker" placeholder="high" /></label></div>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Save priority</button></div>
+      </form>
+    </dialog>
+
+    <% severities.forEach((severity) => { %>
+      <dialog class="modal" id="editSeverity<%= severity._id %>"><form method="post" action="/config/severities/<%= severity._id %>/edit" class="modal-card form compact-form"><div class="modal-head"><div><p class="eyebrow">Edit severity</p><h3><%= severity.code %> · <%= severity.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><div class="two-col narrow"><label><span>Code</span><input name="code" value="<%= severity.code %>" required /></label><label><span>Name</span><input name="name" value="<%= severity.name %>" required /></label></div><label><span>Description</span><textarea name="description" rows="3" required><%= severity.description %></textarea></label><div class="two-col narrow"><label><span>Order</span><input name="displayOrder" type="number" value="<%= severity.displayOrder %>" /></label><label><span>Marker</span><input name="marker" value="<%= severity.marker || '' %>" /></label></div><label><span>Status</span><select name="status"><option value="active" <%= severity.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= severity.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save</button></div></form></dialog>
+    <% }) %>
+    <% priorities.forEach((priority) => { %>
+      <dialog class="modal" id="editPriority<%= priority._id %>"><form method="post" action="/config/priorities/<%= priority._id %>/edit" class="modal-card form compact-form"><div class="modal-head"><div><p class="eyebrow">Edit priority</p><h3><%= priority.code %> · <%= priority.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div><div class="two-col narrow"><label><span>Code</span><input name="code" value="<%= priority.code %>" required /></label><label><span>Name</span><input name="name" value="<%= priority.name %>" required /></label></div><label><span>Description</span><textarea name="description" rows="3" required><%= priority.description %></textarea></label><div class="two-col narrow"><label><span>Order</span><input name="displayOrder" type="number" value="<%= priority.displayOrder %>" /></label><label><span>Marker</span><input name="marker" value="<%= priority.marker || '' %>" /></label></div><label><span>Status</span><select name="status"><option value="active" <%= priority.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= priority.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></label><div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary">Save</button></div></form></dialog>
+    <% }) %>
+    <script src="/js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+<% const fc = Object.assign({ severity:true, priority:true, product:true, module:true, region:true, environment:true }, fieldsConfig || {}); %>
+<div class="field-config-box">
+  <p class="eyebrow">Fields shown after summary and description</p>
+  <div class="checkbox-grid">
+    <% ['severity','priority','product','module','region','environment'].forEach((key) => { %>
+      <label class="inline-check"><input type="checkbox" name="field_<%= key %>" <%= fc[key] ? 'checked' : '' %> /> <%= key.charAt(0).toUpperCase() + key.slice(1) %></label>
+    <% }) %>
+  </div>
+</div>

@@ -1,0 +1,161 @@
+<% const dashboardRequestBase = typeof requestBase !== 'undefined' ? requestBase : '/admin/requests'; %>
+<% const pulse = typeof calendarPulse !== 'undefined' && calendarPulse ? calendarPulse : { today: 0, week: 0, month: 0, openNow: 0, resolvedThisMonth: 0, slaAttention: 0 }; %>
+<section class="calendar-pulse-section" aria-label="Current request volume">
+  <div class="calendar-pulse-head">
+    <div><p class="eyebrow">Current pulse</p><h3>Requests raised</h3></div>
+    <p>Daily, weekly and monthly request volume at a glance.</p>
+  </div>
+  <div class="calendar-pulse-grid">
+    <article class="calendar-pulse-card pulse-today"><span>Today</span><strong><%= pulse.today %></strong><small>raised today</small></article>
+    <article class="calendar-pulse-card pulse-week"><span>This week</span><strong><%= pulse.week %></strong><small>since Monday</small></article>
+    <article class="calendar-pulse-card pulse-month"><span>This month</span><strong><%= pulse.month %></strong><small>since month start</small></article>
+    <article class="calendar-pulse-card pulse-open"><span>Open now</span><strong><%= pulse.openNow %></strong><small>active requests</small></article>
+    <article class="calendar-pulse-card pulse-resolved"><span>Resolved this month</span><strong><%= pulse.resolvedThisMonth %></strong><small>resolved / closed</small></article>
+    <article class="calendar-pulse-card pulse-attention"><span>SLA attention</span><strong><%= pulse.slaAttention %></strong><small>at risk / breached</small></article>
+  </div>
+</section>
+
+<section class="dashboard-period-bar card">
+  <div><p class="eyebrow">Time range</p><strong><%= range.key === 'custom' ? 'Custom range' : range.key.toUpperCase() %></strong></div>
+  <div class="period-pills">
+    <% ['1w','2w','30d','90d','180d','365d'].forEach((key) => { %><a class="period-pill <%= range.key === key ? 'active' : '' %>" href="<%= periodHref(key) %>"><%= key.toUpperCase() %></a><% }) %>
+  </div>
+  <form class="custom-range-form" method="get">
+    <input type="hidden" name="range" value="custom" />
+    <input type="date" name="from" value="<%= range.from.toISOString().slice(0,10) %>" />
+    <input type="date" name="to" value="<%= range.to.toISOString().slice(0,10) %>" />
+    <button class="btn secondary small" type="submit">Apply</button>
+  </form>
+</section>
+
+<section class="dashboard-grid-two">
+  <article class="card pad analytics-card">
+    <div class="section-head"><div><p class="eyebrow">Trend</p><h3>Issues raised per day</h3></div></div>
+    <div class="mini-bar-chart v18-chart">
+      <% const maxRaised = Math.max(1, ...(analytics.raisedPerDay || []).map(d => d.value)); %>
+      <% (analytics.raisedPerDay || []).slice(-60).forEach((day) => { %>
+        <span title="<%= day.label %>: <%= day.value %>" style="height:<%= Math.max(4, (day.value / maxRaised) * 100) %>%"></span>
+      <% }) %>
+    </div>
+  </article>
+  <article class="card pad analytics-card">
+    <div class="section-head"><div><p class="eyebrow">Trend</p><h3>Total open issues by day</h3></div></div>
+    <div class="mini-bar-chart open-chart v18-chart">
+      <% const maxOpen = Math.max(1, ...(analytics.openByDay || []).map(d => d.value)); %>
+      <% (analytics.openByDay || []).slice(-60).forEach((day) => { %>
+        <span title="<%= day.label %>: <%= day.value %>" style="height:<%= Math.max(4, (day.value / maxOpen) * 100) %>%"></span>
+      <% }) %>
+    </div>
+  </article>
+</section>
+
+<section class="dashboard-grid-two sla-dashboard-row">
+  <article class="card pad analytics-card sla-rag-chart-card">
+    <div class="section-head"><div><p class="eyebrow">SLA performance</p><h3>RAG distribution</h3></div></div>
+    <% const ragRows = analytics.bySla || []; const ragTotal = Math.max(1, ragRows.reduce((sum, row) => sum + Number(row.value || 0), 0)); %>
+    <div class="rag-distribution-bar">
+      <% ragRows.forEach((row) => { const key = String(row.label || 'grey').toLowerCase(); %>
+        <span class="rag-segment rag-<%= key %>" style="width:<%= Math.max(4, (Number(row.value || 0) / ragTotal) * 100) %>%" title="<%= row.label %>: <%= row.value %>"></span>
+      <% }) %>
+    </div>
+    <div class="rag-legend">
+      <% ragRows.forEach((row) => { const key = String(row.label || 'grey').toLowerCase(); %>
+        <a href="<%= dashboardRequestBase %>?sla=<%= key %>"><span class="dot rag-dot-<%= key %>"></span><strong><%= row.label %></strong><em><%= row.value %></em></a>
+      <% }) %>
+    </div>
+  </article>
+
+  <article class="card pad analytics-card milestone-chart-card">
+    <div class="section-head"><div><p class="eyebrow">SLA milestones</p><h3>Response vs resolution</h3></div></div>
+    <div class="milestone-bars">
+      <% [['Response', analytics.byResponseState], ['Resolution', analytics.byResolutionState]].forEach(([label, rows]) => { const total = Math.max(1, (rows || []).reduce((sum, row) => sum + Number(row.value || 0), 0)); %>
+        <div class="milestone-bar-row">
+          <strong><%= label %></strong>
+          <div class="milestone-stack">
+            <% (rows || []).forEach((row) => { const key = String(row.label || '').replaceAll('_','-'); %>
+              <span class="milestone-segment milestone-<%= key %>" style="width:<%= Math.max(4, (Number(row.value || 0) / total) * 100) %>%" title="<%= row.label %>: <%= row.value %>"></span>
+            <% }) %>
+          </div>
+          <small><%= (rows || []).map((row) => `${String(row.label || '').replaceAll('_',' ')} ${row.value}`).join(' · ') %></small>
+        </div>
+      <% }) %>
+    </div>
+  </article>
+</section>
+
+<section class="dashboard-grid-two sla-dashboard-row">
+  <article class="card pad analytics-card">
+    <div class="section-head"><div><p class="eyebrow">SLA trend</p><h3>Risk created per day</h3></div></div>
+    <div class="risk-trend-chart">
+      <% const maxRisk = Math.max(1, ...(analytics.slaRiskTrend || []).map(d => d.total)); %>
+      <% (analytics.slaRiskTrend || []).slice(-60).forEach((day) => { %>
+        <span title="<%= day.label %>: red <%= day.red %>, amber <%= day.amber %>">
+          <i class="risk-amber" style="height:<%= Math.max(0, (day.amber / maxRisk) * 100) %>%"></i>
+          <i class="risk-red" style="height:<%= Math.max(0, (day.red / maxRisk) * 100) %>%"></i>
+        </span>
+      <% }) %>
+    </div>
+  </article>
+  <article class="card pad analytics-card">
+    <div class="section-head"><div><p class="eyebrow">SLA risk</p><h3>Top clients by attention</h3></div><a class="text-link" href="<%= dashboardRequestBase %>?sla=red">View breached</a></div>
+    <div class="rank-list compact-rank-list">
+      <% (analytics.topSlaClients || []).forEach((row) => { %><a href="<%= dashboardRequestBase %>?search=<%= encodeURIComponent(row.label) %>&sla=red"><strong><%= row.label %></strong><span><%= row.value %></span></a><% }) %>
+      <% if (!(analytics.topSlaClients || []).length) { %><p class="muted">No SLA attention in this range.</p><% } %>
+    </div>
+  </article>
+</section>
+
+<section class="dashboard-grid-two dashboard-tables-row">
+  <article class="card client-table-card">
+    <div class="section-head table-section-head"><div><p class="eyebrow">SLA attention</p><h3>Requests needing action</h3></div><a class="text-link" href="<%= dashboardRequestBase %>?sla=amber">View all</a></div>
+    <div class="table-wrap no-wide-scroll">
+      <table class="clean-table compact-table dashboard-attention-table">
+        <thead><tr><th>Request</th><th>Client</th><th>SLA</th><th>Next</th><th>Level</th></tr></thead>
+        <tbody>
+          <% (analytics.attentionQueue || []).forEach((item) => { %>
+            <tr>
+              <td><a class="request-id-link" href="<%= dashboardRequestBase %>/<%= item.id %>"><%= item.requestNumber %></a><small><%= item.subject %></small></td>
+              <td><%= item.client %></td>
+              <td><span class="rag-pill rag-<%= item.rag %>"><%= String(item.rag || 'grey').toUpperCase() %></span></td>
+              <td><%= item.nextAction %><small><%= item.nextDue %></small></td>
+              <td><%= item.supportLevel %></td>
+            </tr>
+          <% }) %>
+          <% if (!(analytics.attentionQueue || []).length) { %><tr><td colspan="5"><div class="empty-box"><strong>No SLA attention.</strong><p>Nothing is currently amber or red.</p></div></td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="card client-table-card">
+    <div class="section-head table-section-head"><div><p class="eyebrow">Recently closed</p><h3>Closure sample</h3></div><a class="text-link" href="<%= dashboardRequestBase %>?status=closed">View closed</a></div>
+    <div class="table-wrap no-wide-scroll">
+      <table class="clean-table compact-table dashboard-closed-table">
+        <thead><tr><th>Request</th><th>Client</th><th>Status</th><th>Resolution SLA</th></tr></thead>
+        <tbody>
+          <% (analytics.closedRequests || []).forEach((item) => { %>
+            <tr>
+              <td><a class="request-id-link" href="<%= dashboardRequestBase %>/<%= item.id %>"><%= item.requestNumber %></a><small><%= item.subject %></small></td>
+              <td><%= item.client %></td>
+              <td><%= item.status %></td>
+              <td><%= String(item.resolution || 'not_applicable').replaceAll('_',' ') %></td>
+            </tr>
+          <% }) %>
+          <% if (!(analytics.closedRequests || []).length) { %><tr><td colspan="4"><div class="empty-box"><strong>No closed requests in this range.</strong></div></td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
+
+<section class="dashboard-grid-four">
+  <% [['Issues by family', analytics.byFamily], ['Issues by status', analytics.byStatus], ['Issues by client', analytics.byClient], ['Assigned workload', analytics.byAssignee]].forEach(([title, rows]) => { %>
+    <article class="card pad rank-card">
+      <p class="eyebrow"><%= title %></p>
+      <div class="rank-list">
+        <% (rows || []).forEach((row) => { %><div><strong><%= row.label %></strong><span><%= row.value %></span></div><% }) %>
+        <% if (!(rows || []).length) { %><p class="muted">No data.</p><% } %>
+      </div>
+    </article>
+  <% }) %>
+</section>

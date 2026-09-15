@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <%- include('../partials/sidebar', { portal }) %>
+      <main class="main saved-filters-page">
+        <%- include('../partials/topbar', { organization, portal }) %>
+        <section class="page-head unified-page-head thin-head compact-only-head">
+          <div>
+            <p class="eyebrow">Sun Query Language</p>
+            <h2>Saved filters</h2>
+            <p>Run, share, or remove reusable request and client filters.</p>
+          </div>
+          <div class="actions"><a class="btn primary" href="<%= portalBase %>/filters">New query</a></div>
+        </section>
+        <section class="card client-table-card">
+          <div class="table-wrap no-wide-scroll">
+            <table class="clean-table compact-table saved-filters-table">
+              <thead><tr><th>Name</th><th>Target</th><th>Query</th><th>Visible to</th><th>Created by</th><th>Actions</th></tr></thead>
+              <tbody>
+                <% if (!savedFilters.length) { %><tr><td colspan="6" class="muted">No saved filters yet.</td></tr><% } %>
+                <% savedFilters.forEach((filter) => { %>
+                  <tr>
+                    <td><strong><%= filter.name %></strong></td>
+                    <td><span class="table-pill"><%= filter.target %></span></td>
+                    <td><code class="query-code"><%= filter.query || '—' %></code></td>
+                    <td>
+                      <form method="post" action="<%= portalBase %>/saved-filters/<%= filter._id %>/visibility" class="inline-select-form">
+                        <select name="visibilityScope" onchange="this.form.submit()" aria-label="Change filter visibility">
+                          <option value="private" <%= filter.visibilityScope === 'private' ? 'selected' : '' %>>Only me</option>
+                          <option value="team" <%= filter.visibilityScope === 'team' ? 'selected' : '' %>>My team</option>
+                          <option value="tenant" <%= filter.visibilityScope === 'tenant' ? 'selected' : '' %>>Everyone</option>
+                        </select>
+                      </form>
+                    </td>
+                    <td><%= filter.createdBy || '—' %></td>
+                    <td><div class="table-actions compact"><a href="<%= portalBase %>/filters?target=<%= filter.target %>&q=<%= encodeURIComponent(filter.query || '') %>">Run</a><form method="post" action="<%= portalBase %>/saved-filters/<%= filter._id %>/delete"><button class="table-link-button" type="submit">Remove</button></form></div></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <%- include('../partials/footer', { organization }) %>
+      </main>
+    </div>
+  </body>
+</html>

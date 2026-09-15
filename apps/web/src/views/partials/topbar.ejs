@@ -1,0 +1,8 @@
+<% /* Portal identity lives in the sidebar. Inner pages keep their own compact page title. */ %>
+<div class="topbar context-only" aria-hidden="true"></div>
+<% if (typeof globalFormError !== 'undefined' && globalFormError) { %>
+  <div class="alert error admin-page-alert global-form-alert" role="alert"><strong>Could not save.</strong><span><%= globalFormError %></span></div>
+<% } %>
+<% if (typeof globalFormNotice !== 'undefined' && globalFormNotice) { %>
+  <div class="alert success admin-page-alert global-form-alert" role="status"><strong>Done.</strong><span><%= globalFormNotice %></span></div>
+<% } %>

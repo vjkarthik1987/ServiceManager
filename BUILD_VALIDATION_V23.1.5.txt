@@ -1,0 +1,17 @@
+Service Manager v23.1.5 build validation
+========================================
+
+Scope:
+- SaaS acknowledgement eligibility hotfix
+- collision-proof minimalist Home layout
+
+Validation results:
+- Automated regression suite: PASS — 64/64
+- v23.1.5 focused tests: PASS — 5/5
+- JavaScript/MJS syntax: PASS — 69 files
+- EJS extracted-scriptlet syntax: PASS — 48 templates
+- v23 Normal Incident isolation guard: PASS
+
+Important deployment note:
+- No database schema change.
+- No UAT reseed required.

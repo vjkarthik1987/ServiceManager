@@ -1,0 +1,382 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V23",
+  "fields": [
+    {
+      "key": "SUMMARY",
+      "label": "Summary",
+      "type": "text",
+      "core": true,
+      "required": true,
+      "maxLength": 240
+    },
+    {
+      "key": "DESCRIPTION",
+      "label": "Description",
+      "type": "textarea",
+      "core": true,
+      "required": false,
+      "maxLength": 12000
+    },
+    {
+      "key": "INCIDENT_LEVEL",
+      "label": "Incident Level",
+      "type": "select",
+      "required": true,
+      "source": "support_levels"
+    },
+    {
+      "key": "SERVICE_REQUEST_LEVEL",
+      "label": "Service Request Level",
+      "type": "select",
+      "required": true,
+      "source": "support_levels"
+    },
+    {
+      "key": "SERVICE_REQUEST_SUBTYPE",
+      "label": "Service Request SubType",
+      "type": "select",
+      "required": true,
+      "source": "request_subtypes"
+    },
+    {
+      "key": "SEVERITY",
+      "label": "Severity",
+      "type": "select",
+      "required": true,
+      "source": "severities",
+      "permissions": {
+        "client": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": false
+        },
+        "agent": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "manager": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "admin": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        }
+      }
+    },
+    {
+      "key": "PRIORITY",
+      "label": "Priority",
+      "type": "select",
+      "required": false,
+      "source": "priorities",
+      "default": "P4",
+      "permissions": {
+        "client": {
+          "createVisible": false,
+          "createEditable": false,
+          "viewVisible": true,
+          "postCreateEditable": false
+        },
+        "agent": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "manager": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "admin": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        }
+      }
+    },
+    {
+      "key": "RAISED_ENVIRONMENT",
+      "label": "Raised Environment",
+      "type": "select",
+      "required": true,
+      "source": "client_environments"
+    },
+    {
+      "key": "COMPONENTS",
+      "label": "Components",
+      "type": "multiselect",
+      "required": false,
+      "source": "components"
+    },
+    {
+      "key": "S3_BUCKET_URL",
+      "label": "S3 Bucket URL",
+      "type": "url",
+      "required": false,
+      "maxLength": 2000
+    },
+    {
+      "key": "TEST_RELEASE",
+      "label": "Test Release",
+      "type": "text",
+      "required": false,
+      "maxLength": 240
+    },
+    {
+      "key": "CRITICAL_DATA_INVOLVED",
+      "label": "Critical Data Involved",
+      "type": "select",
+      "required": false,
+      "options": [
+        {
+          "value": "yes",
+          "label": "Yes"
+        },
+        {
+          "value": "no",
+          "label": "No"
+        },
+        {
+          "value": "unknown",
+          "label": "Unknown"
+        }
+      ]
+    },
+    {
+      "key": "RAISED_ON_BEHALF_OF",
+      "label": "Raise this request on behalf of",
+      "type": "user",
+      "required": false,
+      "source": "client_users"
+    },
+    {
+      "key": "APPLICATION_USERNAME",
+      "label": "Application Username",
+      "type": "text",
+      "required": true,
+      "maxLength": 180
+    },
+    {
+      "key": "AWS_IAM_USERNAME",
+      "label": "AWS IAM Username",
+      "type": "text",
+      "required": true,
+      "maxLength": 180
+    },
+    {
+      "key": "DEPARTMENT",
+      "label": "Department",
+      "type": "text",
+      "required": true,
+      "maxLength": 180
+    },
+    {
+      "key": "AWS_ACCOUNT_NO",
+      "label": "Account No.",
+      "type": "text",
+      "required": true,
+      "maxLength": 40,
+      "validation": {
+        "pattern": "^[0-9-]+$"
+      }
+    },
+    {
+      "key": "PRIVILEGES",
+      "label": "Privileges",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 3000
+    },
+    {
+      "key": "REASON",
+      "label": "Reason",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 3000
+    },
+    {
+      "key": "DEPARTMENT_APPROVAL",
+      "label": "Department Approval",
+      "type": "approval_ref",
+      "required": true,
+      "source": "department_approvers"
+    },
+    {
+      "key": "SERVICE_REQUEST_INITIATED_BY",
+      "label": "Service Request Initiated By",
+      "type": "text",
+      "required": true,
+      "maxLength": 180
+    },
+    {
+      "key": "DR_INITIATION_DATE",
+      "label": "DR Initiation Date",
+      "type": "date",
+      "required": true
+    },
+    {
+      "key": "TARGETED_DR_SWITCHOVER_TIME",
+      "label": "Targeted DR Switchover Time",
+      "type": "datetime",
+      "required": true
+    },
+    {
+      "key": "DR_DRILL_PERIOD",
+      "label": "DR Drill Period",
+      "type": "number",
+      "required": true,
+      "unit": "hours",
+      "validation": {
+        "min": 1
+      }
+    },
+    {
+      "key": "PRODUCTION_SWITCHOVER_DATE",
+      "label": "Production Switchover Date",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "BUSINESS_JUSTIFICATION",
+      "label": "Business Justification",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 3000
+    },
+    {
+      "key": "SCOPE_OF_ACCESS",
+      "label": "Scope of Access",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 3000
+    },
+    {
+      "key": "DURATION_HOURS",
+      "label": "Duration of Access (hours)",
+      "type": "number",
+      "required": false,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "key": "DURATION_DAYS",
+      "label": "Duration of Access (days)",
+      "type": "number",
+      "required": false,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "key": "APPROVER",
+      "label": "Approver",
+      "type": "user",
+      "required": false,
+      "source": "approvers"
+    },
+    {
+      "key": "ACTIVITY",
+      "label": "Activity",
+      "type": "text",
+      "required": false,
+      "maxLength": 180
+    },
+    {
+      "key": "DR_LOCATION",
+      "label": "DR Location",
+      "type": "select",
+      "required": false,
+      "source": "aws_regions"
+    },
+    {
+      "key": "COMPONENTS_SCANNED",
+      "label": "Components scanned",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 3000
+    },
+    {
+      "key": "DATE_OF_SCAN",
+      "label": "Date of Scan",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "RELEASE_ID",
+      "label": "Release ID",
+      "type": "text",
+      "required": false,
+      "maxLength": 180,
+      "visibility": {
+        "create": {
+          "saasIncident": false
+        },
+        "stages": [
+          "development",
+          "release",
+          "resolution"
+        ]
+      }
+    },
+    {
+      "key": "RELEASE_TYPE",
+      "label": "Release Type",
+      "type": "select",
+      "required": false,
+      "visibility": {
+        "create": {
+          "saasIncident": false
+        },
+        "stages": [
+          "development",
+          "release"
+        ]
+      }
+    },
+    {
+      "key": "RCA_CATEGORY",
+      "label": "RCA Category",
+      "type": "select",
+      "required": false,
+      "visibility": {
+        "create": {
+          "saasIncident": false
+        },
+        "stages": [
+          "resolved",
+          "closure",
+          "problem"
+        ]
+      }
+    },
+    {
+      "key": "ROOT_CAUSE",
+      "label": "Root Cause",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 6000,
+      "visibility": {
+        "create": {
+          "saasIncident": false
+        },
+        "stages": [
+          "resolved",
+          "closure",
+          "problem"
+        ]
+      }
+    }
+  ]
+}

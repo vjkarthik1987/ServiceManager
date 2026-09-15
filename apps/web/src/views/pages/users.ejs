@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · <%= appName %></title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <%- include('../partials/sidebar', { portal: 'admin' }) %>
+    <main class="main">
+      <%- include('../partials/topbar', { organization }) %>
+
+      <section class="page-head unified-page-head thin-head">
+        <div><p class="eyebrow">Identity & access</p><h2>Users</h2><p>One identity can play different roles for different clients.</p></div>
+        <div class="actions"><button class="btn primary" type="button" data-open-modal="addUserModal" onclick="const m=document.getElementById('addUserModal'); if(m && !m.open) m.showModal();">Add user</button></div>
+      </section>
+
+      <% if (notice) { %><div class="alert success admin-page-alert"><strong>Done.</strong><span><%= notice %></span></div><% } %>
+      <% if (errorMessage) { %><div class="alert error admin-page-alert"><strong>User not saved.</strong><span><%= errorMessage %></span></div><% } %>
+
+      <section class="card client-table-card users-table-page">
+        <div class="table-toolbar users-toolbar">
+          <input type="search" placeholder="Search users, emails, roles or clients..." data-filter-input="users" />
+          <div class="tab-pills" data-tab-group="users"><button class="active" type="button" data-role-filter="all">All</button><button type="button" data-role-filter="clientUser">Client users</button><button type="button" data-role-filter="partnerUser">Partner users</button><button type="button" data-role-filter="agentUser">Agents</button><button type="button" data-role-filter="agentManager">Managers</button><button type="button" data-role-filter="engagementManager">Engagement</button><button type="button" data-role-filter="organizationAdmin">Tenant Admins</button></div>
+        </div>
+        <% if (users.length) { %>
+          <div class="table-wrap"><table class="clean-table user-table compact-table"><thead><tr><th>User</th><th>Email</th><th>Roles</th><th>Client assignments</th><th>Status</th><th></th></tr></thead><tbody data-filter-list="users">
+            <% users.forEach((user) => { const roles = [...new Set((user.assignments || []).map((a) => a.role))]; if (user.isTenantAdmin) roles.unshift('organizationAdmin'); const roleText = roles.map((r) => r === 'organizationAdmin' ? 'Tenant admin' : (roleLabels[r] || r)).join(', '); const filterText = `${user.name} ${user.email} ${user.pendingEmail || ''} ${roleText} ${(user.assignmentLabels || []).join(' ')}`.toLowerCase(); const payload = user.serviceUserId ? encodeURIComponent(JSON.stringify({ id: String(user.serviceUserId), name: user.name, email: user.email, pendingEmail: user.pendingEmail || '', status: user.status, isTenantAdmin: Boolean(user.isTenantAdmin), assignments: user.assignments || [] })) : ''; %>
+              <tr data-filter-item="<%= filterText %>" data-user-roles="<%= roles.join(' ') %>">
+                <td><strong><%= user.name %></strong></td>
+                <td><%= user.email %><% if (user.pendingEmail) { %><small class="pending-email-note">Pending: <%= user.pendingEmail %></small><% } %></td>
+                <td><%= roleText || '—' %></td>
+                <td><div class="table-chip-wrap"><% (user.assignmentLabels || []).slice(0,3).forEach((label) => { %><span class="value-chip"><%= label %></span><% }) %><% if ((user.assignmentLabels || []).length > 3) { %><span class="value-chip">+<%= user.assignmentLabels.length - 3 %> more</span><% } %></div></td>
+                <td><span class="inline-status"><span class="status-dot <%= user.status === 'active' ? 'active' : '' %>"></span><span><%= user.status === 'active' ? 'Active' : (user.status === 'pending' ? 'Pending' : 'Inactive') %></span></span></td>
+                <td><div class="table-actions"><% if (user.serviceUserId) { %><button class="table-link-button" type="button" data-edit-user data-user-id="<%= user.serviceUserId %>" data-user-payload="<%= payload %>">Edit</button><% if (user.status === 'active') { %><form method="post" action="/admin/users/<%= user.serviceUserId %>/send-access-email"><button class="table-link-button" type="submit">Send access email</button></form><% } %><% } else if (user.adminId) { %><button class="table-link-button" type="button" data-open-modal="adminEmail_<%= user.adminId %>">Change email</button><% } %></div></td>
+              </tr>
+            <% }) %>
+          </tbody></table></div>
+        <% } else { %><div class="empty-box roomy"><strong>No operational users yet.</strong><p>Add a user and assign one or more client-specific roles.</p></div><% } %>
+      </section>
+      <%- include('../partials/footer', { organization }) %>
+    </main>
+  </div>
+
+  <% (admins || []).forEach((admin) => { %>
+    <dialog class="modal" id="adminEmail_<%= admin._id %>">
+      <form class="modal-card form compact-form" method="post" action="/admin/admins/<%= admin._id %>/email-change">
+        <div class="modal-head"><div><p class="eyebrow">Change login email</p><h3><%= admin.name %></h3></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+        <div class="info-callout"><strong>Current email</strong><span><%= admin.email %></span></div>
+        <label><span>New email</span><input type="email" name="newEmail" required autocomplete="email" placeholder="name@company.com" /></label>
+        <p class="field-hint">The current email stays active until the new address is verified. The old address receives a security notification after the change.</p>
+        <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit">Send verification</button></div>
+      </form>
+    </dialog>
+  <% }) %>
+
+  <dialog class="modal extra-wide" id="addUserModal">
+    <form class="modal-card form user-admin-form" method="post" action="/admin/users" data-user-form>
+      <div class="modal-head"><div><p class="eyebrow">Create user</p><h2>Add user</h2></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+      <div class="form-inline-error" data-form-error hidden role="alert"></div>
+      <div class="two-col"><label><span>Name <em>*</em></span><input name="name" required maxlength="120"></label><label><span>Email <em>*</em></span><input name="email" type="email" required maxlength="180"></label></div>
+      <div class="two-col"><label><span>Password</span><input name="password" value="password" required minlength="6"></label><label><span>Status</span><select name="status"><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div>
+      <label class="check-line"><input type="checkbox" name="makeTenantAdmin" /><span>Make this user a tenant admin</span></label>
+      <%- include('../partials/user-assignments', { clients, selectedAssignments: [], prefix: 'new' }) %>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit" data-submitting-label="Creating…">Create user</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal extra-wide" id="editUserModal">
+    <form class="modal-card form user-admin-form" method="post" action="/admin/users" data-user-form data-edit-user-form>
+      <div class="modal-head"><div><p class="eyebrow">Edit access</p><h2 data-edit-user-title>Edit user</h2><p data-edit-user-email></p></div><button class="icon-btn" type="button" data-close-modal>×</button></div>
+      <div class="form-inline-error" data-form-error hidden role="alert"></div>
+      <input type="hidden" name="email" data-edit-user-email-input />
+      <div class="identity-email-change"><div><span>Current login email</span><strong data-edit-user-email-current>—</strong><small data-edit-user-email-pending></small></div><label><span>Change email <small>(optional)</small></span><input name="newEmail" type="email" data-edit-user-new-email placeholder="new.name@company.com"><small>New login email is applied only after verification.</small></label></div>
+      <div class="two-col"><label><span>Name</span><input name="name" data-edit-user-name required></label><label><span>Status</span><select name="status" data-edit-user-status><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div>
+      <label><span>New password <small>(leave blank to keep)</small></span><input name="password" type="password" minlength="6"></label>
+      <label class="check-line"><input type="checkbox" name="makeTenantAdmin" data-edit-user-admin /><span>Tenant admin access</span></label>
+      <%- include('../partials/user-assignments', { clients, selectedAssignments: [], prefix: 'edit' }) %>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close-modal>Cancel</button><button class="btn primary" type="submit" data-submitting-label="Saving…">Save assignments</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

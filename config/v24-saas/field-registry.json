@@ -1,0 +1,486 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V24",
+  "fields": [
+    {
+      "key": "SUMMARY",
+      "label": "Summary",
+      "type": "text",
+      "core": true,
+      "required": true,
+      "maxLength": 240
+    },
+    {
+      "key": "DESCRIPTION",
+      "label": "Description",
+      "type": "textarea",
+      "core": true,
+      "required": false,
+      "maxLength": 12000
+    },
+    {
+      "key": "INCIDENT_LEVEL",
+      "label": "Incident Level",
+      "type": "select",
+      "required": true,
+      "source": "support_levels",
+      "options": [
+        {
+          "value": "L1",
+          "label": "Bank / L1"
+        },
+        {
+          "value": "L2",
+          "label": "Partner / L2"
+        },
+        {
+          "value": "L3",
+          "label": "SunTec / L3"
+        }
+      ],
+      "helpText": "Customer SLA applies only when Incident Level is Bank / L1 or the incident is explicitly raised on behalf of the bank."
+    },
+    {
+      "key": "SERVICE_REQUEST_LEVEL",
+      "label": "Service Request Level",
+      "type": "select",
+      "required": true,
+      "source": "support_levels"
+    },
+    {
+      "key": "SERVICE_REQUEST_SUBTYPE",
+      "label": "Service Request SubType",
+      "type": "select",
+      "required": true,
+      "source": "request_subtypes"
+    },
+    {
+      "key": "SEVERITY",
+      "label": "Severity",
+      "type": "select",
+      "required": true,
+      "source": "severities",
+      "permissions": {
+        "client": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "agent": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "manager": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "admin": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        }
+      }
+    },
+    {
+      "key": "PRIORITY",
+      "label": "Priority",
+      "type": "select",
+      "required": true,
+      "source": "priorities",
+      "default": "P4",
+      "permissions": {
+        "client": {
+          "createVisible": false,
+          "createEditable": false,
+          "viewVisible": false,
+          "postCreateEditable": false
+        },
+        "agent": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "manager": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        },
+        "admin": {
+          "createVisible": true,
+          "createEditable": true,
+          "viewVisible": true,
+          "postCreateEditable": true
+        }
+      }
+    },
+    {
+      "key": "RAISED_ENVIRONMENT",
+      "label": "Raised Environment",
+      "type": "select",
+      "required": true,
+      "source": "client_environments"
+    },
+    {
+      "key": "COMPONENTS",
+      "label": "Components",
+      "type": "multiselect",
+      "required": false,
+      "options": [
+        {
+          "value": "Application",
+          "label": "Application"
+        },
+        {
+          "value": "Infrastructure",
+          "label": "Infrastructure"
+        },
+        {
+          "value": "Services",
+          "label": "Services"
+        }
+      ]
+    },
+    {
+      "key": "S3_BUCKET_URL",
+      "label": "S3 Bucket URL",
+      "type": "url",
+      "required": false,
+      "maxLength": 2000,
+      "helpText": "Provide an approved S3 link for screenshots, logs or incident evidence."
+    },
+    {
+      "key": "TEST_RELEASE",
+      "label": "Test Release",
+      "type": "text",
+      "required": false,
+      "maxLength": 240
+    },
+    {
+      "key": "RAISED_ON_BEHALF_OF",
+      "label": "Raise this request on behalf of",
+      "type": "user",
+      "required": false,
+      "source": "client_users"
+    },
+    {
+      "key": "APPLICATION_USERNAME",
+      "label": "Application Username",
+      "type": "text",
+      "required": true,
+      "maxLength": 180
+    },
+    {
+      "key": "AWS_IAM_USERNAME",
+      "label": "AWS IAM Username",
+      "type": "text",
+      "required": true,
+      "maxLength": 180
+    },
+    {
+      "key": "DEPARTMENT",
+      "label": "Department",
+      "type": "text",
+      "required": true,
+      "maxLength": 180
+    },
+    {
+      "key": "AWS_ACCOUNT_NO",
+      "label": "Account No.",
+      "type": "text",
+      "required": true,
+      "maxLength": 40,
+      "validation": {
+        "pattern": "^[0-9-]+$"
+      }
+    },
+    {
+      "key": "PRIVILEGES",
+      "label": "Privileges",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 3000
+    },
+    {
+      "key": "REASON",
+      "label": "Reason",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 3000
+    },
+    {
+      "key": "DEPARTMENT_APPROVAL",
+      "label": "Department Approval",
+      "type": "approval_ref",
+      "required": true,
+      "source": "department_approvers"
+    },
+    {
+      "key": "SERVICE_REQUEST_INITIATED_BY",
+      "label": "Service Request Initiated By",
+      "type": "text",
+      "required": true,
+      "maxLength": 180
+    },
+    {
+      "key": "DR_INITIATION_DATE",
+      "label": "DR Initiation Date",
+      "type": "date",
+      "required": true
+    },
+    {
+      "key": "TARGETED_DR_SWITCHOVER_TIME",
+      "label": "Targeted DR Switchover Time",
+      "type": "datetime",
+      "required": true
+    },
+    {
+      "key": "DR_DRILL_PERIOD",
+      "label": "DR Drill Period",
+      "type": "number",
+      "required": true,
+      "unit": "hours",
+      "validation": {
+        "min": 1
+      }
+    },
+    {
+      "key": "PRODUCTION_SWITCHOVER_DATE",
+      "label": "Production Switchover Date",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "BUSINESS_JUSTIFICATION",
+      "label": "Business Justification",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 3000
+    },
+    {
+      "key": "SCOPE_OF_ACCESS",
+      "label": "Scope of Access",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 3000
+    },
+    {
+      "key": "DURATION_HOURS",
+      "label": "Duration of Access (hours)",
+      "type": "number",
+      "required": false,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "key": "DURATION_DAYS",
+      "label": "Duration of Access (days)",
+      "type": "number",
+      "required": false,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "key": "APPROVER",
+      "label": "Approver",
+      "type": "user",
+      "required": false,
+      "source": "approvers"
+    },
+    {
+      "key": "ACTIVITY",
+      "label": "Activity",
+      "type": "text",
+      "required": false,
+      "maxLength": 180
+    },
+    {
+      "key": "DR_LOCATION",
+      "label": "DR Location",
+      "type": "select",
+      "required": false,
+      "source": "aws_regions"
+    },
+    {
+      "key": "COMPONENTS_SCANNED",
+      "label": "Components scanned",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 3000
+    },
+    {
+      "key": "DATE_OF_SCAN",
+      "label": "Date of Scan",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "RELEASE_ID",
+      "label": "Release ID",
+      "type": "text",
+      "required": false,
+      "maxLength": 180,
+      "visibility": {
+        "create": {
+          "saasIncident": false
+        },
+        "stages": [
+          "development",
+          "release",
+          "resolution"
+        ]
+      }
+    },
+    {
+      "key": "RELEASE_TYPE",
+      "label": "Release Type",
+      "type": "select",
+      "required": false,
+      "visibility": {
+        "create": {
+          "saasIncident": false
+        },
+        "stages": [
+          "development",
+          "release"
+        ]
+      }
+    },
+    {
+      "key": "RCA_CATEGORY",
+      "label": "RCA Category",
+      "type": "select",
+      "required": false,
+      "visibility": {
+        "create": {
+          "saasIncident": false
+        },
+        "stages": [
+          "resolved",
+          "closure",
+          "problem"
+        ]
+      }
+    },
+    {
+      "key": "ROOT_CAUSE",
+      "label": "Root Cause",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 6000,
+      "visibility": {
+        "create": {
+          "saasIncident": false
+        },
+        "stages": [
+          "resolved",
+          "closure",
+          "problem"
+        ]
+      }
+    },
+    {
+      "key": "INCIDENT_FURTHER_CLASSIFICATION",
+      "label": "Further Classification",
+      "type": "select",
+      "required": true,
+      "helpText": "Choose the closest incident classification. Values are configured per Incident subtype."
+    },
+    {
+      "key": "CLIENT_DATA_INVOLVED",
+      "label": "Client Data Involved",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "yes",
+          "label": "Yes"
+        },
+        {
+          "value": "no",
+          "label": "No"
+        },
+        {
+          "value": "unknown",
+          "label": "Unknown / to be confirmed"
+        }
+      ]
+    },
+    {
+      "key": "MAINTENANCE_RELEASE_REQUEST",
+      "label": "Maintenance Release Request",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "Planned Release",
+          "label": "Planned Release"
+        },
+        {
+          "value": "Emergency Release",
+          "label": "Emergency Release"
+        },
+        {
+          "value": "Proactive Release",
+          "label": "Proactive Release"
+        }
+      ]
+    },
+    {
+      "key": "PURPOSE_OF_PACK",
+      "label": "Purpose of Pack",
+      "type": "text",
+      "required": true,
+      "maxLength": 500
+    },
+    {
+      "key": "TEST_CASE_LINK",
+      "label": "Test Case Link",
+      "type": "url",
+      "required": false,
+      "maxLength": 2000,
+      "helpText": "Link to test evidence from the prior environment."
+    },
+    {
+      "key": "REQUEST_DUE_DATE",
+      "label": "Request Due Date",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "EXCEPTION_APPROVER",
+      "label": "Exception Approver",
+      "type": "text",
+      "required": false,
+      "maxLength": 240
+    },
+    {
+      "key": "TEST_EXECUTION_LINKS",
+      "label": "Test Execution Links",
+      "type": "textarea",
+      "required": false,
+      "maxLength": 3000
+    },
+    {
+      "key": "DR_SWITCHOVER_TIME",
+      "label": "DR Switchover Time",
+      "type": "text",
+      "required": false,
+      "maxLength": 180
+    },
+    {
+      "key": "DR_ACTIVITY_CLOSURE_DATE",
+      "label": "DR Activity Closure Date",
+      "type": "date",
+      "required": false
+    }
+  ]
+}

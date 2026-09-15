@@ -1,0 +1,78 @@
+{
+  "name": "Service Manager v25 Full",
+  "version": "25.0.0",
+  "releaseDate": "2026-09-15",
+  "releaseLabel": "Live Jira API Workflow Rebuild",
+  "status": "validated-for-uat",
+  "fileCount": 266,
+  "validation": {
+    "automatedTests": 128,
+    "passed": 128,
+    "failed": 0,
+    "v25WorkflowSourceTruthFocusedTests": 11,
+    "v25WorkflowSourceTruthFocusedPassed": 11,
+    "sharedV24ConfigValidation": "PASS",
+    "buildScriptSyntax": "PASS",
+    "migrationScriptSyntax": "PASS",
+    "requestSyncScriptSyntax": "PASS"
+  },
+  "workflowAuthority": "Live Jira REST exports",
+  "workflowSources": [
+    "config/v24-saas/jira-source/incident.full.json",
+    "config/v24-saas/jira-source/change.full.json",
+    "config/v24-saas/jira-source/problem.full.json",
+    "config/v24-saas/jira-source/maintenance.full.json"
+  ],
+  "workflowCounts": {
+    "incident": {
+      "statuses": 27,
+      "jiraTransitionObjects": 58,
+      "directedEdges": 100,
+      "globalActions": 3,
+      "sourceWorkflowName": "Copy of Incident Workflow-26/12/25-CBAJIRA",
+      "sourceWorkflowVersion": 6,
+      "sourceSha256": "bad910f08e43fed7ae23fb6db2ea7e530d429334d4c91bb2606c72beaf082497"
+    },
+    "changeRequest": {
+      "statuses": 29,
+      "jiraTransitionObjects": 35,
+      "directedEdges": 54,
+      "globalActions": 1,
+      "sourceWorkflowName": "Change Request Workflow-CBAJIRA",
+      "sourceWorkflowVersion": 1,
+      "sourceSha256": "6d843f9a09157fce6b33115c3139143e8a36a56bc457f594676add4807b993e5"
+    },
+    "problem": {
+      "statuses": 7,
+      "jiraTransitionObjects": 9,
+      "directedEdges": 14,
+      "globalActions": 0,
+      "sourceWorkflowName": "Problem Management Workflow-CBAJIRA",
+      "sourceWorkflowVersion": 1,
+      "sourceSha256": "f8fc616510f07e7a992b89b4ddf22a473cb5ce61664550213aee0b113a16402f"
+    },
+    "maintenanceRequest": {
+      "statuses": 24,
+      "jiraTransitionObjects": 56,
+      "directedEdges": 69,
+      "globalActions": 0,
+      "sourceWorkflowName": "SunTec:Maintenance Request workflow-23/3/26",
+      "sourceWorkflowVersion": 14,
+      "sourceSha256": "d4ffafde97084a3a7239bac021114166c1764dbff8cc2371b365f0b58434e22e"
+    }
+  },
+  "serviceRequest": "deferred",
+  "releaseFocus": [
+    "Replace PPT-derived workflow authority with live Jira REST workflow definitions",
+    "Preserve exact Jira transition identity, conditions, validators, screens, approval configuration and actions",
+    "Project Jira multi-source transitions into exact Service Manager directed edges",
+    "Retain role/support routing and return-state semantics from live Incident workflow",
+    "Provide controlled v25 configuration migration and existing-open-request snapshot sync"
+  ],
+  "migration": {
+    "configurationDryRun": "npm run migrate:v25:dry",
+    "configurationApply": "npm run migrate:v25",
+    "openRequestDryRun": "npm run sync:v25:dry",
+    "openRequestApply": "npm run sync:v25"
+  }
+}

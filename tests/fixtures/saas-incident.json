@@ -1,0 +1,7 @@
+{
+  "serviceModelKey":"SUNTEC_SAAS_V23",
+  "level1Type": {"code":"SAAS_INCIDENT","name":"Incident"},
+  "level2Type": {"code":"SAAS_APPLICATION_INCIDENT","name":"Application Incident"},
+  "currentSupportLevel":"L2",
+  "currentStatus":{"name":"Analysis","statusType":"active"}
+}

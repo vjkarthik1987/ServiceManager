@@ -1,0 +1,38 @@
+Service Manager v24.2.2 — Build Validation
+===========================================
+Date: 2026-09-11
+Version: 24.2.2
+Focus: JSM workflow alignment from supplied Incident, Problem, Change Request and Maintenance Request decks
+
+Focused workflow suite
+----------------------
+Command: npm run test:v24.2.2
+Result : PASS — 11/11
+
+v24 configuration validation
+----------------------------
+Command: npm run validate:v24
+Result : PASS
+Fields: 47
+Forms: 22
+Workflows: 8
+Support paths: 1
+Bindings: 22
+
+Full regression suite
+---------------------
+Command: npm run test:all
+Result : PASS — 128/128
+
+Migration scripts
+-----------------
+scripts/migrate-suntecgroup-to-v24.2.2-workflows.mjs      syntax PASS
+scripts/sync-open-requests-to-v24.2.2-workflows.mjs       syntax PASS
+
+Safety
+------
+- Workflow configuration migration is DRY RUN by default.
+- Apply mode creates a backup before writes.
+- Existing request sync is separate and DRY RUN by default.
+- Existing request sync preserves comments, attachments, history, tasks, ownership and SLA clocks.
+- Customer Incident rule deliberately requires New -> Analysis before Request to L2 Support.

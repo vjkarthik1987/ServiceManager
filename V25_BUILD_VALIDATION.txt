@@ -1,0 +1,12 @@
+# Service Manager v25.0.0 — Build Validation
+
+- JavaScript syntax checks: PASS
+- v24 configuration validator (shared service-model schema): PASS
+- v25 live-Jira source-truth tests: 11/11 PASS
+- complete regression suite: 128/128 PASS
+- workflow source snapshots included: PASS
+- v25 dry-run/apply migration scripts included: PASS
+- v25 open-request dry-run/apply sync scripts included: PASS
+- Service Request rebuild: DEFERRED BY SCOPE
+
+Validated on Node.js 22.16.0.

@@ -1,0 +1,200 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V23",
+  "bindings": [
+    {
+      "formKey": "SAAS_INCIDENT_APPLICATION",
+      "family": "INCIDENT",
+      "subtype": "Application Incident",
+      "aliases": [
+        "Application"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "approvalPolicyKey": null,
+      "allowRaisedOnBehalfOf": false
+    },
+    {
+      "formKey": "SAAS_INCIDENT_COMPLIANCE",
+      "family": "INCIDENT",
+      "subtype": "Compliance Incident",
+      "aliases": [
+        "Compliance"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "approvalPolicyKey": null,
+      "allowRaisedOnBehalfOf": false
+    },
+    {
+      "formKey": "SAAS_INCIDENT_INFRASTRUCTURE",
+      "family": "INCIDENT",
+      "subtype": "Infrastructure Incident",
+      "aliases": [
+        "Infrastructure"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "approvalPolicyKey": null,
+      "allowRaisedOnBehalfOf": false
+    },
+    {
+      "formKey": "SAAS_INCIDENT_OPERATIONAL",
+      "family": "INCIDENT",
+      "subtype": "Operational Incident",
+      "aliases": [
+        "Operations Incident",
+        "Operation Incident"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "approvalPolicyKey": null,
+      "allowRaisedOnBehalfOf": false
+    },
+    {
+      "formKey": "SAAS_INCIDENT_SECURITY",
+      "family": "INCIDENT",
+      "subtype": "Security Incident",
+      "aliases": [
+        "Cyber Security Incident"
+      ],
+      "workflowKey": "WF_SAAS_INCIDENT",
+      "approvalPolicyKey": null,
+      "allowRaisedOnBehalfOf": false
+    },
+    {
+      "formKey": "SAAS_SR_APPLICATION_USER_ACCESS",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Application User Access",
+      "aliases": [
+        "Application User Access create, modify, Delete",
+        "Application Access"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_AWS_USER_ACCESS",
+      "family": "SERVICE_REQUEST",
+      "subtype": "AWS User Access",
+      "aliases": [
+        "AWS User Access create, modify, Delete"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_BASTION_HOST_ACCESS",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Bastion Host Access",
+      "aliases": [
+        "Bastion Access",
+        "Bastion Host Access Create, Modify, Delete"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_BUSINESS_CONFIGURATION",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Business Configuration",
+      "aliases": [
+        "Business Configuration change",
+        "Business Configuration changes"
+      ],
+      "workflowKey": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_DB_CICD",
+      "family": "SERVICE_REQUEST",
+      "subtype": "DB data through CICD Pipeline",
+      "aliases": [
+        "DB data through CICD",
+        "DB Extracts"
+      ],
+      "workflowKey": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_CONTAINER_IMAGE_DELETE",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Deletion of Application Container Image",
+      "aliases": [
+        "Application Container Image Deletion"
+      ],
+      "workflowKey": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_DR_BCP",
+      "family": "SERVICE_REQUEST",
+      "subtype": "DR drill / BCP",
+      "aliases": [
+        "DR drill/BCP",
+        "DR Drill and Business Continuity Plan"
+      ],
+      "workflowKey": "WF_SAAS_DR_BCP_REQUEST",
+      "approvalPolicyKey": "APPROVAL_BANK_AND_SUPPORT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_DYNAMIC_REPORTS",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Dynamic Reports for Clients/SunTec",
+      "aliases": [
+        "Dynamic Reports",
+        "Dynamic Reports and DB Extracts"
+      ],
+      "workflowKey": "WF_SAAS_SERVICE_REQUEST_GENERIC",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_EMAIL_CREATION",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Email Creation",
+      "aliases": [
+        "Email Access",
+        "Email Access Create, Modify, Delete"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_FEDERATED_ACCESS",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Federated Access",
+      "aliases": [],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "approvalPolicyKey": "APPROVAL_DEPARTMENT",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_PRIVILEGED_ACCESS",
+      "family": "SERVICE_REQUEST",
+      "subtype": "Privileged Access",
+      "aliases": [
+        "Privilege Access",
+        "Privileged Account Access"
+      ],
+      "workflowKey": "WF_SAAS_ACCESS_REQUEST",
+      "approvalPolicyKey": "APPROVAL_PRIVILEGED_ACCESS",
+      "allowRaisedOnBehalfOf": true
+    },
+    {
+      "formKey": "SAAS_SR_PITR",
+      "family": "SERVICE_REQUEST",
+      "subtype": "PITR Drill",
+      "aliases": [
+        "PITR",
+        "Point in Time Recovery Drill"
+      ],
+      "workflowKey": "WF_SAAS_PITR_REQUEST",
+      "approvalPolicyKey": "APPROVAL_BANK_AND_SUPPORT",
+      "allowRaisedOnBehalfOf": true
+    }
+  ]
+}

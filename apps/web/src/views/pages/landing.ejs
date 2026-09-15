@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= appName %></title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="public-landing-page">
+    <main class="public-landing-stage">
+      <nav class="public-landing-nav" aria-label="Service Desk">
+        <a class="public-brand" href="/"><span class="public-brand-mark">S</span><span>SunTec Service Desk</span></a>
+        <% if (organization) { %><a class="public-admin-link" href="<%= adminLoginUrl %>">Admin sign in</a><% } %>
+      </nav>
+      <section class="public-landing-hero">
+        <div class="public-landing-copy">
+          <p class="eyebrow">Service orchestration</p>
+          <h1>Support without the noise.</h1>
+          <p class="public-landing-lead"><%= organization ? `One calm place to raise, follow and resolve work for ${organization.name}.` : 'A calm, accountable workspace for clients, partners and support teams.' %></p>
+          <% if (serviceIssue) { %>
+            <div class="public-service-note"><strong>Service Desk is starting up.</strong><span>The application services are not reachable yet. Try again shortly.</span></div>
+          <% } else if (organization) { %>
+            <div class="public-landing-actions">
+              <a class="btn primary public-primary-action" href="<%= tenantLoginUrl %>">Sign in</a>
+              <span class="public-workspace-label"><%= organization.name %></span>
+            </div>
+          <% } else { %>
+            <div class="public-landing-actions">
+              <a class="btn primary public-primary-action" href="<%= setupUrl %>">Create workspace</a>
+              <span class="public-workspace-label">First-time setup</span>
+            </div>
+          <% } %>
+        </div>
+        <div class="public-landing-orbit" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+      </section>
+      <footer class="public-landing-footer"><span>SunTec Service Desk</span><span>Warm Command Minimal</span></footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+{
+  "serviceModelKey": "SUNTEC_SAAS_V23",
+  "policies": [
+    {
+      "key": "APPROVAL_DEPARTMENT",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "Department Approval",
+      "mode": "single",
+      "resolver": "field:DEPARTMENT_APPROVAL",
+      "states": [
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled"
+      ],
+      "actions": [
+        "approve",
+        "reject",
+        "request_information"
+      ]
+    },
+    {
+      "key": "APPROVAL_BANK_AND_SUPPORT",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "Bank + SunTec Support Approval",
+      "mode": "role_or_named",
+      "resolver": "roles:bank_poc,suntec_support_manager",
+      "states": [
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled"
+      ],
+      "actions": [
+        "approve",
+        "reject",
+        "request_information"
+      ]
+    },
+    {
+      "key": "APPROVAL_PRIVILEGED_ACCESS",
+      "serviceModelKey": "SUNTEC_SAAS_V23",
+      "name": "Privileged Access Approval",
+      "mode": "role_or_named",
+      "resolver": "roles:saas_coe_head,saas_ciso,global_support_manager",
+      "states": [
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled"
+      ],
+      "actions": [
+        "approve",
+        "reject",
+        "request_information"
+      ]
+    }
+  ]
+}

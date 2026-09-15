@@ -1,0 +1,12 @@
+{
+  "version": "23.1.6",
+  "fileCount": 211,
+  "fullSource": true,
+  "setupScripts": [
+    "scripts/setup-suntec-users.mjs",
+    "scripts/setup-request-taxonomy.mjs",
+    "scripts/seed-uat-master-data.mjs",
+    "scripts/seed-uat-users-slas.mjs",
+    "scripts/seed-uat-support-model.mjs"
+  ]
+}
